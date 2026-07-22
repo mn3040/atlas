@@ -1,0 +1,52 @@
+.atlas-calendar {
+  --fc-border-color: var(--color-border);
+  --fc-page-bg-color: transparent;
+  --fc-neutral-bg-color: var(--color-surface);
+  --fc-list-event-hover-bg-color: var(--color-surface-2);
+  --fc-today-bg-color: var(--color-surface-2);
+  color: var(--color-text);
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+}
+
+.atlas-calendar .fc-col-header-cell-cushion,
+.atlas-calendar .fc-daygrid-day-number {
+  color: var(--color-text-dim);
+  text-decoration: none;
+}
+
+.atlas-calendar .fc-day-has-stop {
+  cursor: pointer;
+}
+
+.atlas-calendar .fc-daygrid-day-top {
+  align-items: center;
+  gap: 4px;
+}
+
+.atlas-day-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+
+.atlas-calendar .fc-day-has-stop:hover {
+  background: var(--color-surface-2);
+}
+
+.atlas-calendar .fc-toolbar-title {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  color: var(--color-text);
+}
+
+.atlas-calendar .fc-button {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  color: var(--color-text);
+}
+
+.atlas-calendar .fc-button:hover {
+  background: var(--color-surface-2);
+}
