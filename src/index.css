@@ -1,5 +1,5 @@
 @import "tailwindcss";
-@import "@tomtom-international/web-sdk-maps/dist/maps.css";
+@import "@tomtom-international/web-sdk-maps/dist/maps.css" layer(base);
 
 @theme {
   /* Waypoint — deep navy dusk, not neutral black */
