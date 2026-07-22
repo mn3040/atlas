@@ -1,22 +1,17 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { useSession } from './hooks/useSession'
-import SignIn from './pages/SignIn'
 import Dashboard from './pages/Dashboard'
 import TripDetail from './pages/TripDetail'
 
-function RequireAuth({ children }: { children: React.ReactNode }) {
+function WithSession({ children }: { children: React.ReactNode }) {
   const { session, loading } = useSession()
 
-  if (loading) {
+  if (loading || !session) {
     return (
       <div className="flex min-h-screen items-center justify-center font-mono text-sm text-text-dim">
         Loading…
       </div>
     )
-  }
-
-  if (!session) {
-    return <Navigate to="/signin" replace />
   }
 
   return <>{children}</>
@@ -26,21 +21,20 @@ function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/signin" element={<SignIn />} />
         <Route
           path="/"
           element={
-            <RequireAuth>
+            <WithSession>
               <Dashboard />
-            </RequireAuth>
+            </WithSession>
           }
         />
         <Route
           path="/trips/:tripId"
           element={
-            <RequireAuth>
+            <WithSession>
               <TripDetail />
-            </RequireAuth>
+            </WithSession>
           }
         />
       </Routes>

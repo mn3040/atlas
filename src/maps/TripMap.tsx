@@ -1,11 +1,18 @@
 import { useEffect, useRef } from 'react'
 import maplibregl from 'maplibre-gl'
 import { lineColorForIndex } from '../utils/lineColors'
-import type { Day, Stop } from '../types/trip'
+import type { Day, Item } from '../types/trip'
 
 const MAP_STYLE = 'https://tiles.openfreemap.org/styles/liberty'
+const STAY_COLOR = '#f2e9d8'
 
-export function TripMap({ days, stopsByDay }: { days: Day[]; stopsByDay: Record<string, Stop[]> }) {
+interface FlightPathFeature {
+  type: 'Feature'
+  properties: { color: string }
+  geometry: { type: 'LineString'; coordinates: [number, number][] }
+}
+
+export function TripMap({ days, items }: { days: Day[]; items: Item[] }) {
   const containerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<maplibregl.Map | null>(null)
   const markersRef = useRef<maplibregl.Marker[]>([])
@@ -30,39 +37,110 @@ export function TripMap({ days, stopsByDay }: { days: Day[]; stopsByDay: Record<
     const map = mapRef.current
     if (!map) return
 
-    markersRef.current.forEach((marker) => marker.remove())
-    markersRef.current = []
+    const dayColor = new Map(days.map((day, index) => [day.id, lineColorForIndex(index)]))
 
-    const bounds = new maplibregl.LngLatBounds()
-    let hasStops = false
+    function render() {
+      markersRef.current.forEach((marker) => marker.remove())
+      markersRef.current = []
+      if (map!.getLayer('flight-paths')) map!.removeLayer('flight-paths')
+      if (map!.getSource('flight-paths')) map!.removeSource('flight-paths')
 
-    days.forEach((day, dayIndex) => {
-      const color = lineColorForIndex(dayIndex)
-      const stops = stopsByDay[day.id] ?? []
-      stops.forEach((stop) => {
-        const el = document.createElement('div')
-        el.style.width = '14px'
-        el.style.height = '14px'
-        el.style.borderRadius = '50%'
-        el.style.background = color
-        el.style.border = '2px solid #0f1e1b'
-        el.style.boxShadow = '0 0 0 1px rgba(0,0,0,0.3)'
+      const bounds = new maplibregl.LngLatBounds()
+      let hasPoints = false
+      const flightFeatures: FlightPathFeature[] = []
 
-        const marker = new maplibregl.Marker({ element: el })
-          .setLngLat([stop.lng, stop.lat])
-          .setPopup(new maplibregl.Popup({ offset: 12 }).setText(stop.name))
-          .addTo(map)
+      items.forEach((item) => {
+        const color = item.dayId ? dayColor.get(item.dayId) ?? STAY_COLOR : STAY_COLOR
 
-        markersRef.current.push(marker)
-        bounds.extend([stop.lng, stop.lat])
-        hasStops = true
+        if (item.type === 'stay') {
+          addMarker(map!, item.lat, item.lng, STAY_COLOR, '🛏', item.name, markersRef.current)
+          bounds.extend([item.lng, item.lat])
+          hasPoints = true
+          return
+        }
+
+        if (item.type === 'flight') {
+          addMarker(map!, item.lat, item.lng, color, '✈', item.name, markersRef.current)
+          bounds.extend([item.lng, item.lat])
+          hasPoints = true
+          if (item.lat2 != null && item.lng2 != null) {
+            addMarker(map!, item.lat2, item.lng2, color, '✈', item.name, markersRef.current)
+            bounds.extend([item.lng2, item.lat2])
+            flightFeatures.push({
+              type: 'Feature',
+              properties: { color },
+              geometry: {
+                type: 'LineString',
+                coordinates: [
+                  [item.lng, item.lat],
+                  [item.lng2, item.lat2],
+                ],
+              },
+            })
+          }
+          return
+        }
+
+        addMarker(map!, item.lat, item.lng, color, null, item.name, markersRef.current)
+        bounds.extend([item.lng, item.lat])
+        hasPoints = true
       })
-    })
 
-    if (hasStops) {
-      map.fitBounds(bounds, { padding: 48, maxZoom: 14, duration: 500 })
+      if (flightFeatures.length > 0) {
+        map!.addSource('flight-paths', {
+          type: 'geojson',
+          data: { type: 'FeatureCollection', features: flightFeatures },
+        })
+        map!.addLayer({
+          id: 'flight-paths',
+          type: 'line',
+          source: 'flight-paths',
+          paint: {
+            'line-color': ['get', 'color'],
+            'line-width': 2,
+            'line-dasharray': [2, 2],
+          },
+        })
+      }
+
+      if (hasPoints) {
+        map!.fitBounds(bounds, { padding: 48, maxZoom: 14, duration: 500 })
+      }
     }
-  }, [days, stopsByDay])
+
+    if (map.isStyleLoaded()) render()
+    else map.once('load', render)
+  }, [days, items])
 
   return <div ref={containerRef} className="h-full w-full rounded-md" />
+}
+
+function addMarker(
+  map: maplibregl.Map,
+  lat: number,
+  lng: number,
+  color: string,
+  emoji: string | null,
+  label: string,
+  registry: maplibregl.Marker[],
+) {
+  const el = document.createElement('div')
+  el.style.width = '18px'
+  el.style.height = '18px'
+  el.style.borderRadius = '50%'
+  el.style.background = color
+  el.style.border = '2px solid #0f1e1b'
+  el.style.boxShadow = '0 0 0 1px rgba(0,0,0,0.3)'
+  el.style.display = 'flex'
+  el.style.alignItems = 'center'
+  el.style.justifyContent = 'center'
+  el.style.fontSize = '10px'
+  if (emoji) el.textContent = emoji
+
+  const marker = new maplibregl.Marker({ element: el })
+    .setLngLat([lng, lat])
+    .setPopup(new maplibregl.Popup({ offset: 12 }).setText(label))
+    .addTo(map)
+
+  registry.push(marker)
 }

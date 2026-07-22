@@ -1,17 +1,19 @@
 import { DayLine } from './DayLine'
 import { lineColorForIndex } from '../utils/lineColors'
-import type { Day, Stop, StopCategory } from '../types/trip'
+import type { Day, Item } from '../types/trip'
 
 export function LineMapTimeline({
   days,
-  stopsByDay,
+  itemsByDay,
   onReorder,
-  onAddStop,
+  onDelete,
+  onAddClick,
 }: {
   days: Day[]
-  stopsByDay: Record<string, Stop[]>
-  onReorder: (dayId: string, orderedStopIds: string[]) => void
-  onAddStop: (dayId: string, input: { name: string; category: StopCategory; lat: number; lng: number; startTime: string | null }) => void
+  itemsByDay: Record<string, Item[]>
+  onReorder: (dayId: string, orderedItemIds: string[]) => void
+  onDelete: (id: string) => void
+  onAddClick: (date: string) => void
 }) {
   return (
     <div>
@@ -19,11 +21,12 @@ export function LineMapTimeline({
         <div key={day.id} id={`day-${day.id}`}>
           <DayLine
             day={day}
-            stops={stopsByDay[day.id] ?? []}
+            items={itemsByDay[day.id] ?? []}
             color={lineColorForIndex(index)}
             dayNumber={index + 1}
             onReorder={onReorder}
-            onAddStop={onAddStop}
+            onDelete={onDelete}
+            onAddClick={onAddClick}
           />
         </div>
       ))}

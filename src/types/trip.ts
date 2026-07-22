@@ -1,11 +1,12 @@
-export type StopCategory =
+export type ActivityCategory =
   | 'food'
-  | 'lodging'
   | 'attraction'
   | 'transport'
   | 'shopping'
   | 'nature'
   | 'other'
+
+export type ItemType = 'activity' | 'flight' | 'stay'
 
 export interface Trip {
   id: string
@@ -28,14 +29,28 @@ export interface Day {
   date: string
 }
 
-export interface Stop {
+export interface Item {
   id: string
-  dayId: string
+  tripId: string
+  dayId: string | null
+  type: ItemType
+  category: ActivityCategory | null
   name: string
-  category: StopCategory
+  notes: string | null
+
   lat: number
   lng: number
+  locationLabel: string | null
+
+  lat2: number | null
+  lng2: number | null
+  location2Label: string | null
+
+  startDate: string
+  endDate: string | null
   startTime: string | null
-  notes: string | null
-  order: number
+  endTime: string | null
+  flightNumber: string | null
+
+  position: number
 }

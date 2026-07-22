@@ -1,5 +1,11 @@
 -- Run this in the Supabase SQL editor for your project.
--- Core Phase 0 schema: trips, days, stops, and membership for collaboration.
+-- Replaces any earlier version of this schema — safe to run fresh since no
+-- production data depends on the old `stops` table yet.
+
+drop table if exists stops cascade;
+drop table if exists days cascade;
+drop table if exists trip_members cascade;
+drop table if exists trips cascade;
 
 create table trips (
   id uuid primary key default gen_random_uuid(),
@@ -23,24 +29,45 @@ create table days (
   date date not null
 );
 
-create table stops (
+-- One table covers every kind of thing on a trip: flights, stays, and
+-- activities. Type-specific columns are nullable and only used by their type.
+create table items (
   id uuid primary key default gen_random_uuid(),
-  day_id uuid not null references days(id) on delete cascade,
+  trip_id uuid not null references trips(id) on delete cascade,
+  day_id uuid references days(id) on delete set null,
+  type text not null check (type in ('activity', 'flight', 'stay')),
+  category text check (category in ('food', 'attraction', 'transport', 'shopping', 'nature', 'other')),
+
   name text not null,
-  category text not null default 'other',
+  notes text,
+
+  -- Primary location: the activity's place, the flight's departure airport,
+  -- or the stay's address.
   lat double precision not null,
   lng double precision not null,
-  start_time time,
-  notes text,
-  "order" integer not null default 0
-);
+  location_label text,
 
--- Row Level Security: users can only see/edit trips they're a member of.
+  -- Secondary location: only used by flights, for the arrival airport.
+  lat2 double precision,
+  lng2 double precision,
+  location2_label text,
+
+  -- Activity/flight: the single day it happens. Stay: check-in date.
+  start_date date not null,
+  -- Stay: check-out date. Flight: arrival date if it lands the next day.
+  end_date date,
+
+  start_time time,
+  end_time time,
+  flight_number text,
+
+  position integer not null default 0
+);
 
 alter table trips enable row level security;
 alter table trip_members enable row level security;
 alter table days enable row level security;
-alter table stops enable row level security;
+alter table items enable row level security;
 
 create policy "members can view their trips"
   on trips for select
@@ -98,24 +125,22 @@ create policy "editors and owners can modify days"
     )
   );
 
-create policy "members can view stops"
-  on stops for select
+create policy "members can view items"
+  on items for select
   using (
     exists (
-      select 1 from days
-      join trip_members on trip_members.trip_id = days.trip_id
-      where days.id = stops.day_id
+      select 1 from trip_members
+      where trip_members.trip_id = items.trip_id
         and trip_members.user_id = auth.uid()
     )
   );
 
-create policy "editors and owners can modify stops"
-  on stops for all
+create policy "editors and owners can modify items"
+  on items for all
   using (
     exists (
-      select 1 from days
-      join trip_members on trip_members.trip_id = days.trip_id
-      where days.id = stops.day_id
+      select 1 from trip_members
+      where trip_members.trip_id = items.trip_id
         and trip_members.user_id = auth.uid()
         and trip_members.role in ('owner', 'editor')
     )

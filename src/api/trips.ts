@@ -1,5 +1,5 @@
 import { supabase } from './supabaseClient'
-import type { Trip, Day, Stop, StopCategory } from '../types/trip'
+import type { Trip, Day, Item, ItemType, ActivityCategory } from '../types/trip'
 
 interface TripRow {
   id: string
@@ -16,16 +16,26 @@ interface DayRow {
   date: string
 }
 
-interface StopRow {
+interface ItemRow {
   id: string
-  day_id: string
+  trip_id: string
+  day_id: string | null
+  type: ItemType
+  category: ActivityCategory | null
   name: string
-  category: StopCategory
+  notes: string | null
   lat: number
   lng: number
+  location_label: string | null
+  lat2: number | null
+  lng2: number | null
+  location2_label: string | null
+  start_date: string
+  end_date: string | null
   start_time: string | null
-  notes: string | null
-  order: number
+  end_time: string | null
+  flight_number: string | null
+  position: number
 }
 
 function mapTrip(row: TripRow): Trip {
@@ -43,17 +53,27 @@ function mapDay(row: DayRow): Day {
   return { id: row.id, tripId: row.trip_id, date: row.date }
 }
 
-function mapStop(row: StopRow): Stop {
+function mapItem(row: ItemRow): Item {
   return {
     id: row.id,
+    tripId: row.trip_id,
     dayId: row.day_id,
-    name: row.name,
+    type: row.type,
     category: row.category,
+    name: row.name,
+    notes: row.notes,
     lat: row.lat,
     lng: row.lng,
+    locationLabel: row.location_label,
+    lat2: row.lat2,
+    lng2: row.lng2,
+    location2Label: row.location2_label,
+    startDate: row.start_date,
+    endDate: row.end_date,
     startTime: row.start_time,
-    notes: row.notes,
-    order: row.order,
+    endTime: row.end_time,
+    flightNumber: row.flight_number,
+    position: row.position,
   }
 }
 
@@ -65,6 +85,12 @@ export async function fetchTrips(): Promise<Trip[]> {
 
   if (error) throw error
   return (data as TripRow[]).map(mapTrip)
+}
+
+export async function fetchTrip(tripId: string): Promise<Trip> {
+  const { data, error } = await supabase.from('trips').select('*').eq('id', tripId).single()
+  if (error) throw error
+  return mapTrip(data as TripRow)
 }
 
 export async function createTrip(input: {
@@ -84,12 +110,6 @@ export async function createTrip(input: {
     .select()
     .single()
 
-  if (error) throw error
-  return mapTrip(data as TripRow)
-}
-
-export async function fetchTrip(tripId: string): Promise<Trip> {
-  const { data, error } = await supabase.from('trips').select('*').eq('id', tripId).single()
   if (error) throw error
   return mapTrip(data as TripRow)
 }
@@ -116,47 +136,74 @@ export async function createDay(tripId: string, date: string): Promise<Day> {
   return mapDay(data as DayRow)
 }
 
-export async function fetchStops(dayIds: string[]): Promise<Stop[]> {
-  if (dayIds.length === 0) return []
-
+export async function fetchItems(tripId: string): Promise<Item[]> {
   const { data, error } = await supabase
-    .from('stops')
+    .from('items')
     .select('*')
-    .in('day_id', dayIds)
-    .order('order', { ascending: true })
+    .eq('trip_id', tripId)
+    .order('position', { ascending: true })
 
   if (error) throw error
-  return (data as StopRow[]).map(mapStop)
+  return (data as ItemRow[]).map(mapItem)
 }
 
-export async function createStop(input: {
-  dayId: string
+export interface NewItemInput {
+  tripId: string
+  dayId: string | null
+  type: ItemType
+  category: ActivityCategory | null
   name: string
-  category: StopCategory
+  notes: string | null
   lat: number
   lng: number
+  locationLabel: string | null
+  lat2: number | null
+  lng2: number | null
+  location2Label: string | null
+  startDate: string
+  endDate: string | null
   startTime: string | null
-  order: number
-}): Promise<Stop> {
+  endTime: string | null
+  flightNumber: string | null
+  position: number
+}
+
+export async function createItem(input: NewItemInput): Promise<Item> {
   const { data, error } = await supabase
-    .from('stops')
+    .from('items')
     .insert({
+      trip_id: input.tripId,
       day_id: input.dayId,
-      name: input.name,
+      type: input.type,
       category: input.category,
+      name: input.name,
+      notes: input.notes,
       lat: input.lat,
       lng: input.lng,
+      location_label: input.locationLabel,
+      lat2: input.lat2,
+      lng2: input.lng2,
+      location2_label: input.location2Label,
+      start_date: input.startDate,
+      end_date: input.endDate,
       start_time: input.startTime,
-      order: input.order,
+      end_time: input.endTime,
+      flight_number: input.flightNumber,
+      position: input.position,
     })
     .select()
     .single()
 
   if (error) throw error
-  return mapStop(data as StopRow)
+  return mapItem(data as ItemRow)
 }
 
-export async function updateStopOrder(stopId: string, order: number): Promise<void> {
-  const { error } = await supabase.from('stops').update({ order }).eq('id', stopId)
+export async function updateItemPosition(itemId: string, position: number): Promise<void> {
+  const { error } = await supabase.from('items').update({ position }).eq('id', itemId)
+  if (error) throw error
+}
+
+export async function deleteItem(itemId: string): Promise<void> {
+  const { error } = await supabase.from('items').delete().eq('id', itemId)
   if (error) throw error
 }
