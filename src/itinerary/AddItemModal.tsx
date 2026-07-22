@@ -119,7 +119,9 @@ export function AddItemModal({
       const googleFields = { googleMapsUrl: place?.mapsUrl ?? null }
 
       if (isEdit && editItem) {
-        const dayId = type === 'stay' ? editItem.dayId : await ensureDayFor(startDate)
+        // Stays are anchored to their check-in day so they actually show up
+        // in the itinerary -- re-derive it in case startDate changed.
+        const dayId = await ensureDayFor(startDate)
         const updated = await updateItem(editItem.id, {
           dayId,
           category: type === 'activity' ? category : null,
@@ -154,7 +156,9 @@ export function AddItemModal({
         return
       }
 
-      const dayId = type === 'stay' ? null : await ensureDayFor(startDate)
+      // Stays are anchored to their check-in day so they actually show up
+      // in the itinerary, same as activities and flights.
+      const dayId = await ensureDayFor(startDate)
 
       const input: NewItemInput = {
         tripId: trip.id,

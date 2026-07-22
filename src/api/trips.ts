@@ -147,6 +147,33 @@ export async function createTrip(input: {
   return mapTrip(data as TripRow)
 }
 
+export async function updateTrip(
+  tripId: string,
+  input: {
+    name?: string
+    description?: string | null
+    countryCode?: string | null
+    startDate?: string
+    endDate?: string
+  },
+): Promise<Trip> {
+  const patch: Record<string, unknown> = {}
+  if (input.name !== undefined) patch.name = input.name
+  if (input.description !== undefined) patch.description = input.description || null
+  if (input.countryCode !== undefined) patch.country_code = input.countryCode || null
+  if (input.startDate !== undefined) patch.start_date = input.startDate
+  if (input.endDate !== undefined) patch.end_date = input.endDate
+
+  const { data, error } = await supabase.from('trips').update(patch).eq('id', tripId).select().single()
+  if (error) throw error
+  return mapTrip(data as TripRow)
+}
+
+export async function deleteTrip(tripId: string): Promise<void> {
+  const { error } = await supabase.from('trips').delete().eq('id', tripId)
+  if (error) throw error
+}
+
 export async function fetchDays(tripId: string): Promise<Day[]> {
   const { data, error } = await supabase
     .from('days')

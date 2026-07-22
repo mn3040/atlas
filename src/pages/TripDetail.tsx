@@ -1,19 +1,23 @@
 import { useEffect, useRef, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
-import { ChevronLeft, Plus, MoreVertical, Download, Share2, Pencil } from 'lucide-react'
+import { Link, useNavigate, useParams } from 'react-router-dom'
+import { ChevronLeft, Plus, MoreVertical, Download, Share2, Pencil, Trash2, CalendarDays } from 'lucide-react'
 import {
   fetchTrip,
   fetchDays,
   fetchItems,
   updateItemPosition,
   updateDayLabel,
+  updateTrip,
+  deleteTrip,
   deleteItem,
 } from '../api/trips'
 import { TopNav } from '../components/TopNav'
+import { CountryFlag } from '../components/CountryFlag'
 import { DaySelect } from '../itinerary/DaySelect'
 import { DayLine } from '../itinerary/DayLine'
 import { BookingDetail } from '../itinerary/BookingDetail'
 import { AddItemModal } from '../itinerary/AddItemModal'
+import { EditTripModal } from '../itinerary/EditTripModal'
 import { TripMap } from '../maps/TripMap'
 import type { TripMapHandle } from '../maps/TripMap'
 import { TravelModePicker } from '../maps/TravelModePicker'
@@ -22,7 +26,6 @@ import { DayPager } from '../maps/DayPager'
 import { ZoomControl } from '../maps/ZoomControl'
 import { TripCalendar } from '../calendar/TripCalendar'
 import { lineColorForIndex } from '../utils/lineColors'
-import { flagEmoji } from '../utils/flags'
 import { actionForItem } from '../utils/itemActions'
 import type { TravelMode } from '../utils/distance'
 import type { Trip, Day, Item } from '../types/trip'
@@ -33,6 +36,7 @@ function formatShortDate(date: string): string {
 
 export default function TripDetail() {
   const { tripId } = useParams<{ tripId: string }>()
+  const navigate = useNavigate()
   const [trip, setTrip] = useState<Trip | null>(null)
   const [days, setDays] = useState<Day[]>([])
   const [items, setItems] = useState<Item[]>([])
@@ -43,6 +47,8 @@ export default function TripDetail() {
   const [addModalDate, setAddModalDate] = useState<string | null>(null)
   const [editingItem, setEditingItem] = useState<Item | null>(null)
   const [showCalendar, setShowCalendar] = useState(false)
+  const [showMenu, setShowMenu] = useState(false)
+  const [showEditTrip, setShowEditTrip] = useState(false)
   const [screen, setScreen] = useState<'itinerary' | 'booking'>('itinerary')
   const [bookingItemId, setBookingItemId] = useState<string | null>(null)
   const [zoom, setZoom] = useState(12)
@@ -134,6 +140,26 @@ export default function TripDetail() {
     setScreen('itinerary')
   }
 
+  async function handleUpdateTrip(input: {
+    name: string
+    description: string
+    countryCode: string
+    startDate: string
+    endDate: string
+  }) {
+    if (!trip) return
+    const updated = await updateTrip(trip.id, input)
+    setTrip(updated)
+    setShowEditTrip(false)
+  }
+
+  async function handleDeleteTrip() {
+    if (!trip) return
+    if (!confirm(`Delete "${trip.name}"? This removes the whole trip and everything in it.`)) return
+    await deleteTrip(trip.id)
+    navigate('/')
+  }
+
   function startDayLabelEdit() {
     setDayLabelDraft(activeDay?.label ?? '')
     setEditingDayLabel(true)
@@ -183,13 +209,49 @@ export default function TripDetail() {
                     <span title="Share — coming soon" className="cursor-default opacity-60">
                       <Share2 size={14} />
                     </span>
-                    <button
-                      onClick={() => setShowCalendar((v) => !v)}
-                      aria-label="Month view"
-                      className="hover:text-text"
-                    >
-                      <MoreVertical size={15} />
-                    </button>
+                    <div className="relative">
+                      <button
+                        onClick={() => setShowMenu((v) => !v)}
+                        aria-label="Trip options"
+                        className="hover:text-text"
+                      >
+                        <MoreVertical size={15} />
+                      </button>
+                      {showMenu && (
+                        <>
+                          <div className="fixed inset-0 z-20" onClick={() => setShowMenu(false)} />
+                          <div className="absolute right-0 top-6 z-30 w-44 overflow-hidden rounded-lg border border-border bg-surface py-1 shadow-2xl">
+                            <button
+                              onClick={() => {
+                                setShowCalendar((v) => !v)
+                                setShowMenu(false)
+                              }}
+                              className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-semibold text-text hover:bg-surface-2"
+                            >
+                              <CalendarDays size={13} /> Month view
+                            </button>
+                            <button
+                              onClick={() => {
+                                setShowEditTrip(true)
+                                setShowMenu(false)
+                              }}
+                              className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-semibold text-text hover:bg-surface-2"
+                            >
+                              <Pencil size={13} /> Edit trip details
+                            </button>
+                            <button
+                              onClick={() => {
+                                setShowMenu(false)
+                                handleDeleteTrip()
+                              }}
+                              className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-semibold text-line-4 hover:bg-surface-2"
+                            >
+                              <Trash2 size={13} /> Delete trip
+                            </button>
+                          </div>
+                        </>
+                      )}
+                    </div>
                   </div>
                 </div>
 
@@ -202,7 +264,7 @@ export default function TripDetail() {
 
                 <div className="mb-4 flex flex-wrap items-center gap-2.5">
                   <div className="flex items-center gap-1.5 rounded-lg bg-surface-3 px-2.5 py-1 text-[11px] font-bold text-text">
-                    {flagEmoji(trip.countryCode) && <span>{flagEmoji(trip.countryCode)}</span>}
+                    <CountryFlag countryCode={trip.countryCode} className="h-3 w-auto rounded-[1px]" />
                     {formatShortDate(trip.startDate)} &ndash; {formatShortDate(trip.endDate)}
                   </div>
                   <div className="text-[11.5px] text-text-dim">
@@ -343,6 +405,8 @@ export default function TripDetail() {
           }}
         />
       )}
+
+      {showEditTrip && <EditTripModal trip={trip} onClose={() => setShowEditTrip(false)} onSave={handleUpdateTrip} />}
     </div>
   )
 }

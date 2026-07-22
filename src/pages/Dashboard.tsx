@@ -4,8 +4,8 @@ import { Plus, MapPin } from 'lucide-react'
 import { useSession } from '../hooks/useSession'
 import { fetchTrips, createTrip } from '../api/trips'
 import { TopNav } from '../components/TopNav'
+import { CountryFlag } from '../components/CountryFlag'
 import { lineColorForIndex } from '../utils/lineColors'
-import { flagEmoji } from '../utils/flags'
 import type { Trip } from '../types/trip'
 
 const inputClass =
@@ -89,7 +89,7 @@ export default function Dashboard() {
                     <div className="mt-auto flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-text-dim">
                       <MapPin size={11} />
                       {trip.startDate} &ndash; {trip.endDate}
-                      {flagEmoji(trip.countryCode) && <span className="normal-case">{flagEmoji(trip.countryCode)}</span>}
+                      <CountryFlag countryCode={trip.countryCode} className="h-3 w-auto rounded-[1px]" />
                     </div>
                   </Link>
                 </li>
@@ -140,8 +140,8 @@ function NewTripForm({
           />
         </div>
         <div className="w-28">
-          <label className="block text-xs font-semibold uppercase tracking-wide text-text-dim">
-            Country {flagEmoji(countryCode)}
+          <label className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-text-dim">
+            Country <CountryFlag countryCode={countryCode} className="h-3 w-auto rounded-[1px]" />
           </label>
           <input
             value={countryCode}

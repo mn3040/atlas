@@ -1,9 +1,7 @@
-/** ISO 3166-1 alpha-2 -> flag emoji, built from Unicode regional indicator
- * symbols (no image assets needed). Returns '' for missing/invalid codes. */
-export function flagEmoji(countryCode: string | null | undefined): string {
-  if (!countryCode || countryCode.trim().length !== 2) return ''
+/** Validates/normalizes an ISO 3166-1 alpha-2 country code (e.g. 'jp' -> 'JP').
+ * Returns null for missing/invalid input. */
+export function normalizeCountryCode(countryCode: string | null | undefined): string | null {
+  if (!countryCode || countryCode.trim().length !== 2) return null
   const code = countryCode.trim().toUpperCase()
-  if (!/^[A-Z]{2}$/.test(code)) return ''
-  const points = [...code].map((c) => 127397 + c.charCodeAt(0))
-  return String.fromCodePoint(...points)
+  return /^[A-Z]{2}$/.test(code) ? code : null
 }
