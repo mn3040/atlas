@@ -29,3 +29,24 @@ export function iconForItem(type: ItemType, category: ActivityCategory | null) {
   if (type === 'activity' && category) return CATEGORY_ICONS[category]
   return ITEM_TYPE_ICONS[type]
 }
+
+/** Emoji fallback for the photo slot when an item has no photoUrl. */
+export const CATEGORY_EMOJI: Record<ActivityCategory, string> = {
+  food: '🍽️',
+  attraction: '🏛️',
+  transport: '🚆',
+  shopping: '🛍️',
+  nature: '🌲',
+  other: '📍',
+}
+
+export const ITEM_TYPE_EMOJI: Record<ItemType, string> = {
+  activity: '📍',
+  flight: '✈️',
+  stay: '🏨',
+}
+
+export function emojiForItem(type: ItemType, category: ActivityCategory | null): string {
+  if (type === 'activity' && category) return CATEGORY_EMOJI[category]
+  return ITEM_TYPE_EMOJI[type]
+}

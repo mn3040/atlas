@@ -2,6 +2,8 @@ import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { X, Pencil } from 'lucide-react'
 import { actionForItem } from '../utils/itemActions'
+import { emojiForItem } from '../utils/categoryIcons'
+import { formatTime } from '../utils/time'
 import type { Item } from '../types/trip'
 
 export function ItemStation({
@@ -61,8 +63,8 @@ export function ItemStation({
       <div className="min-w-0 flex-1 pb-5">
         {item.startTime && (
           <p className="mb-1 text-[11px] font-semibold text-text-dimmer">
-            {item.startTime}
-            {item.type === 'flight' && item.endTime ? ` – ${item.endTime}` : ''}
+            {formatTime(item.startTime)}
+            {item.type === 'flight' && item.endTime ? ` – ${formatTime(item.endTime)}` : ''}
           </p>
         )}
         <div
@@ -75,11 +77,11 @@ export function ItemStation({
             borderColor: selected ? color : 'var(--color-border)',
           }}
         >
-          <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-[9px] bg-surface-3 text-center text-[8px] text-text-dim">
+          <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-[9px] bg-surface-3 text-xl">
             {item.photoUrl ? (
               <img src={item.photoUrl} alt={item.name} className="h-full w-full object-cover" />
             ) : (
-              'photo'
+              <span>{emojiForItem(item.type, item.category)}</span>
             )}
           </div>
           <div className="min-w-0 flex-1">

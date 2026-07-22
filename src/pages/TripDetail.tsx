@@ -1,6 +1,18 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { ChevronLeft, Plus, MoreVertical, Download, Share2, Pencil, Trash2, CalendarDays } from 'lucide-react'
+import {
+  ChevronLeft,
+  Plus,
+  MoreVertical,
+  Download,
+  Share2,
+  Pencil,
+  Trash2,
+  CalendarDays,
+  BedDouble,
+  Play,
+  Pause,
+} from 'lucide-react'
 import {
   fetchTrip,
   fetchDays,
@@ -16,6 +28,7 @@ import { CountryFlag } from '../components/CountryFlag'
 import { DaySelect } from '../itinerary/DaySelect'
 import { DayLine } from '../itinerary/DayLine'
 import { BookingDetail } from '../itinerary/BookingDetail'
+import { FlightDetail } from '../itinerary/FlightDetail'
 import { AddItemModal } from '../itinerary/AddItemModal'
 import { EditTripModal } from '../itinerary/EditTripModal'
 import { TripMap } from '../maps/TripMap'
@@ -27,6 +40,7 @@ import { ZoomControl } from '../maps/ZoomControl'
 import { TripCalendar } from '../calendar/TripCalendar'
 import { lineColorForIndex } from '../utils/lineColors'
 import { actionForItem } from '../utils/itemActions'
+import { downloadItinerary } from '../utils/exportItinerary'
 import type { TravelMode } from '../utils/distance'
 import type { Trip, Day, Item } from '../types/trip'
 
@@ -49,11 +63,13 @@ export default function TripDetail() {
   const [showCalendar, setShowCalendar] = useState(false)
   const [showMenu, setShowMenu] = useState(false)
   const [showEditTrip, setShowEditTrip] = useState(false)
-  const [screen, setScreen] = useState<'itinerary' | 'booking'>('itinerary')
+  const [screen, setScreen] = useState<'itinerary' | 'booking' | 'flight'>('itinerary')
   const [bookingItemId, setBookingItemId] = useState<string | null>(null)
+  const [flightItemId, setFlightItemId] = useState<string | null>(null)
   const [zoom, setZoom] = useState(12)
   const [editingDayLabel, setEditingDayLabel] = useState(false)
   const [dayLabelDraft, setDayLabelDraft] = useState('')
+  const [isTouring, setIsTouring] = useState(false)
   const mapRef = useRef<TripMapHandle>(null)
 
   useEffect(() => {
@@ -77,8 +93,15 @@ export default function TripDetail() {
   const activeColor = activeDayIndex >= 0 ? lineColorForIndex(activeDayIndex) : lineColorForIndex(0)
   const activeDay = days.find((d) => d.id === activeDayId) ?? null
 
+  // Stays get their own "Where you're staying" section, separate from the
+  // day-by-day activity/flight timeline, since a stay spans multiple days
+  // rather than belonging to just one.
+  const stays = items
+    .filter((item) => item.type === 'stay')
+    .sort((a, b) => a.startDate.localeCompare(b.startDate))
+
   const activeItems = items
-    .filter((item) => item.dayId === activeDayId)
+    .filter((item) => item.dayId === activeDayId && item.type !== 'stay')
     .sort((a, b) => a.position - b.position)
 
   useEffect(() => {
@@ -88,10 +111,32 @@ export default function TripDetail() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeDayId, items])
 
+  // Auto-tour: step through the day's stops on a timer, reusing the same
+  // selection -> flyTo/highlight path a manual click already triggers. The
+  // route line between stops already reflects whichever travel mode is
+  // selected, so switching mode mid-tour changes what the tour shows.
+  useEffect(() => {
+    if (!isTouring || activeItems.length < 2) return
+    const timer = window.setInterval(() => {
+      setSelectedItemId((current) => {
+        const index = activeItems.findIndex((item) => item.id === current)
+        const nextIndex = (index + 1) % activeItems.length
+        return activeItems[nextIndex].id
+      })
+    }, 2800)
+    return () => window.clearInterval(timer)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isTouring, activeDayId, activeItems.length])
+
+  useEffect(() => {
+    setIsTouring(false)
+  }, [activeDayId])
+
   const selectedIndex = activeItems.findIndex((item) => item.id === selectedItemId)
   const nextItem = selectedIndex >= 0 ? activeItems[selectedIndex + 1] : undefined
   const selectedItem = selectedIndex >= 0 ? activeItems[selectedIndex] : undefined
   const bookingItem = items.find((item) => item.id === bookingItemId) ?? null
+  const flightItem = items.find((item) => item.id === flightItemId) ?? null
 
   function handleDayCreated(day: Day) {
     setDays((current) => [...current, day].sort((a, b) => a.date.localeCompare(b.date)))
@@ -125,6 +170,9 @@ export default function TripDetail() {
     if (action === 'booking') {
       setBookingItemId(item.id)
       setScreen('booking')
+    } else if (action === 'flight') {
+      setFlightItemId(item.id)
+      setScreen('flight')
     } else if (item.googleMapsUrl) {
       window.open(item.googleMapsUrl, '_blank', 'noopener')
     } else {
@@ -137,6 +185,14 @@ export default function TripDetail() {
     if (!confirm(`Cancel booking for ${bookingItem.name}? This removes it from the trip.`)) return
     await handleDelete(bookingItem.id)
     setBookingItemId(null)
+    setScreen('itinerary')
+  }
+
+  async function handleCancelFlight() {
+    if (!flightItem) return
+    if (!confirm(`Cancel ${flightItem.flightNumber || 'this flight'}? This removes it from the trip.`)) return
+    await handleDelete(flightItem.id)
+    setFlightItemId(null)
     setScreen('itinerary')
   }
 
@@ -203,9 +259,14 @@ export default function TripDetail() {
                     >
                       <Plus size={15} />
                     </button>
-                    <span title="Export — coming soon" className="cursor-default opacity-60">
+                    <button
+                      onClick={() => downloadItinerary(trip, days, items)}
+                      aria-label="Export itinerary"
+                      title="Export itinerary"
+                      className="hover:text-text"
+                    >
                       <Download size={14} />
-                    </span>
+                    </button>
                     <span title="Share — coming soon" className="cursor-default opacity-60">
                       <Share2 size={14} />
                     </span>
@@ -275,6 +336,38 @@ export default function TripDetail() {
                   {activeDayId && <DaySelect days={days} activeDayId={activeDayId} onSelect={setActiveDayId} />}
                 </div>
 
+                {stays.length > 0 && (
+                  <div className="mb-4 space-y-2 border-t border-border pt-3">
+                    <p className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wide text-text-dimmer">
+                      <BedDouble size={12} /> Where you&rsquo;re staying
+                    </p>
+                    {stays.map((stay) => (
+                      <button
+                        key={stay.id}
+                        onClick={() => {
+                          setBookingItemId(stay.id)
+                          setScreen('booking')
+                        }}
+                        className="flex w-full items-center gap-3 rounded-xl border border-border bg-surface p-2.5 text-left transition-colors hover:border-border-strong"
+                      >
+                        <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-[9px] bg-surface-3 text-text-dim">
+                          {stay.photoUrl ? (
+                            <img src={stay.photoUrl} alt={stay.name} className="h-full w-full object-cover" />
+                          ) : (
+                            <BedDouble size={16} />
+                          )}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-[12.5px] font-bold text-text">{stay.name}</p>
+                          <p className="text-[10.5px] text-text-dim">
+                            {formatShortDate(stay.startDate)} &ndash; {formatShortDate(stay.endDate ?? stay.startDate)}
+                          </p>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+
                 <div className="mb-0.5 flex items-center justify-between">
                   <p className="text-[10.5px] font-semibold text-text-dimmer">
                     Day {activeDayIndex + 1} &middot; {activeDay ? formatShortDate(activeDay.date) : ''}
@@ -335,12 +428,19 @@ export default function TripDetail() {
                 )}
               </div>
             </>
-          ) : bookingItem ? (
+          ) : screen === 'booking' && bookingItem ? (
             <BookingDetail
               item={bookingItem}
               onBack={() => setScreen('itinerary')}
               onModify={() => setEditingItem(bookingItem)}
               onCancel={handleCancelBooking}
+            />
+          ) : screen === 'flight' && flightItem ? (
+            <FlightDetail
+              item={flightItem}
+              onBack={() => setScreen('itinerary')}
+              onModify={() => setEditingItem(flightItem)}
+              onCancel={handleCancelFlight}
             />
           ) : null}
         </aside>
@@ -363,6 +463,20 @@ export default function TripDetail() {
               onPrev={() => goToDay(-1)}
               onNext={() => goToDay(1)}
             />
+          )}
+
+          {activeItems.length > 1 && (
+            <button
+              onClick={() => setIsTouring((v) => !v)}
+              aria-label={isTouring ? 'Pause tour' : 'Play tour'}
+              className="absolute left-4 top-4 z-10 flex h-[34px] w-[34px] items-center justify-center rounded-[9px] border border-border-strong transition-colors"
+              style={{
+                background: isTouring ? activeColor : 'var(--color-surface)',
+                color: isTouring ? '#fff' : 'var(--color-text-dim)',
+              }}
+            >
+              {isTouring ? <Pause size={15} /> : <Play size={15} />}
+            </button>
           )}
 
           <TravelModePicker mode={travelMode} onChange={setTravelMode} color={activeColor} />

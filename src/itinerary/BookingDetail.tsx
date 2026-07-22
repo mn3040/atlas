@@ -1,4 +1,5 @@
 import { ChevronLeft } from 'lucide-react'
+import { formatTime } from '../utils/time'
 import type { Item } from '../types/trip'
 
 function nightsBetween(start: string, end: string | null): number {
@@ -42,11 +43,11 @@ export function BookingDetail({
         <ChevronLeft size={14} /> Booking Detail
       </button>
 
-      <div className="mb-4 flex h-36 items-center justify-center overflow-hidden rounded-xl bg-surface-2 text-xs text-text-dim">
+      <div className="mb-4 flex h-36 items-center justify-center overflow-hidden rounded-xl bg-surface-2 text-5xl">
         {item.photoUrl ? (
           <img src={item.photoUrl} alt={item.name} className="h-full w-full object-cover" />
         ) : (
-          <span>photo: {displayName(item.name)}</span>
+          <span>🏨</span>
         )}
       </div>
 
@@ -78,7 +79,7 @@ export function BookingDetail({
           <p className="mb-1 text-[10px] text-text-dimmer">Check-in</p>
           <p className="text-xs font-bold text-text">
             {formatDate(item.startDate)}
-            {item.startTime ? `, ${item.startTime}` : ''}
+            {item.startTime ? `, ${formatTime(item.startTime)}` : ''}
           </p>
         </div>
         <div className="w-px bg-border" />
@@ -86,7 +87,7 @@ export function BookingDetail({
           <p className="mb-1 text-[10px] text-text-dimmer">Check-out</p>
           <p className="text-xs font-bold text-text">
             {item.endDate ? formatDate(item.endDate) : '—'}
-            {item.endTime ? `, ${item.endTime}` : ''}
+            {item.endTime ? `, ${formatTime(item.endTime)}` : ''}
           </p>
         </div>
       </div>
