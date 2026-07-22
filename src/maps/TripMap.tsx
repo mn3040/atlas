@@ -36,9 +36,18 @@ export const TripMap = forwardRef<
   const readyRef = useRef(false)
   const prevDayRef = useRef(activeDayId)
   const prevSelectedRef = useRef(selectedItemId)
+  const prevDayItemCountRef = useRef(items.filter((i) => i.dayId === activeDayId).length)
   const travelModeRef = useRef(travelMode)
   const routeRequestRef = useRef(0)
   travelModeRef.current = travelMode
+
+  // render() below is created once (mount-only effect) but must always see the
+  // latest props -- a plain closure over days/items/etc. would go stale the
+  // moment a new item is added or a different item is selected. Refreshing
+  // this ref every render keeps render() reading current data without
+  // needing to be recreated (and re-bound to the map) on every prop change.
+  const latestRef = useRef({ days, items, activeDayId, selectedItemId, onSelectItem })
+  latestRef.current = { days, items, activeDayId, selectedItemId, onSelectItem }
 
   useImperativeHandle(ref, () => ({
     zoomIn: () => mapRef.current?.easeTo({ zoom: (mapRef.current.getZoom() ?? 12) + 1 }),
@@ -79,6 +88,7 @@ export const TripMap = forwardRef<
 
     function render(fit: boolean) {
       if (!readyRef.current) return
+      const { days, items, activeDayId, selectedItemId, onSelectItem } = latestRef.current
       markersRef.current.forEach((m) => m.remove())
       markersRef.current = []
 
@@ -130,7 +140,7 @@ export const TripMap = forwardRef<
       flightSource?.setData({ type: 'FeatureCollection', features: flightFeatures })
 
       if (fit && hasPoints) {
-        map.fitBounds(bounds, { padding: 90, maxZoom: 15, duration: 0 })
+        map.fitBounds(bounds, { padding: 150, maxZoom: 15, duration: 0 })
       }
 
       // Straight line above is the instant baseline; upgrade it to a real
@@ -167,8 +177,10 @@ export const TripMap = forwardRef<
 
     const dayChanged = prevDayRef.current !== activeDayId
     const selectionChanged = prevSelectedRef.current !== selectedItemId
-    render(dayChanged)
-    if (!dayChanged && selectionChanged) {
+    const dayItemCount = items.filter((i) => i.dayId === activeDayId).length
+    const itemCountChanged = prevDayItemCountRef.current !== dayItemCount
+    render(dayChanged || itemCountChanged)
+    if (!dayChanged && !itemCountChanged && selectionChanged) {
       const item = items.find((i) => i.id === selectedItemId)
       // The SDK's flyTo() type omits center/zoom despite supporting them at runtime
       // (it's inherited from CameraOptions, like easeTo/fitBounds) — cast around it.
@@ -179,6 +191,7 @@ export const TripMap = forwardRef<
     }
     prevDayRef.current = activeDayId
     prevSelectedRef.current = selectedItemId
+    prevDayItemCountRef.current = dayItemCount
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [days, items, activeDayId, selectedItemId, travelMode])
 

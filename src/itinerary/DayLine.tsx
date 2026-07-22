@@ -1,9 +1,14 @@
-import { DndContext, closestCenter } from '@dnd-kit/core'
+import { DndContext, closestCenter, PointerSensor, useSensor, useSensors } from '@dnd-kit/core'
 import type { DragEndEvent } from '@dnd-kit/core'
 import { SortableContext, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable'
 import { Plus } from 'lucide-react'
 import { ItemStation } from './ItemStation'
 import type { Day, Item } from '../types/trip'
+
+// Module-level so the object identity is stable across renders -- useSensor
+// memoizes internally keyed on this reference, and a fresh object every
+// render defeats that, causing dnd-kit's sensor array to churn.
+const POINTER_ACTIVATION_CONSTRAINT = { distance: 8 }
 
 export function DayLine({
   day,
@@ -30,6 +35,11 @@ export function DayLine({
 }) {
   const itemIds = items.map((s) => s.id)
 
+  // Without an activation distance, dnd-kit's PointerSensor treats every
+  // click as a zero-distance drag and the co-located onClick on each card
+  // never fires -- clicking to select an item silently does nothing.
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: POINTER_ACTIVATION_CONSTRAINT }))
+
   function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event
     if (!over || active.id === over.id) return
@@ -43,7 +53,7 @@ export function DayLine({
       {items.length === 0 ? (
         <p className="py-4 text-sm text-text-dim">Nothing planned yet.</p>
       ) : (
-        <DndContext collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
           <SortableContext items={itemIds} strategy={verticalListSortingStrategy}>
             <div>
               {items.map((item, index) => (
