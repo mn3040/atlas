@@ -11,6 +11,8 @@ export function DayLine({
   color,
   selectedItemId,
   onSelectItem,
+  onAction,
+  onEdit,
   onReorder,
   onDelete,
   onAddClick,
@@ -20,6 +22,8 @@ export function DayLine({
   color: string
   selectedItemId: string | null
   onSelectItem: (id: string) => void
+  onAction: (item: Item) => void
+  onEdit: (item: Item) => void
   onReorder: (dayId: string, orderedItemIds: string[]) => void
   onDelete: (id: string) => void
   onAddClick: (date: string) => void
@@ -51,6 +55,8 @@ export function DayLine({
                   isLast={index === items.length - 1}
                   selected={item.id === selectedItemId}
                   onSelect={onSelectItem}
+                  onAction={onAction}
+                  onEdit={onEdit}
                   onDelete={onDelete}
                 />
               ))}
@@ -61,7 +67,7 @@ export function DayLine({
 
       <button
         onClick={() => onAddClick(day.date)}
-        className="mt-1 flex items-center gap-1 text-sm text-text-dim hover:text-line-2"
+        className="mt-1 flex items-center gap-1 text-sm font-semibold text-text-dim hover:text-paper"
       >
         <Plus size={14} /> Add to this day
       </button>

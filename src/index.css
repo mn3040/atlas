@@ -1,20 +1,25 @@
 @import "tailwindcss";
-@import "maplibre-gl/dist/maplibre-gl.css";
+@import "@tomtom-international/web-sdk-maps/dist/maps.css";
 
 @theme {
-  /* Night-harbor base — deep teal, not neutral black */
-  --color-ink: #0f1e1b;
-  --color-surface: #16302a;
-  --color-surface-2: #1d3a32;
-  --color-border: #2a4a41;
-
-  /* Ticket-stock paper, used sparingly for emphasis */
-  --color-paper: #f2e9d8;
-  --color-paper-dim: #d9cdb4;
+  /* Waypoint — deep navy dusk, not neutral black */
+  --color-ink: oklch(0.16 0.012 260);
+  --color-map-bg: oklch(0.13 0.012 260);
+  --color-surface: oklch(0.2 0.012 260);
+  --color-surface-2: oklch(0.24 0.02 260);
+  --color-surface-3: oklch(0.22 0.012 260);
+  --color-border: oklch(0.27 0.012 260);
+  --color-border-strong: oklch(0.3 0.012 260);
 
   /* Text */
-  --color-text: #e7ece9;
-  --color-text-dim: #8fa39c;
+  --color-text: oklch(0.95 0.006 260);
+  --color-text-dim: oklch(0.62 0.01 260);
+  --color-text-dimmer: oklch(0.55 0.01 260);
+
+  /* App-wide chrome accent (nav, buttons, focus rings) — kept as Atlas's
+     original brand turquoise, separate from the per-day line palette below */
+  --color-paper: #4fb8ae;
+  --color-paper-dim: #3d938c;
 
   /* Line palette — one color per trip day, shared between timeline and map */
   --color-line-1: #e8734a;
@@ -24,9 +29,9 @@
   --color-line-5: #8fbf6b;
   --color-line-6: #6e9fe0;
 
-  --font-display: "Big Shoulders Display", sans-serif;
-  --font-body: "IBM Plex Sans", system-ui, sans-serif;
-  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+  --font-display: 'Inter Variable', 'Inter', system-ui, sans-serif;
+  --font-body: 'Inter Variable', 'Inter', system-ui, sans-serif;
+  --font-mono: 'Inter Variable', 'Inter', system-ui, sans-serif;
 }
 
 :root {
@@ -38,6 +43,25 @@ body {
   background: var(--color-ink);
   color: var(--color-text);
   font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+}
+
+.font-mono {
+  font-variant-numeric: tabular-nums;
+}
+
+select {
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-border-strong);
+  border-radius: 4px;
 }
 
 @keyframes pulse-ring {
@@ -61,6 +85,14 @@ body {
   border-radius: 50%;
   background: inherit;
   animation: pulse-ring 1.8s ease-out infinite;
+}
+
+/* TomTom's default tiles ship light; invert + hue-rotate turns them into a
+   dark map that matches the app chrome. Marker elements apply the same
+   filter to themselves (see TripMap) so the double-invert cancels out and
+   their true accent colors render on top of the dark tiles. */
+.map-invert {
+  filter: invert(1) hue-rotate(180deg) brightness(1.05);
 }
 
 @media (prefers-reduced-motion: reduce) {

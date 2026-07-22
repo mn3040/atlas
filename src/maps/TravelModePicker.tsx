@@ -12,9 +12,11 @@ const MODE_ICONS: Record<TravelMode, typeof Car> = {
 export function TravelModePicker({
   mode,
   onChange,
+  color,
 }: {
   mode: TravelMode
   onChange: (mode: TravelMode) => void
+  color: string
 }) {
   return (
     <div className="absolute right-4 top-4 z-10 flex flex-col gap-2">
@@ -26,13 +28,10 @@ export function TravelModePicker({
             key={id}
             onClick={() => onChange(id)}
             aria-label={id}
-            className={`flex h-9 w-9 items-center justify-center rounded-md border transition-colors ${
-              active
-                ? 'border-transparent bg-paper text-ink'
-                : 'border-border bg-surface/90 text-text-dim backdrop-blur hover:text-text'
-            }`}
+            className="flex h-[34px] w-[34px] items-center justify-center rounded-[9px] border border-border-strong transition-colors"
+            style={{ background: active ? color : 'var(--color-surface)', color: active ? '#fff' : 'var(--color-text-dim)' }}
           >
-            <Icon size={16} />
+            <Icon size={15} />
           </button>
         )
       })}
