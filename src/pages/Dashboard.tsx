@@ -9,6 +9,7 @@ export default function Dashboard() {
   const [trips, setTrips] = useState<Trip[]>([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
+  const [createError, setCreateError] = useState<string | null>(null)
 
   useEffect(() => {
     fetchTrips()
@@ -18,9 +19,14 @@ export default function Dashboard() {
 
   async function handleCreate(input: { name: string; startDate: string; endDate: string }) {
     if (!session) return
-    const trip = await createTrip({ ...input, ownerId: session.user.id })
-    setTrips((current) => [...current, trip].sort((a, b) => a.startDate.localeCompare(b.startDate)))
-    setShowForm(false)
+    setCreateError(null)
+    try {
+      const trip = await createTrip({ ...input, ownerId: session.user.id })
+      setTrips((current) => [...current, trip].sort((a, b) => a.startDate.localeCompare(b.startDate)))
+      setShowForm(false)
+    } catch (err) {
+      setCreateError(err instanceof Error ? err.message : 'Failed to create trip.')
+    }
   }
 
   return (
@@ -37,7 +43,7 @@ export default function Dashboard() {
         </button>
       </div>
 
-      {showForm && <NewTripForm onCreate={handleCreate} />}
+      {showForm && <NewTripForm onCreate={handleCreate} error={createError} />}
 
       <div className="mt-8 border-t border-border">
         {loading ? (
@@ -70,8 +76,10 @@ export default function Dashboard() {
 
 function NewTripForm({
   onCreate,
+  error,
 }: {
   onCreate: (input: { name: string; startDate: string; endDate: string }) => void
+  error: string | null
 }) {
   const [name, setName] = useState('')
   const [startDate, setStartDate] = useState('')
@@ -116,6 +124,7 @@ function NewTripForm({
           />
         </div>
       </div>
+      {error && <p className="text-sm text-red-400">{error}</p>}
       <button
         type="submit"
         className="rounded-md bg-line-2 px-4 py-2 text-sm font-medium text-ink hover:opacity-90"

@@ -108,7 +108,7 @@ alter table items enable row level security;
 
 create policy "members can view their trips"
   on trips for select
-  using (is_trip_member(id));
+  using (owner_id = auth.uid() or is_trip_member(id));
 
 create policy "owners can insert trips"
   on trips for insert
