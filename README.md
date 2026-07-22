@@ -1,32 +1,46 @@
-# React + TypeScript + Vite
+# Atlas
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+Plan trips visually. Organize every day. Discover what travelers actually recommend.
 
-Currently, two official plugins are available:
+## Stack
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+React + TypeScript + Vite + Tailwind CSS, MapLibre GL (OpenFreeMap tiles), Supabase (Postgres, Auth, Realtime), deployed on Vercel.
 
-## React Compiler
+## Local setup
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
-
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+```bash
+npm install
+cp .env.example .env   # fill in your Supabase project URL + anon key
+npm run dev
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+## Supabase setup
+
+1. Create a free project at [supabase.com](https://supabase.com).
+2. Open the SQL editor and run [`supabase/schema.sql`](supabase/schema.sql) — this creates `trips`, `trip_members`, `days`, `stops`, their RLS policies, and the trigger that adds a trip's creator as its `owner` member.
+3. Copy the project URL and anon key (Project Settings → API) into `.env`.
+4. Sign-in uses Supabase's magic-link email auth — no password flow to configure.
+
+## Deploying to Vercel
+
+1. Push this repo to GitHub.
+2. Import it in [Vercel](https://vercel.com/new) — the Vite build is auto-detected (`npm run build`, output `dist/`).
+3. Add `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` as Environment Variables in the Vercel project settings (same values as your local `.env`).
+4. Every push to the connected branch redeploys automatically.
+
+## Project structure
+
+```
+src/
+  api/         Supabase client + typed data-access functions
+  components/  Shared UI components
+  pages/       Route-level pages (Dashboard, TripDetail, SignIn)
+  itinerary/   Day/stop timeline (the line-map component)
+  maps/        MapLibre trip map
+  calendar/    Month calendar view
+  hooks/       Zustand store, auth session hook
+  types/       Shared TypeScript types
+  utils/       Category icons, day-line color palette
+supabase/
+  schema.sql   Postgres schema + RLS policies
+```
