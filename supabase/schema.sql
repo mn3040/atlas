@@ -15,6 +15,9 @@ create table trips (
   id uuid primary key default gen_random_uuid(),
   owner_id uuid not null references auth.users(id) on delete cascade,
   name text not null,
+  description text,
+  -- ISO 3166-1 alpha-2, e.g. 'KZ' — drives the flag shown next to the trip dates.
+  country_code text,
   start_date date not null,
   end_date date not null,
   created_at timestamptz not null default now()
@@ -30,7 +33,8 @@ create table trip_members (
 create table days (
   id uuid primary key default gen_random_uuid(),
   trip_id uuid not null references trips(id) on delete cascade,
-  date date not null
+  date date not null,
+  label text
 );
 
 -- One table covers every kind of thing on a trip: flights, stays, and
@@ -64,6 +68,26 @@ create table items (
   start_time time,
   end_time time,
   flight_number text,
+
+  -- Free-form display text for the timeline card, e.g. "$95.00 per night",
+  -- "Avg $18.00 per person", "Free entry", "Included in Flight Ticket".
+  price_label text,
+  photo_url text,
+
+  -- Google Places — set when the item's location was picked from Google
+  -- Places search, so cards can link out and show a real photo/rating.
+  google_place_id text,
+  google_maps_url text,
+  google_rating numeric(2, 1),
+  google_user_ratings_total integer,
+
+  -- Booking detail — only used when type = 'stay'.
+  room_type text,
+  guests integer,
+  nightly_rate numeric(10, 2),
+  taxes_fees numeric(10, 2),
+  confirmation_number text,
+  rating smallint check (rating between 1 and 5),
 
   position integer not null default 0
 );

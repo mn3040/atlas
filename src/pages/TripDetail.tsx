@@ -1,17 +1,29 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { ArrowLeft, Plus, CalendarDays } from 'lucide-react'
-import { fetchTrip, fetchDays, fetchItems, updateItemPosition, deleteItem } from '../api/trips'
-import { DayTabs } from '../itinerary/DayTabs'
+import { ChevronLeft, Plus, MoreVertical, Download, Share2, Pencil } from 'lucide-react'
+import {
+  fetchTrip,
+  fetchDays,
+  fetchItems,
+  updateItemPosition,
+  updateDayLabel,
+  deleteItem,
+} from '../api/trips'
+import { TopNav } from '../components/TopNav'
+import { DaySelect } from '../itinerary/DaySelect'
 import { DayLine } from '../itinerary/DayLine'
-import { StaysList } from '../itinerary/StaysList'
+import { BookingDetail } from '../itinerary/BookingDetail'
 import { AddItemModal } from '../itinerary/AddItemModal'
 import { TripMap } from '../maps/TripMap'
+import type { TripMapHandle } from '../maps/TripMap'
 import { TravelModePicker } from '../maps/TravelModePicker'
 import { TransitCard } from '../maps/TransitCard'
 import { DayPager } from '../maps/DayPager'
+import { ZoomControl } from '../maps/ZoomControl'
 import { TripCalendar } from '../calendar/TripCalendar'
 import { lineColorForIndex } from '../utils/lineColors'
+import { flagEmoji } from '../utils/flags'
+import { actionForItem } from '../utils/itemActions'
 import type { TravelMode } from '../utils/distance'
 import type { Trip, Day, Item } from '../types/trip'
 
@@ -29,7 +41,14 @@ export default function TripDetail() {
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null)
   const [travelMode, setTravelMode] = useState<TravelMode>('car')
   const [addModalDate, setAddModalDate] = useState<string | null>(null)
+  const [editingItem, setEditingItem] = useState<Item | null>(null)
   const [showCalendar, setShowCalendar] = useState(false)
+  const [screen, setScreen] = useState<'itinerary' | 'booking'>('itinerary')
+  const [bookingItemId, setBookingItemId] = useState<string | null>(null)
+  const [zoom, setZoom] = useState(12)
+  const [editingDayLabel, setEditingDayLabel] = useState(false)
+  const [dayLabelDraft, setDayLabelDraft] = useState('')
+  const mapRef = useRef<TripMapHandle>(null)
 
   useEffect(() => {
     if (!tripId) return
@@ -55,7 +74,6 @@ export default function TripDetail() {
   const activeItems = items
     .filter((item) => item.dayId === activeDayId)
     .sort((a, b) => a.position - b.position)
-  const stays = items.filter((item) => item.type === 'stay')
 
   useEffect(() => {
     if (!activeItems.some((item) => item.id === selectedItemId)) {
@@ -67,6 +85,12 @@ export default function TripDetail() {
   const selectedIndex = activeItems.findIndex((item) => item.id === selectedItemId)
   const nextItem = selectedIndex >= 0 ? activeItems[selectedIndex + 1] : undefined
   const selectedItem = selectedIndex >= 0 ? activeItems[selectedIndex] : undefined
+  const bookingItem = items.find((item) => item.id === bookingItemId) ?? null
+
+  function handleDayCreated(day: Day) {
+    setDays((current) => [...current, day].sort((a, b) => a.date.localeCompare(b.date)))
+    setActiveDayId(day.id)
+  }
 
   function goToDay(offset: number) {
     if (activeDayIndex < 0) return
@@ -90,8 +114,42 @@ export default function TripDetail() {
     await deleteItem(id)
   }
 
+  function handleAction(item: Item) {
+    const { action } = actionForItem(item)
+    if (action === 'booking') {
+      setBookingItemId(item.id)
+      setScreen('booking')
+    } else if (item.googleMapsUrl) {
+      window.open(item.googleMapsUrl, '_blank', 'noopener')
+    } else {
+      setEditingItem(item)
+    }
+  }
+
+  async function handleCancelBooking() {
+    if (!bookingItem) return
+    if (!confirm(`Cancel booking for ${bookingItem.name}? This removes it from the trip.`)) return
+    await handleDelete(bookingItem.id)
+    setBookingItemId(null)
+    setScreen('itinerary')
+  }
+
+  function startDayLabelEdit() {
+    setDayLabelDraft(activeDay?.label ?? '')
+    setEditingDayLabel(true)
+  }
+
+  async function saveDayLabel() {
+    setEditingDayLabel(false)
+    if (!activeDay) return
+    const label = dayLabelDraft.trim() || null
+    if (label === activeDay.label) return
+    setDays((current) => current.map((d) => (d.id === activeDay.id ? { ...d, label } : d)))
+    await updateDayLabel(activeDay.id, label)
+  }
+
   if (loading) {
-    return <div className="flex min-h-screen items-center justify-center font-mono text-sm text-text-dim">Loading…</div>
+    return <div className="flex min-h-screen items-center justify-center text-sm text-text-dim">Loading…</div>
   }
 
   if (!trip) {
@@ -99,86 +157,141 @@ export default function TripDetail() {
   }
 
   return (
-    <div className="flex h-screen flex-col">
-      <header className="flex shrink-0 items-center justify-between border-b border-border px-6 py-3">
-        <div className="flex items-center gap-4">
-          <Link to="/" className="text-text-dim hover:text-text">
-            <ArrowLeft size={18} />
-          </Link>
-          <div className="flex items-center gap-2">
-            <span className="h-3 w-3 rounded-sm bg-line-2" />
-            <span className="font-display text-sm font-bold tracking-wide text-text-dim">ATLAS</span>
-          </div>
-          <div className="h-5 w-px bg-border" />
-          <div>
-            <h1 className="font-display text-xl font-semibold leading-none tracking-tight text-text">
-              {trip.name}
-            </h1>
-            <p className="mt-0.5 font-mono text-[11px] uppercase tracking-wide text-text-dim">
-              {trip.startDate} — {trip.endDate}
-            </p>
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setShowCalendar((v) => !v)}
-            className="rounded-md border border-border p-2 text-text-dim hover:text-text"
-            aria-label="Month view"
-          >
-            <CalendarDays size={16} />
-          </button>
-          <button
-            onClick={() => setAddModalDate(activeDay?.date ?? trip.startDate)}
-            className="flex items-center gap-1.5 rounded-md bg-paper px-4 py-2 text-sm font-medium text-ink hover:bg-paper-dim"
-          >
-            <Plus size={16} /> Add to trip
-          </button>
-        </div>
-      </header>
+    <div className="flex h-screen flex-col overflow-hidden bg-ink text-text">
+      <TopNav active="Itinerary" />
 
-      <div className="relative flex min-h-0 flex-1">
-        <aside className="flex w-full max-w-md shrink-0 flex-col overflow-y-auto border-r border-border px-5 py-5">
-          <DayTabs days={days} activeDayId={activeDayId} onSelect={setActiveDayId} />
+      <div className="flex min-h-0 flex-1">
+        <aside className="relative flex w-[400px] shrink-0 flex-col border-r border-border overflow-hidden">
+          {screen === 'itinerary' ? (
+            <>
+              <div className="px-[22px] pt-[18px]">
+                <div className="mb-4 flex items-center justify-between">
+                  <Link to="/" className="flex items-center gap-2 text-xs font-semibold text-text-dim hover:text-text">
+                    <ChevronLeft size={14} /> Itinerary Detail
+                  </Link>
+                  <div className="flex items-center gap-3.5 text-text-dim">
+                    <button
+                      onClick={() => setAddModalDate(activeDay?.date ?? trip.startDate)}
+                      aria-label="Add to trip"
+                      className="hover:text-text"
+                    >
+                      <Plus size={15} />
+                    </button>
+                    <span title="Export — coming soon" className="cursor-default opacity-60">
+                      <Download size={14} />
+                    </span>
+                    <span title="Share — coming soon" className="cursor-default opacity-60">
+                      <Share2 size={14} />
+                    </span>
+                    <button
+                      onClick={() => setShowCalendar((v) => !v)}
+                      aria-label="Month view"
+                      className="hover:text-text"
+                    >
+                      <MoreVertical size={15} />
+                    </button>
+                  </div>
+                </div>
 
-          <div className="mt-5">
-            <StaysList stays={stays} onDelete={handleDelete} />
-          </div>
+                <h1 className="mb-1.5 text-[23px] font-extrabold leading-tight tracking-tight text-text">
+                  {trip.name} &mdash; {days.length} Day Trip
+                </h1>
+                {trip.description && (
+                  <p className="mb-3.5 text-xs leading-relaxed text-text-dim">{trip.description}</p>
+                )}
 
-          {activeDay ? (
-            <DayLine
-              day={activeDay}
-              items={activeItems}
-              color={activeColor}
-              selectedItemId={selectedItemId}
-              onSelectItem={setSelectedItemId}
-              onReorder={handleReorder}
-              onDelete={handleDelete}
-              onAddClick={setAddModalDate}
+                <div className="mb-4 flex flex-wrap items-center gap-2.5">
+                  <div className="flex items-center gap-1.5 rounded-lg bg-surface-3 px-2.5 py-1 text-[11px] font-bold text-text">
+                    {flagEmoji(trip.countryCode) && <span>{flagEmoji(trip.countryCode)}</span>}
+                    {formatShortDate(trip.startDate)} &ndash; {formatShortDate(trip.endDate)}
+                  </div>
+                  <div className="text-[11.5px] text-text-dim">
+                    {days.length} Day{days.length === 1 ? '' : 's'}
+                  </div>
+                  <div className="text-[11.5px] text-text-dim">&middot; {items.length} Stops</div>
+                  <div className="flex-1" />
+                  {activeDayId && <DaySelect days={days} activeDayId={activeDayId} onSelect={setActiveDayId} />}
+                </div>
+
+                <div className="mb-0.5 flex items-center justify-between">
+                  <p className="text-[10.5px] font-semibold text-text-dimmer">
+                    Day {activeDayIndex + 1} &middot; {activeDay ? formatShortDate(activeDay.date) : ''}
+                  </p>
+                </div>
+                <div className="mb-3 flex items-center justify-between gap-2">
+                  {editingDayLabel ? (
+                    <input
+                      autoFocus
+                      value={dayLabelDraft}
+                      onChange={(e) => setDayLabelDraft(e.target.value)}
+                      onBlur={saveDayLabel}
+                      onKeyDown={(e) => e.key === 'Enter' && saveDayLabel()}
+                      placeholder={`Day ${activeDayIndex + 1}`}
+                      className="w-full rounded-md border border-border bg-ink px-2 py-1 text-base font-extrabold text-text focus:border-paper focus:outline-none"
+                    />
+                  ) : (
+                    <>
+                      <h2 className="text-base font-extrabold text-text">
+                        {activeDay?.label || `Day ${activeDayIndex + 1}`}
+                      </h2>
+                      <button onClick={startDayLabelEdit} className="text-text-dimmer hover:text-text-dim">
+                        <Pencil size={12} />
+                      </button>
+                    </>
+                  )}
+                </div>
+
+                {showCalendar && (
+                  <div className="absolute left-[22px] top-16 z-20 w-80 rounded-lg border border-border bg-surface p-3 shadow-2xl">
+                    <TripCalendar
+                      days={days}
+                      onSelectDay={(dayId) => {
+                        setActiveDayId(dayId)
+                        setShowCalendar(false)
+                      }}
+                    />
+                  </div>
+                )}
+              </div>
+
+              <div className="min-h-0 flex-1 overflow-y-auto px-[22px] pb-6 pt-0.5">
+                {activeDay ? (
+                  <DayLine
+                    day={activeDay}
+                    items={activeItems}
+                    color={activeColor}
+                    selectedItemId={selectedItemId}
+                    onSelectItem={setSelectedItemId}
+                    onAction={handleAction}
+                    onEdit={setEditingItem}
+                    onReorder={handleReorder}
+                    onDelete={handleDelete}
+                    onAddClick={setAddModalDate}
+                  />
+                ) : (
+                  <p className="text-text-dim">No days yet — add your first flight, stay, or activity.</p>
+                )}
+              </div>
+            </>
+          ) : bookingItem ? (
+            <BookingDetail
+              item={bookingItem}
+              onBack={() => setScreen('itinerary')}
+              onModify={() => setEditingItem(bookingItem)}
+              onCancel={handleCancelBooking}
             />
-          ) : (
-            <p className="text-text-dim">No days yet — add your first flight, stay, or activity.</p>
-          )}
-
-          {showCalendar && (
-            <div className="absolute left-5 top-16 z-20 w-80 rounded-lg border border-border bg-surface p-3 shadow-xl">
-              <TripCalendar
-                days={days}
-                onSelectDay={(dayId) => {
-                  setActiveDayId(dayId)
-                  setShowCalendar(false)
-                }}
-              />
-            </div>
-          )}
+          ) : null}
         </aside>
 
-        <main className="relative flex-1">
+        <main className="relative flex-1 bg-map-bg">
           <TripMap
+            ref={mapRef}
             days={days}
             items={items}
             activeDayId={activeDayId}
             selectedItemId={selectedItemId}
             onSelectItem={setSelectedItemId}
+            onZoomChange={setZoom}
           />
 
           {activeDay && (
@@ -189,11 +302,17 @@ export default function TripDetail() {
             />
           )}
 
-          <TravelModePicker mode={travelMode} onChange={setTravelMode} />
+          <TravelModePicker mode={travelMode} onChange={setTravelMode} color={activeColor} />
 
           {selectedItem && nextItem && (
             <TransitCard from={selectedItem} to={nextItem} mode={travelMode} color={activeColor} />
           )}
+
+          <ZoomControl
+            zoom={zoom}
+            onZoomIn={() => mapRef.current?.zoomIn()}
+            onZoomOut={() => mapRef.current?.zoomOut()}
+          />
         </main>
       </div>
 
@@ -204,14 +323,23 @@ export default function TripDetail() {
           defaultDate={addModalDate}
           itemCount={items.length}
           onClose={() => setAddModalDate(null)}
-          onDayCreated={(day) => {
-            setDays((current) => {
-              const next = [...current, day].sort((a, b) => a.date.localeCompare(b.date))
-              return next
-            })
-            setActiveDayId(day.id)
-          }}
+          onDayCreated={handleDayCreated}
           onItemCreated={(item) => setItems((current) => [...current, item])}
+        />
+      )}
+
+      {editingItem && (
+        <AddItemModal
+          trip={trip}
+          days={days}
+          editItem={editingItem}
+          itemCount={items.length}
+          onClose={() => setEditingItem(null)}
+          onDayCreated={handleDayCreated}
+          onItemCreated={() => {}}
+          onItemUpdated={(updated) => {
+            setItems((current) => current.map((i) => (i.id === updated.id ? updated : i)))
+          }}
         />
       )}
     </div>

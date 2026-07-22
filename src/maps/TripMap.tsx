@@ -1,11 +1,9 @@
-import { useEffect, useRef } from 'react'
-import maplibregl from 'maplibre-gl'
+import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react'
+import * as tt from '@tomtom-international/web-sdk-maps'
 import { lineColorForIndex } from '../utils/lineColors'
 import type { Day, Item } from '../types/trip'
 
-const MAP_STYLE = 'https://tiles.openfreemap.org/styles/liberty'
-const STAY_COLOR = '#f2e9d8'
-const MUTED_COLOR = '#5a6b65'
+const TOMTOM_API_KEY = import.meta.env.VITE_TOMTOM_API_KEY as string | undefined
 
 interface LineFeature {
   type: 'Feature'
@@ -13,175 +11,189 @@ interface LineFeature {
   geometry: { type: 'LineString'; coordinates: [number, number][] }
 }
 
-export function TripMap({
-  days,
-  items,
-  activeDayId,
-  selectedItemId,
-  onSelectItem,
-}: {
-  days: Day[]
-  items: Item[]
-  activeDayId: string | null
-  selectedItemId: string | null
-  onSelectItem: (id: string) => void
-}) {
+export interface TripMapHandle {
+  zoomIn: () => void
+  zoomOut: () => void
+}
+
+export const TripMap = forwardRef<
+  TripMapHandle,
+  {
+    days: Day[]
+    items: Item[]
+    activeDayId: string | null
+    selectedItemId: string | null
+    onSelectItem: (id: string) => void
+    onZoomChange: (zoom: number) => void
+  }
+>(function TripMap({ days, items, activeDayId, selectedItemId, onSelectItem, onZoomChange }, ref) {
   const containerRef = useRef<HTMLDivElement>(null)
-  const mapRef = useRef<maplibregl.Map | null>(null)
-  const markersRef = useRef<maplibregl.Marker[]>([])
+  const mapRef = useRef<tt.Map | null>(null)
+  const markersRef = useRef<tt.Marker[]>([])
+  const readyRef = useRef(false)
+  const prevDayRef = useRef(activeDayId)
+  const prevSelectedRef = useRef(selectedItemId)
+
+  useImperativeHandle(ref, () => ({
+    zoomIn: () => mapRef.current?.easeTo({ zoom: (mapRef.current.getZoom() ?? 12) + 1 }),
+    zoomOut: () => mapRef.current?.easeTo({ zoom: (mapRef.current.getZoom() ?? 12) - 1 }),
+  }))
 
   useEffect(() => {
-    if (!containerRef.current || mapRef.current) return
-    mapRef.current = new maplibregl.Map({
+    if (!TOMTOM_API_KEY || !containerRef.current) return
+
+    const map = tt.map({
+      key: TOMTOM_API_KEY,
       container: containerRef.current,
-      style: MAP_STYLE,
-      center: [0, 20],
+      center: [20, 20],
       zoom: 1.5,
     })
-    mapRef.current.addControl(new maplibregl.NavigationControl(), 'top-right')
+    mapRef.current = map
+
+    map.on('load', () => {
+      readyRef.current = true
+      map.addSource('route-line', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } })
+      map.addLayer({
+        id: 'route-line',
+        type: 'line',
+        source: 'route-line',
+        paint: { 'line-color': ['get', 'color'], 'line-width': 3, 'line-opacity': 0.9 },
+      })
+      map.addSource('flight-line', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } })
+      map.addLayer({
+        id: 'flight-line',
+        type: 'line',
+        source: 'flight-line',
+        paint: { 'line-color': ['get', 'color'], 'line-width': 2, 'line-dasharray': [2, 2] },
+      })
+      render(true)
+    })
+    map.on('zoom', () => onZoomChange(map.getZoom()))
+    map.on('error', (e) => console.error('tomtom map error', e))
+
+    function render(fit: boolean) {
+      if (!readyRef.current) return
+      markersRef.current.forEach((m) => m.remove())
+      markersRef.current = []
+
+      const dayIndex = days.findIndex((d) => d.id === activeDayId)
+      const color = dayIndex >= 0 ? lineColorForIndex(dayIndex) : lineColorForIndex(0)
+      const dayItems = items
+        .filter((item) => item.dayId === activeDayId)
+        .sort((a, b) => a.position - b.position)
+
+      const routeCoords: [number, number][] = []
+      const flightFeatures: LineFeature[] = []
+      const bounds = new tt.LngLatBounds()
+      let hasPoints = false
+
+      dayItems.forEach((item, index) => {
+        const entry: [number, number] = [item.lng, item.lat]
+        routeCoords.push(entry)
+        bounds.extend(entry)
+        hasPoints = true
+
+        addMarker(map, markersRef.current, entry, index + 1, color, item.id === selectedItemId, () =>
+          onSelectItem(item.id),
+        )
+
+        if (item.type === 'flight' && item.lat2 != null && item.lng2 != null) {
+          const exit: [number, number] = [item.lng2, item.lat2]
+          flightFeatures.push({
+            type: 'Feature',
+            properties: { color },
+            geometry: { type: 'LineString', coordinates: [entry, exit] },
+          })
+          addMutedMarker(map, markersRef.current, exit)
+          bounds.extend(exit)
+        }
+      })
+
+      const routeSource = map.getSource('route-line') as tt.GeoJSONSource | undefined
+      routeSource?.setData({
+        type: 'FeatureCollection',
+        features:
+          routeCoords.length > 1
+            ? [{ type: 'Feature', properties: { color }, geometry: { type: 'LineString', coordinates: routeCoords } }]
+            : [],
+      })
+      const flightSource = map.getSource('flight-line') as tt.GeoJSONSource | undefined
+      flightSource?.setData({ type: 'FeatureCollection', features: flightFeatures })
+
+      if (fit && hasPoints) {
+        map.fitBounds(bounds, { padding: 90, maxZoom: 15, duration: 0 })
+      }
+    }
+
+    ;(map as unknown as { __render?: (fit: boolean) => void }).__render = render
 
     return () => {
-      mapRef.current?.remove()
+      markersRef.current.forEach((m) => m.remove())
+      markersRef.current = []
+      map.remove()
       mapRef.current = null
+      readyRef.current = false
     }
+    // Map is created once; day/item/selection updates are handled by the effect below.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   useEffect(() => {
     const map = mapRef.current
-    if (!map) return
+    const render = (map as unknown as { __render?: (fit: boolean) => void } | null)?.__render
+    if (!map || !render || !readyRef.current) return
 
-    const dayColor = new Map(days.map((day, index) => [day.id, lineColorForIndex(index)]))
-
-    function render() {
-      if (mapRef.current !== map) return
-      markersRef.current.forEach((marker) => marker.remove())
-      markersRef.current = []
-      ;['route-line', 'flight-line'].forEach((id) => {
-        if (map!.getLayer(id)) map!.removeLayer(id)
-        if (map!.getSource(id)) map!.removeSource(id)
-      })
-
-      const bounds = new maplibregl.LngLatBounds()
-      let hasPoints = false
-      const routeFeatures: LineFeature[] = []
-      const flightFeatures: LineFeature[] = []
-
-      const activeItems = items
-        .filter((item) => item.type !== 'stay' && item.dayId === activeDayId)
-        .sort((a, b) => a.position - b.position)
-      const otherItems = items.filter((item) => item.type !== 'stay' && item.dayId !== activeDayId)
-      const stays = items.filter((item) => item.type === 'stay')
-      const activeColor = activeDayId ? dayColor.get(activeDayId) ?? MUTED_COLOR : MUTED_COLOR
-
-      let previousExit: [number, number] | null = null
-      activeItems.forEach((item, index) => {
-        const entry: [number, number] = [item.lng, item.lat]
-        const exit: [number, number] = item.type === 'flight' && item.lat2 != null && item.lng2 != null
-          ? [item.lng2, item.lat2]
-          : entry
-
-        if (previousExit) {
-          routeFeatures.push({
-            type: 'Feature',
-            properties: { color: activeColor },
-            geometry: { type: 'LineString', coordinates: [previousExit, entry] },
-          })
-        }
-        if (item.type === 'flight' && exit !== entry) {
-          flightFeatures.push({
-            type: 'Feature',
-            properties: { color: activeColor },
-            geometry: { type: 'LineString', coordinates: [entry, exit] },
-          })
-          addNumberedMarker(map!, entry, index + 1, activeColor, item.name, markersRef.current, {
-            selected: item.id === selectedItemId,
-            onClick: () => onSelectItem(item.id),
-          })
-          addIconMarker(map!, exit, activeColor, '✈', item.name, markersRef.current)
-          bounds.extend(exit)
-        } else {
-          addNumberedMarker(map!, entry, index + 1, activeColor, item.name, markersRef.current, {
-            selected: item.id === selectedItemId,
-            onClick: () => onSelectItem(item.id),
-          })
-        }
-
-        bounds.extend(entry)
-        hasPoints = true
-        previousExit = exit
-      })
-
-      otherItems.forEach((item) => {
-        addMutedMarker(map!, [item.lng, item.lat], markersRef.current)
-        if (item.type === 'flight' && item.lat2 != null && item.lng2 != null) {
-          addMutedMarker(map!, [item.lng2, item.lat2], markersRef.current)
-        }
-      })
-
-      stays.forEach((stay) => {
-        addIconMarker(map!, [stay.lng, stay.lat], STAY_COLOR, '🛏', stay.name, markersRef.current)
-        bounds.extend([stay.lng, stay.lat])
-        hasPoints = true
-      })
-
-      if (routeFeatures.length > 0) {
-        map!.addSource('route-line', {
-          type: 'geojson',
-          data: { type: 'FeatureCollection', features: routeFeatures },
-        })
-        map!.addLayer({
-          id: 'route-line',
-          type: 'line',
-          source: 'route-line',
-          paint: { 'line-color': ['get', 'color'], 'line-width': 2.5, 'line-opacity': 0.85 },
-        })
-      }
-
-      if (flightFeatures.length > 0) {
-        map!.addSource('flight-line', {
-          type: 'geojson',
-          data: { type: 'FeatureCollection', features: flightFeatures },
-        })
-        map!.addLayer({
-          id: 'flight-line',
-          type: 'line',
-          source: 'flight-line',
-          paint: {
-            'line-color': ['get', 'color'],
-            'line-width': 2,
-            'line-dasharray': [2, 2],
-          },
-        })
-      }
-
-      if (hasPoints) {
-        map!.fitBounds(bounds, { padding: 64, maxZoom: 15, duration: 500 })
+    const dayChanged = prevDayRef.current !== activeDayId
+    const selectionChanged = prevSelectedRef.current !== selectedItemId
+    render(dayChanged)
+    if (!dayChanged && selectionChanged) {
+      const item = items.find((i) => i.id === selectedItemId)
+      // The SDK's flyTo() type omits center/zoom despite supporting them at runtime
+      // (it's inherited from CameraOptions, like easeTo/fitBounds) — cast around it.
+      if (item) {
+        type FlyToOptions = Parameters<typeof map.easeTo>[0] & { curve?: number }
+        map.flyTo({ center: [item.lng, item.lat], zoom: Math.max(map.getZoom(), 13) } as FlyToOptions)
       }
     }
+    prevDayRef.current = activeDayId
+    prevSelectedRef.current = selectedItemId
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [days, items, activeDayId, selectedItemId])
 
-    if (map.isStyleLoaded()) render()
-    else map.once('load', render)
-  }, [days, items, activeDayId, selectedItemId, onSelectItem])
+  if (!TOMTOM_API_KEY) {
+    return (
+      <div className="absolute inset-0 flex items-center justify-center bg-map-bg">
+        <div className="max-w-[320px] rounded-2xl border border-border-strong bg-surface px-6 py-5 text-center">
+          <p className="mb-1.5 text-[13.5px] font-bold text-text">Live map needs a TomTom API key</p>
+          <p className="text-[11.5px] leading-relaxed text-text-dim">
+            Set <code className="text-text">VITE_TOMTOM_API_KEY</code> in your .env file to load the interactive
+            map.
+          </p>
+        </div>
+      </div>
+    )
+  }
 
-  return <div ref={containerRef} className="h-full w-full" />
-}
+  return <div ref={containerRef} className="map-invert absolute inset-0" />
+})
 
-function addNumberedMarker(
-  map: maplibregl.Map,
+function addMarker(
+  map: tt.Map,
+  registry: tt.Marker[],
   lngLat: [number, number],
   number: number,
   color: string,
-  label: string,
-  registry: maplibregl.Marker[],
-  options: { selected: boolean; onClick: () => void },
+  selected: boolean,
+  onClick: () => void,
 ) {
-  const size = options.selected ? 34 : 26
+  const size = selected ? 30 : 22
   const wrapper = document.createElement('div')
   wrapper.style.position = 'relative'
   wrapper.style.width = `${size}px`
   wrapper.style.height = `${size}px`
   wrapper.style.cursor = 'pointer'
-  if (options.selected) wrapper.className = 'pulse-ring'
+  wrapper.style.filter = 'invert(1) hue-rotate(180deg)'
+  if (selected) wrapper.className = 'pulse-ring'
 
   const el = document.createElement('div')
   el.style.position = 'relative'
@@ -190,63 +202,32 @@ function addNumberedMarker(
   el.style.height = '100%'
   el.style.borderRadius = '50%'
   el.style.background = color
-  el.style.border = '2px solid #0f1e1b'
-  el.style.boxShadow = '0 1px 4px rgba(0,0,0,0.4)'
+  el.style.border = '2px solid #17191f'
+  el.style.boxShadow = '0 3px 8px rgba(0,0,0,.4)'
   el.style.display = 'flex'
   el.style.alignItems = 'center'
   el.style.justifyContent = 'center'
-  el.style.fontSize = options.selected ? '14px' : '12px'
-  el.style.fontWeight = '600'
-  el.style.color = '#0f1e1b'
-  el.style.fontFamily = 'var(--font-mono)'
+  el.style.fontSize = selected ? '13px' : '11px'
+  el.style.fontWeight = '700'
+  el.style.color = '#fff'
+  el.style.fontFamily = 'Inter, sans-serif'
   el.textContent = String(number)
   wrapper.appendChild(el)
-  wrapper.addEventListener('click', options.onClick)
+  wrapper.addEventListener('click', onClick)
 
-  const marker = new maplibregl.Marker({ element: wrapper })
-    .setLngLat(lngLat)
-    .setPopup(new maplibregl.Popup({ offset: 16 }).setText(label))
-    .addTo(map)
+  const marker = new tt.Marker({ element: wrapper }).setLngLat(lngLat).addTo(map)
   registry.push(marker)
 }
 
-function addIconMarker(
-  map: maplibregl.Map,
-  lngLat: [number, number],
-  color: string,
-  emoji: string,
-  label: string,
-  registry: maplibregl.Marker[],
-) {
+function addMutedMarker(map: tt.Map, registry: tt.Marker[], lngLat: [number, number]) {
   const el = document.createElement('div')
-  el.style.width = '22px'
-  el.style.height = '22px'
+  el.style.width = '10px'
+  el.style.height = '10px'
   el.style.borderRadius = '50%'
-  el.style.background = color
-  el.style.border = '2px solid #0f1e1b'
-  el.style.boxShadow = '0 1px 4px rgba(0,0,0,0.4)'
-  el.style.display = 'flex'
-  el.style.alignItems = 'center'
-  el.style.justifyContent = 'center'
-  el.style.fontSize = '11px'
-  el.textContent = emoji
+  el.style.background = '#5b6b8c'
+  el.style.border = '1.5px solid #17191f'
+  el.style.filter = 'invert(1) hue-rotate(180deg)'
 
-  const marker = new maplibregl.Marker({ element: el })
-    .setLngLat(lngLat)
-    .setPopup(new maplibregl.Popup({ offset: 14 }).setText(label))
-    .addTo(map)
-  registry.push(marker)
-}
-
-function addMutedMarker(map: maplibregl.Map, lngLat: [number, number], registry: maplibregl.Marker[]) {
-  const el = document.createElement('div')
-  el.style.width = '9px'
-  el.style.height = '9px'
-  el.style.borderRadius = '50%'
-  el.style.background = MUTED_COLOR
-  el.style.border = '1.5px solid #0f1e1b'
-  el.style.opacity = '0.7'
-
-  const marker = new maplibregl.Marker({ element: el }).setLngLat(lngLat).addTo(map)
+  const marker = new tt.Marker({ element: el }).setLngLat(lngLat).addTo(map)
   registry.push(marker)
 }

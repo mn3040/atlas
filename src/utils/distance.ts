@@ -31,6 +31,14 @@ const TRAVEL_NOTES: Record<TravelMode, string> = {
   flight: 'Long enough that a domestic flight may be the only practical option.',
 }
 
+export const TRAVEL_CTAS: Record<TravelMode, string> = {
+  walk: 'Get Directions',
+  bike: 'Find a Bike Route',
+  car: 'Get Directions',
+  train: 'Find Train Times',
+  flight: 'Find Flights',
+}
+
 export function formatDuration(minutes: number): string {
   if (minutes >= 60) {
     const h = Math.floor(minutes / 60)
