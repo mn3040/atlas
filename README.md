@@ -4,25 +4,21 @@ Plan trips visually. Organize every day. Discover what travelers actually recomm
 
 ## Stack
 
-React + TypeScript + Vite + Tailwind CSS, TomTom Maps SDK for Web, Google Places (search, photos, ratings,
-Google Maps links), Supabase (Postgres, Auth, Realtime), deployed on Vercel.
+React + TypeScript + Vite + Tailwind CSS, TomTom Maps SDK for Web (map + routing), Nominatim/OpenStreetMap
+(place search, free, no key), Supabase (Postgres, Auth, Realtime), deployed on Vercel.
 
 ## Local setup
 
 ```bash
 npm install
-cp .env.example .env   # fill in Supabase, TomTom, and Google Maps credentials
+cp .env.example .env   # fill in Supabase and TomTom credentials
 npm run dev
 ```
 
-- **TomTom** (trip map): free key at [developer.tomtom.com](https://developer.tomtom.com/) →
-  `VITE_TOMTOM_API_KEY`. Without it, the map pane shows an explanatory empty state instead of failing.
-- **Google Maps** (place search/autocomplete, photos, ratings, "View on Google Maps" links, flight airport
-  search): create a key in the [Google Cloud Console](https://console.cloud.google.com/google/maps-apis) with
-  billing enabled and the **Places API (New)** enabled → `VITE_GOOGLE_MAPS_API_KEY`. Restrict the key to your
-  site's HTTP referrers (it ships in the browser bundle, same as the TomTom key). Without it, the location
-  search inputs show an explanatory disabled state instead of failing. Google's Places API is metered/billed
-  per request past the monthly free tier — see [Places API pricing](https://developers.google.com/maps/billing-and-pricing/pricing#places-pricing).
+- **TomTom** (trip map + routes between stops): free key at [developer.tomtom.com](https://developer.tomtom.com/)
+  → `VITE_TOMTOM_API_KEY`. Without it, the map pane shows an explanatory empty state instead of failing.
+- **Place search** uses Nominatim (OpenStreetMap) — no key or billing required. "View on Google Maps" links
+  are plain `google.com/maps` deep links built from the picked coordinates, not an API call.
 
 ## Supabase setup
 
@@ -35,18 +31,18 @@ npm run dev
 
 1. Push this repo to GitHub.
 2. Import it in [Vercel](https://vercel.com/new) — the Vite build is auto-detected (`npm run build`, output `dist/`).
-3. Add `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_TOMTOM_API_KEY`, and `VITE_GOOGLE_MAPS_API_KEY` as Environment Variables in the Vercel project settings (same values as your local `.env`).
+3. Add `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, and `VITE_TOMTOM_API_KEY` as Environment Variables in the Vercel project settings (same values as your local `.env`).
 4. Every push to the connected branch redeploys automatically.
 
 ## Project structure
 
 ```
 src/
-  api/         Supabase client, typed data-access functions, Google Places search/details
-  components/  Shared UI components (top nav, Google-backed place search input)
+  api/         Supabase client, typed data-access functions, Nominatim place search, TomTom routing
+  components/  Shared UI components (top nav, place search input)
   pages/       Route-level pages (Dashboard, TripDetail)
   itinerary/   Timeline (DayLine/ItemStation), day selector, add/edit item modal, booking detail
-  maps/        TomTom trip map (pins + flight paths), day pager, travel mode picker, transit card, zoom control
+  maps/        TomTom trip map (pins, flight paths, mode-aware routes), day pager, travel mode picker, transit card, zoom control
   calendar/    Month calendar view
   hooks/       Auth session hook (silent anonymous sign-in)
   types/       Shared TypeScript types

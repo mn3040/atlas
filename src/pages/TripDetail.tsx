@@ -290,6 +290,7 @@ export default function TripDetail() {
             items={items}
             activeDayId={activeDayId}
             selectedItemId={selectedItemId}
+            travelMode={travelMode}
             onSelectItem={setSelectedItemId}
             onZoomChange={setZoom}
           />

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Plane, BedDouble, MapPin } from 'lucide-react'
 import { PlaceSearchInput } from '../components/PlaceSearchInput'
-import type { GooglePlaceResult } from '../api/googlePlaces'
+import type { PlaceResult } from '../api/geocoding'
 import { createDay, createItem, updateItem } from '../api/trips'
 import type { NewItemInput } from '../api/trips'
 import type { Day, Item, ItemType, ActivityCategory, Trip } from '../types/trip'
@@ -24,17 +24,12 @@ const TYPE_TABS: { type: ItemType; label: string; icon: typeof MapPin }[] = [
 const inputClass =
   'w-full rounded-md border border-border bg-ink px-3 py-2 text-sm text-text placeholder:text-text-dim focus:border-paper focus:outline-none'
 
-function placeFromItem(item: Item, label: string | null, lat: number, lng: number): GooglePlaceResult {
+function placeFromItem(label: string | null, lat: number, lng: number): PlaceResult {
   return {
     label: label ?? '',
     lat,
     lng,
-    placeId: item.googlePlaceId ?? '',
-    mapsUrl: item.googleMapsUrl,
-    photoUrl: item.photoUrl,
-    rating: item.googleRating,
-    userRatingsTotal: item.googleUserRatingsTotal,
-    priceLabel: item.priceLabel,
+    mapsUrl: `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`,
     countryCode: null,
   }
 }
@@ -63,12 +58,12 @@ export function AddItemModal({
   const [type, setType] = useState<ItemType>(editItem?.type ?? 'activity')
   const [name, setName] = useState(editItem?.name ?? '')
   const [category, setCategory] = useState<ActivityCategory>(editItem?.category ?? 'attraction')
-  const [place, setPlace] = useState<GooglePlaceResult | null>(
-    editItem ? placeFromItem(editItem, editItem.locationLabel, editItem.lat, editItem.lng) : null,
+  const [place, setPlace] = useState<PlaceResult | null>(
+    editItem ? placeFromItem(editItem.locationLabel, editItem.lat, editItem.lng) : null,
   )
-  const [place2, setPlace2] = useState<GooglePlaceResult | null>(
+  const [place2, setPlace2] = useState<PlaceResult | null>(
     editItem?.lat2 != null && editItem?.lng2 != null
-      ? placeFromItem(editItem, editItem.location2Label, editItem.lat2, editItem.lng2)
+      ? placeFromItem(editItem.location2Label, editItem.lat2, editItem.lng2)
       : null,
   )
   const [startDate, setStartDate] = useState(editItem?.startDate ?? defaultDate ?? trip.startDate)
@@ -89,11 +84,9 @@ export function AddItemModal({
 
   const isEdit = Boolean(editItem)
 
-  function selectPrimaryPlace(p: GooglePlaceResult) {
+  function selectPrimaryPlace(p: PlaceResult) {
     setPlace(p)
     if (!name) setName(p.label.split(',')[0])
-    if (p.priceLabel) setPriceLabel(p.priceLabel)
-    if (p.photoUrl) setPhotoUrl(p.photoUrl)
   }
 
   async function ensureDayFor(date: string): Promise<string> {
@@ -123,12 +116,7 @@ export function AddItemModal({
 
     setSubmitting(true)
     try {
-      const googleFields = {
-        googlePlaceId: place?.placeId || null,
-        googleMapsUrl: place?.mapsUrl ?? null,
-        googleRating: place?.rating ?? null,
-        googleUserRatingsTotal: place?.userRatingsTotal ?? null,
-      }
+      const googleFields = { googleMapsUrl: place?.mapsUrl ?? null }
 
       if (isEdit && editItem) {
         const dayId = type === 'stay' ? editItem.dayId : await ensureDayFor(startDate)
@@ -440,7 +428,7 @@ export function AddItemModal({
           <input
             value={photoUrl}
             onChange={(e) => setPhotoUrl(e.target.value)}
-            placeholder="Photo URL (auto-filled from Google Places when you pick a location)"
+            placeholder="Photo URL (optional)"
             className={inputClass}
           />
           {place?.mapsUrl && (

@@ -1,7 +1,9 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react'
 import * as tt from '@tomtom-international/web-sdk-maps'
 import { lineColorForIndex } from '../utils/lineColors'
+import { fetchRoute, isRoutable } from '../api/tomtomRouting'
 import type { Day, Item } from '../types/trip'
+import type { TravelMode } from '../utils/distance'
 
 const TOMTOM_API_KEY = import.meta.env.VITE_TOMTOM_API_KEY as string | undefined
 
@@ -23,16 +25,20 @@ export const TripMap = forwardRef<
     items: Item[]
     activeDayId: string | null
     selectedItemId: string | null
+    travelMode: TravelMode
     onSelectItem: (id: string) => void
     onZoomChange: (zoom: number) => void
   }
->(function TripMap({ days, items, activeDayId, selectedItemId, onSelectItem, onZoomChange }, ref) {
+>(function TripMap({ days, items, activeDayId, selectedItemId, travelMode, onSelectItem, onZoomChange }, ref) {
   const containerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<tt.Map | null>(null)
   const markersRef = useRef<tt.Marker[]>([])
   const readyRef = useRef(false)
   const prevDayRef = useRef(activeDayId)
   const prevSelectedRef = useRef(selectedItemId)
+  const travelModeRef = useRef(travelMode)
+  const routeRequestRef = useRef(0)
+  travelModeRef.current = travelMode
 
   useImperativeHandle(ref, () => ({
     zoomIn: () => mapRef.current?.easeTo({ zoom: (mapRef.current.getZoom() ?? 12) + 1 }),
@@ -110,18 +116,34 @@ export const TripMap = forwardRef<
       })
 
       const routeSource = map.getSource('route-line') as tt.GeoJSONSource | undefined
-      routeSource?.setData({
-        type: 'FeatureCollection',
-        features:
-          routeCoords.length > 1
-            ? [{ type: 'Feature', properties: { color }, geometry: { type: 'LineString', coordinates: routeCoords } }]
-            : [],
-      })
+      const setRouteLine = (coords: [number, number][]) =>
+        routeSource?.setData({
+          type: 'FeatureCollection',
+          features:
+            coords.length > 1
+              ? [{ type: 'Feature', properties: { color }, geometry: { type: 'LineString', coordinates: coords } }]
+              : [],
+        })
+      setRouteLine(routeCoords)
+
       const flightSource = map.getSource('flight-line') as tt.GeoJSONSource | undefined
       flightSource?.setData({ type: 'FeatureCollection', features: flightFeatures })
 
       if (fit && hasPoints) {
         map.fitBounds(bounds, { padding: 90, maxZoom: 15, duration: 0 })
+      }
+
+      // Straight line above is the instant baseline; upgrade it to a real
+      // road/path-following route once the routing API responds.
+      const mode = travelModeRef.current
+      if (isRoutable(mode) && dayItems.length > 1) {
+        const requestId = ++routeRequestRef.current
+        fetchRoute(
+          dayItems.map((item) => ({ lat: item.lat, lng: item.lng })),
+          mode,
+        ).then((routed) => {
+          if (routed && routeRequestRef.current === requestId) setRouteLine(routed)
+        })
       }
     }
 
@@ -158,7 +180,7 @@ export const TripMap = forwardRef<
     prevDayRef.current = activeDayId
     prevSelectedRef.current = selectedItemId
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [days, items, activeDayId, selectedItemId])
+  }, [days, items, activeDayId, selectedItemId, travelMode])
 
   if (!TOMTOM_API_KEY) {
     return (

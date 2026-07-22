@@ -87,12 +87,6 @@ export function ItemStation({
             {item.locationLabel && (
               <p className="mb-0.5 truncate text-[10.5px] text-text-dim">{item.locationLabel.split(',')[0]} &rsaquo;</p>
             )}
-            {item.googleRating != null && (
-              <p className="mb-0.5 text-[10.5px] text-text-dim">
-                &#9733; {item.googleRating.toFixed(1)}
-                {item.googleUserRatingsTotal != null && ` (${item.googleUserRatingsTotal.toLocaleString()})`}
-              </p>
-            )}
             {item.priceLabel && <p className="mb-1.5 text-[10.5px] text-text-dim">{item.priceLabel}</p>}
             <button
               type="button"

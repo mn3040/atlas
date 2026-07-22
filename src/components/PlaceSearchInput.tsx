@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import { searchPlaces } from '../api/googlePlaces'
-import { hasGoogleMapsKey } from '../api/googleMapsLoader'
-import type { GooglePlaceResult, PlaceSuggestion } from '../api/googlePlaces'
+import { searchPlaces } from '../api/geocoding'
+import type { PlaceResult } from '../api/geocoding'
 
 export function PlaceSearchInput({
   placeholder,
@@ -10,17 +9,16 @@ export function PlaceSearchInput({
 }: {
   placeholder: string
   defaultValue?: string
-  onSelect: (place: GooglePlaceResult) => void
+  onSelect: (place: PlaceResult) => void
 }) {
   const [query, setQuery] = useState(defaultValue ?? '')
-  const [suggestions, setSuggestions] = useState<PlaceSuggestion[]>([])
+  const [suggestions, setSuggestions] = useState<PlaceResult[]>([])
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
-  const [resolvingId, setResolvingId] = useState<string | null>(null)
   const abortRef = useRef<AbortController | null>(null)
 
   useEffect(() => {
-    if (!hasGoogleMapsKey() || query.trim().length < 2) {
+    if (query.trim().length < 2) {
       setSuggestions([])
       return
     }
@@ -44,16 +42,6 @@ export function PlaceSearchInput({
     return () => clearTimeout(timer)
   }, [query])
 
-  if (!hasGoogleMapsKey()) {
-    return (
-      <input
-        disabled
-        placeholder="Set VITE_GOOGLE_MAPS_API_KEY to search places"
-        className="w-full rounded-md border border-border bg-ink px-3 py-2 text-sm text-text-dim placeholder:text-text-dim"
-      />
-    )
-  }
-
   return (
     <div className="relative">
       <input
@@ -64,31 +52,20 @@ export function PlaceSearchInput({
         placeholder={placeholder}
         className="w-full rounded-md border border-border bg-ink px-3 py-2 text-sm text-text placeholder:text-text-dim focus:border-paper focus:outline-none"
       />
-      {(loading || resolvingId) && (
-        <span className="absolute right-3 top-2.5 text-xs text-text-dim">…</span>
-      )}
+      {loading && <span className="absolute right-3 top-2.5 text-xs text-text-dim">…</span>}
       {open && suggestions.length > 0 && (
         <ul className="absolute z-10 mt-1 max-h-56 w-full overflow-auto rounded-md border border-border bg-surface shadow-2xl">
-          {suggestions.map((s) => (
-            <li key={s.placeId}>
+          {suggestions.map((s, i) => (
+            <li key={`${s.lat},${s.lng},${i}`}>
               <button
                 type="button"
-                disabled={resolvingId === s.placeId}
                 onMouseDown={(e) => e.preventDefault()}
-                onClick={async () => {
-                  setResolvingId(s.placeId)
-                  try {
-                    const details = await s.fetchDetails()
-                    onSelect(details)
-                    setQuery(details.label)
-                  } catch (error) {
-                    console.error(error)
-                  } finally {
-                    setResolvingId(null)
-                    setOpen(false)
-                  }
+                onClick={() => {
+                  onSelect(s)
+                  setQuery(s.label)
+                  setOpen(false)
                 }}
-                className="block w-full truncate px-3 py-2 text-left text-sm text-text hover:bg-surface-2 disabled:opacity-50"
+                className="block w-full truncate px-3 py-2 text-left text-sm text-text hover:bg-surface-2"
               >
                 {s.label}
               </button>
