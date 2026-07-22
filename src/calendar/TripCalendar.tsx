@@ -6,14 +6,18 @@ import { lineColorForIndex } from '../utils/lineColors'
 import type { Day } from '../types/trip'
 import './TripCalendar.css'
 
-export function TripCalendar({ days }: { days: Day[] }) {
+export function TripCalendar({
+  days,
+  onSelectDay,
+}: {
+  days: Day[]
+  onSelectDay: (dayId: string) => void
+}) {
   const dayIndexByDate = new Map(days.map((day, index) => [day.date, index]))
 
   function handleDateClick(date: string) {
     const day = days.find((d) => d.date === date)
-    if (day) {
-      document.getElementById(`day-${day.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-    }
+    if (day) onSelectDay(day.id)
   }
 
   function handleDayCellMount(arg: DayCellMountArg) {

@@ -9,7 +9,8 @@ export function DayLine({
   day,
   items,
   color,
-  dayNumber,
+  selectedItemId,
+  onSelectItem,
   onReorder,
   onDelete,
   onAddClick,
@@ -17,7 +18,8 @@ export function DayLine({
   day: Day
   items: Item[]
   color: string
-  dayNumber: number
+  selectedItemId: string | null
+  onSelectItem: (id: string) => void
   onReorder: (dayId: string, orderedItemIds: string[]) => void
   onDelete: (id: string) => void
   onAddClick: (date: string) => void
@@ -32,30 +34,25 @@ export function DayLine({
     onReorder(day.id, arrayMove(itemIds, oldIndex, newIndex))
   }
 
-  const date = new Date(`${day.date}T00:00:00`)
-  const label = date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }).toUpperCase()
-  const weekday = date.toLocaleDateString(undefined, { weekday: 'long' })
-
   return (
-    <section className="mt-8 first:mt-0">
-      <div className="flex items-baseline gap-3">
-        <span className="h-2 w-2 rounded-full" style={{ background: color }} />
-        <h2 className="font-display text-2xl font-medium tracking-tight text-text">
-          Day {dayNumber}
-        </h2>
-        <span className="font-mono text-xs uppercase tracking-wide text-text-dim">
-          {label} · {weekday}
-        </span>
-      </div>
-
+    <div>
       {items.length === 0 ? (
-        <p className="mt-2 pl-8 text-sm text-text-dim">Nothing planned yet.</p>
+        <p className="py-4 text-sm text-text-dim">Nothing planned yet.</p>
       ) : (
         <DndContext collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
           <SortableContext items={itemIds} strategy={verticalListSortingStrategy}>
             <div>
-              {items.map((item) => (
-                <ItemStation key={item.id} item={item} color={color} onDelete={onDelete} />
+              {items.map((item, index) => (
+                <ItemStation
+                  key={item.id}
+                  item={item}
+                  number={index + 1}
+                  color={color}
+                  isLast={index === items.length - 1}
+                  selected={item.id === selectedItemId}
+                  onSelect={onSelectItem}
+                  onDelete={onDelete}
+                />
               ))}
             </div>
           </SortableContext>
@@ -64,10 +61,10 @@ export function DayLine({
 
       <button
         onClick={() => onAddClick(day.date)}
-        className="mt-2 flex items-center gap-1 pl-8 text-sm text-text-dim hover:text-line-2"
+        className="mt-1 flex items-center gap-1 text-sm text-text-dim hover:text-line-2"
       >
         <Plus size={14} /> Add to this day
       </button>
-    </section>
+    </div>
   )
 }

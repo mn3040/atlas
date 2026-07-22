@@ -1,11 +1,15 @@
 -- Run this in the Supabase SQL editor for your project.
 -- Replaces any earlier version of this schema — safe to run fresh since no
--- production data depends on the old `stops` table yet.
+-- production data depends on the old tables yet.
 
+drop table if exists items cascade;
 drop table if exists stops cascade;
 drop table if exists days cascade;
 drop table if exists trip_members cascade;
 drop table if exists trips cascade;
+drop function if exists is_trip_member(uuid);
+drop function if exists trip_role(uuid);
+drop function if exists handle_new_trip();
 
 create table trips (
   id uuid primary key default gen_random_uuid(),
@@ -64,6 +68,39 @@ create table items (
   position integer not null default 0
 );
 
+-- Helper functions used by RLS policies below.
+--
+-- These run as SECURITY DEFINER so their internal queries against
+-- trip_members bypass RLS. Without this, a policy on trip_members that
+-- queries trip_members to check membership recurses into itself --
+-- Postgres has no way to evaluate "can this row be read" without first
+-- evaluating the same policy on the rows the check itself reads.
+
+create function is_trip_member(_trip_id uuid)
+returns boolean
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  select exists (
+    select 1 from trip_members
+    where trip_id = _trip_id and user_id = auth.uid()
+  );
+$$;
+
+create function trip_role(_trip_id uuid)
+returns text
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  select role from trip_members
+  where trip_id = _trip_id and user_id = auth.uid()
+  limit 1;
+$$;
+
 alter table trips enable row level security;
 alter table trip_members enable row level security;
 alter table days enable row level security;
@@ -71,13 +108,7 @@ alter table items enable row level security;
 
 create policy "members can view their trips"
   on trips for select
-  using (
-    exists (
-      select 1 from trip_members
-      where trip_members.trip_id = trips.id
-        and trip_members.user_id = auth.uid()
-    )
-  );
+  using (is_trip_member(id));
 
 create policy "owners can insert trips"
   on trips for insert
@@ -85,66 +116,27 @@ create policy "owners can insert trips"
 
 create policy "editors and owners can update trips"
   on trips for update
-  using (
-    exists (
-      select 1 from trip_members
-      where trip_members.trip_id = trips.id
-        and trip_members.user_id = auth.uid()
-        and trip_members.role in ('owner', 'editor')
-    )
-  );
+  using (trip_role(id) in ('owner', 'editor'));
 
 create policy "members can view trip membership"
   on trip_members for select
-  using (
-    exists (
-      select 1 from trip_members as tm
-      where tm.trip_id = trip_members.trip_id
-        and tm.user_id = auth.uid()
-    )
-  );
+  using (is_trip_member(trip_id));
 
 create policy "members can view days"
   on days for select
-  using (
-    exists (
-      select 1 from trip_members
-      where trip_members.trip_id = days.trip_id
-        and trip_members.user_id = auth.uid()
-    )
-  );
+  using (is_trip_member(trip_id));
 
 create policy "editors and owners can modify days"
   on days for all
-  using (
-    exists (
-      select 1 from trip_members
-      where trip_members.trip_id = days.trip_id
-        and trip_members.user_id = auth.uid()
-        and trip_members.role in ('owner', 'editor')
-    )
-  );
+  using (trip_role(trip_id) in ('owner', 'editor'));
 
 create policy "members can view items"
   on items for select
-  using (
-    exists (
-      select 1 from trip_members
-      where trip_members.trip_id = items.trip_id
-        and trip_members.user_id = auth.uid()
-    )
-  );
+  using (is_trip_member(trip_id));
 
 create policy "editors and owners can modify items"
   on items for all
-  using (
-    exists (
-      select 1 from trip_members
-      where trip_members.trip_id = items.trip_id
-        and trip_members.user_id = auth.uid()
-        and trip_members.role in ('owner', 'editor')
-    )
-  );
+  using (trip_role(trip_id) in ('owner', 'editor'));
 
 -- Automatically add the creator as an 'owner' member when a trip is created.
 
