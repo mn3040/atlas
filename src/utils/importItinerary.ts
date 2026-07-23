@@ -53,11 +53,11 @@ export async function extractTextFromFile(file: File): Promise<string> {
     lowerName.endsWith('.docx')
   ) {
     const mammoth = await import('mammoth/mammoth.browser')
-    const arrayBuffer = await file.arrayBuffer()
+    const arrayBuffer = await fileToArrayBuffer(file)
     const result = await mammoth.extractRawText({ arrayBuffer })
     return result.value
   }
-  if (file.type.startsWith('text/') || lowerName.endsWith('.txt') || lowerName.endsWith('.md')) return file.text()
+  if (file.type.startsWith('text/') || lowerName.endsWith('.txt') || lowerName.endsWith('.md')) return fileToText(file)
   throw new Error('Upload a PDF, DOCX, TXT, or Markdown itinerary.')
 }
 
@@ -161,13 +161,14 @@ export function extractItineraryItems(text: string, trip: Trip): ExtractedItiner
 }
 
 async function extractPdfText(file: File): Promise<string> {
+  ensurePdfJsCompatibility()
   const [{ GlobalWorkerOptions, getDocument }, worker] = await Promise.all([
-    import('pdfjs-dist'),
-    import('pdfjs-dist/build/pdf.worker.mjs?url'),
+    import('pdfjs-dist/legacy/build/pdf.mjs'),
+    import('pdfjs-dist/legacy/build/pdf.worker.mjs?url'),
   ])
   GlobalWorkerOptions.workerSrc = worker.default
-  const arrayBuffer = await file.arrayBuffer()
-  const pdf = await getDocument({ data: arrayBuffer }).promise
+  const arrayBuffer = await fileToArrayBuffer(file)
+  const pdf = await getDocument({ data: arrayBuffer, disableFontFace: true, useSystemFonts: true }).promise
   const pages: string[] = []
 
   for (let index = 1; index <= pdf.numPages; index += 1) {
@@ -517,7 +518,8 @@ function timeMatches(line: string): string[] {
 
 function regexMatches(value: string, pattern: RegExp): RegExpExecArray[] {
   const result: RegExpExecArray[] = []
-  const flags = pattern.flags.includes('g') ? pattern.flags : `${pattern.flags}g`
+  const baseFlags = regexFlags(pattern)
+  const flags = baseFlags.indexOf('g') >= 0 ? baseFlags : `${baseFlags}g`
   const regex = new RegExp(pattern.source, flags)
   let match: RegExpExecArray | null
   while ((match = regex.exec(value)) !== null) {
@@ -525,6 +527,60 @@ function regexMatches(value: string, pattern: RegExp): RegExpExecArray[] {
     if (match[0] === '') regex.lastIndex += 1
   }
   return result
+}
+
+function ensurePdfJsCompatibility(): void {
+  type PromiseWithResolvers = PromiseConstructor & {
+    withResolvers?: <T>() => {
+      promise: Promise<T>
+      resolve: (value: T | PromiseLike<T>) => void
+      reject: (reason?: unknown) => void
+    }
+  }
+
+  const promiseConstructor = Promise as PromiseWithResolvers
+  if (typeof promiseConstructor.withResolvers === 'function') return
+
+  promiseConstructor.withResolvers = <T>() => {
+    let resolve!: (value: T | PromiseLike<T>) => void
+    let reject!: (reason?: unknown) => void
+    const promise = new Promise<T>((resolvePromise, rejectPromise) => {
+      resolve = resolvePromise
+      reject = rejectPromise
+    })
+    return { promise, resolve, reject }
+  }
+}
+
+function fileToArrayBuffer(file: File): Promise<ArrayBuffer> {
+  if (typeof file.arrayBuffer === 'function') return file.arrayBuffer()
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(reader.result as ArrayBuffer)
+    reader.onerror = () => reject(reader.error ?? new Error('Could not read that file.'))
+    reader.readAsArrayBuffer(file)
+  })
+}
+
+function fileToText(file: File): Promise<string> {
+  if (typeof file.text === 'function') return file.text()
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(typeof reader.result === 'string' ? reader.result : '')
+    reader.onerror = () => reject(reader.error ?? new Error('Could not read that file.'))
+    reader.readAsText(file)
+  })
+}
+
+function regexFlags(pattern: RegExp): string {
+  const flags: string[] = []
+  if (pattern.global) flags.push('g')
+  if (pattern.ignoreCase) flags.push('i')
+  if (pattern.multiline) flags.push('m')
+  if (pattern.unicode) flags.push('u')
+  if (pattern.sticky) flags.push('y')
+  if (pattern.dotAll) flags.push('s')
+  return flags.join('')
 }
 
 function randomId(): string {
