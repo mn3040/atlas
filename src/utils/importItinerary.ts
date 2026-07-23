@@ -276,7 +276,7 @@ function baseSuggestion(
 ): ExtractedItineraryItem {
   const fallbackName = type === 'stay' ? 'Stay' : type === 'flight' ? 'Flight' : 'Activity'
   return {
-    id: crypto.randomUUID(),
+    id: randomId(),
     selected: true,
     type,
     category: patch.category ?? 'attraction',
@@ -343,7 +343,7 @@ function collectNotes(line: string, index: number, lines: string[]): string {
       notes.push(stripBullet(next))
       continue
     }
-    if (/^[a-z(]/.test(next) || notes.at(-1)?.endsWith(',')) {
+    if (/^[a-z(]/.test(next) || notes[notes.length - 1]?.endsWith(',')) {
       notes.push(next)
       continue
     }
@@ -478,7 +478,7 @@ function dateRangeFromLine(line: string, trip: Trip): string[] {
 }
 
 function checkoutDate(line: string, trip: Trip): string | null {
-  const dates = [...line.matchAll(/\b(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?\b/g)]
+  const dates = regexMatches(line, /\b(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?\b/g)
   if (dates.length < 2) return null
   const match = dates[1]
   const year = match[3] ? normalizeYear(match[3]) : new Date(`${trip.startDate}T00:00:00`).getFullYear()
@@ -510,9 +510,28 @@ function secondTime(line: string): string {
 }
 
 function timeMatches(line: string): string[] {
-  return [...line.matchAll(/\b(?:(\d{1,2})(?::(\d{2}))?\s*(am|pm)|(\d{1,2}):(\d{2}))\b/gi)]
+  return regexMatches(line, /\b(?:(\d{1,2})(?::(\d{2}))?\s*(am|pm)|(\d{1,2}):(\d{2}))\b/gi)
     .map((match) => toTime(match[1] ?? match[4], match[2] ?? match[5], match[3]))
     .filter(Boolean)
+}
+
+function regexMatches(value: string, pattern: RegExp): RegExpExecArray[] {
+  const result: RegExpExecArray[] = []
+  const flags = pattern.flags.includes('g') ? pattern.flags : `${pattern.flags}g`
+  const regex = new RegExp(pattern.source, flags)
+  let match: RegExpExecArray | null
+  while ((match = regex.exec(value)) !== null) {
+    result.push(match)
+    if (match[0] === '') regex.lastIndex += 1
+  }
+  return result
+}
+
+function randomId(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID()
+  }
+  return `id-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`
 }
 
 function toTime(hourValue: string, minuteValue?: string, meridiem?: string): string {

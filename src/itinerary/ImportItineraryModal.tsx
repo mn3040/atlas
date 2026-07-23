@@ -323,7 +323,8 @@ export async function importSuggestionsToTrip({
     perDayPositions.set(item.startDate, Math.max(perDayPositions.get(item.startDate) ?? itemCount, itemCount))
   }
 
-  for (const [index, suggestion] of suggestions.entries()) {
+  for (let index = 0; index < suggestions.length; index += 1) {
+    const suggestion = suggestions[index]
     const dayId = await ensureDayFor(suggestion.startDate, trip.id, knownDays, onDayCreated)
     onStatus?.(`Importing ${index + 1} of ${suggestions.length}: ${suggestion.name}`)
     const primary = await resolveLocation(suggestion.locationLabel || suggestion.name, trip, warnings)

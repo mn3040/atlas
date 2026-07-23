@@ -92,7 +92,9 @@ export function DashboardImportModal({
         endDate,
       })
       const days: Day[] = []
-      for (const [index, date] of daysBetween(startDate, endDate).entries()) {
+      const importedDates = daysBetween(startDate, endDate)
+      for (let index = 0; index < importedDates.length; index += 1) {
+        const date = importedDates[index]
         days.push(await createDay(trip.id, date, `Day ${index + 1}`))
       }
       const { mustSeeCreatedIds } = await importSuggestionsToTrip({
@@ -290,7 +292,7 @@ export function DashboardImportModal({
 function inferTripDraft(text: string, fileName: string) {
   const dates = datesFromText(text)
   const startDate = dates[0] ?? new Date().toISOString().slice(0, 10)
-  const endDate = dates.at(-1) ?? startDate
+  const endDate = dates[dates.length - 1] ?? startDate
   const countryCode = inferCountryCode(text)
   const name = inferTripName(text, fileName, countryCode)
   return {
@@ -343,9 +345,12 @@ function inferCountryCode(text: string): string {
 function datesFromText(text: string): string[] {
   const baseYear = new Date().getFullYear()
   const dates = new Set<string>()
-  for (const match of text.matchAll(/\b(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?\b/g)) {
+  const regex = /\b(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?\b/g
+  let match: RegExpExecArray | null
+  while ((match = regex.exec(text)) !== null) {
     const year = match[3] ? normalizeYear(match[3]) : baseYear
     dates.add(isoDate(year, Number(match[1]), Number(match[2])))
+    if (match[0] === '') regex.lastIndex += 1
   }
   return [...dates].sort()
 }

@@ -83,7 +83,7 @@ export async function fetchTripInvites(tripId: string): Promise<TripInvite[]> {
 }
 
 export async function createTripInvite(tripId: string, userId: string): Promise<TripInvite> {
-  const token = crypto.randomUUID().replaceAll('-', '') + crypto.randomUUID().replaceAll('-', '').slice(0, 16)
+  const token = `${randomTokenPart()}${randomTokenPart().slice(0, 16)}`
   const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24 * 30).toISOString()
   const { data, error } = await supabase
     .from('trip_invites')
@@ -98,6 +98,18 @@ export async function createTripInvite(tripId: string, userId: string): Promise<
 
   if (error) throw error
   return mapInvite(data as TripInviteRow)
+}
+
+function randomTokenPart(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID().replace(/-/g, '')
+  }
+  const randomValues = new Uint32Array(4)
+  if (typeof crypto !== 'undefined' && typeof crypto.getRandomValues === 'function') {
+    crypto.getRandomValues(randomValues)
+    return Array.from(randomValues, (value) => value.toString(16).padStart(8, '0')).join('')
+  }
+  return `${Date.now().toString(36)}${Math.random().toString(36).slice(2)}`
 }
 
 export async function revokeTripInvite(inviteId: string): Promise<void> {
