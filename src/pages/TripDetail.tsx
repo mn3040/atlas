@@ -12,9 +12,8 @@ import {
   BedDouble,
   Play,
   Pause,
-  GripHorizontal,
-  Maximize2,
-  Minimize2,
+  ChevronsDown,
+  ChevronsUp,
   Route,
 } from 'lucide-react'
 import {
@@ -340,8 +339,10 @@ export default function TripDetail() {
                   className="flex h-full w-full items-center justify-center gap-2 text-text-dim"
                   aria-label={mobileSheetExpanded ? 'Collapse itinerary sheet' : 'Expand itinerary sheet'}
                 >
-                  <GripHorizontal size={28} />
-                  {mobileSheetExpanded ? <Minimize2 size={13} /> : <Maximize2 size={13} />}
+                  <span className="flex items-center gap-1.5 rounded-full border border-border bg-ink/50 px-3 py-1">
+                    <span className="h-1 w-8 rounded-full bg-text-dimmer" />
+                    {mobileSheetExpanded ? <ChevronsDown size={13} /> : <ChevronsUp size={13} />}
+                  </span>
                 </button>
               </div>
               <div className="px-4 pb-[calc(2.25rem+env(safe-area-inset-bottom))] pt-4 sm:px-[22px] sm:pt-[18px] md:min-h-0 md:flex-1 md:overflow-y-auto md:pb-6">

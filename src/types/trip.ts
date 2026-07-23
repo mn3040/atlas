@@ -26,6 +26,14 @@ export interface TripMember {
   role: 'owner' | 'editor' | 'viewer'
 }
 
+export interface Profile {
+  userId: string
+  displayName: string
+  avatarColor: string
+  createdAt: string
+  updatedAt: string
+}
+
 export interface Day {
   id: string
   tripId: string

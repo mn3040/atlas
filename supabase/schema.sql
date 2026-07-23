@@ -7,6 +7,7 @@ drop table if exists stops cascade;
 drop table if exists days cascade;
 drop table if exists trip_members cascade;
 drop table if exists trips cascade;
+drop table if exists profiles cascade;
 drop function if exists is_trip_member(uuid);
 drop function if exists trip_role(uuid);
 drop function if exists handle_new_trip();
@@ -28,6 +29,14 @@ create table trip_members (
   user_id uuid not null references auth.users(id) on delete cascade,
   role text not null check (role in ('owner', 'editor', 'viewer')),
   primary key (trip_id, user_id)
+);
+
+create table profiles (
+  user_id uuid primary key references auth.users(id) on delete cascade,
+  display_name text not null default 'Traveler' check (char_length(display_name) between 1 and 48),
+  avatar_color text not null default '#22dd85',
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
 );
 
 create table days (
@@ -128,6 +137,7 @@ $$;
 
 alter table trips enable row level security;
 alter table trip_members enable row level security;
+alter table profiles enable row level security;
 alter table days enable row level security;
 alter table items enable row level security;
 
@@ -150,6 +160,19 @@ create policy "owners can delete trips"
 create policy "members can view trip membership"
   on trip_members for select
   using (is_trip_member(trip_id));
+
+create policy "users can view their own profile"
+  on profiles for select
+  using (user_id = auth.uid());
+
+create policy "users can create their own profile"
+  on profiles for insert
+  with check (user_id = auth.uid());
+
+create policy "users can update their own profile"
+  on profiles for update
+  using (user_id = auth.uid())
+  with check (user_id = auth.uid());
 
 create policy "members can view days"
   on days for select
