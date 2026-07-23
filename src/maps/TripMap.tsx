@@ -1,6 +1,6 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react'
 import * as tt from '@tomtom-international/web-sdk-maps'
-import { lineColorForIndex } from '../utils/lineColors'
+import { lineColorForIndex, textColorForLine } from '../utils/lineColors'
 import { fetchRoute, isRoutable } from '../api/tomtomRouting'
 import type { Day, Item } from '../types/trip'
 import type { TravelMode } from '../utils/distance'
@@ -105,7 +105,9 @@ export const TripMap = forwardRef<
 
       dayItems.forEach((item, index) => {
         const entry: [number, number] = [item.lng, item.lat]
-        routeCoords.push(entry)
+        const onward: [number, number] =
+          item.type === 'flight' && item.lat2 != null && item.lng2 != null ? [item.lng2, item.lat2] : entry
+        routeCoords.push(onward)
         bounds.extend(entry)
         hasPoints = true
 
@@ -254,7 +256,7 @@ function addMarker(
   el.style.justifyContent = 'center'
   el.style.fontSize = selected ? '13px' : '11px'
   el.style.fontWeight = '700'
-  el.style.color = '#fff'
+  el.style.color = textColorForLine(color)
   el.style.fontFamily = 'Helvetica Neue, Helvetica, Arial, sans-serif'
   el.textContent = String(number)
   wrapper.appendChild(el)

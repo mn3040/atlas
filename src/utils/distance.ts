@@ -54,3 +54,20 @@ export function estimateTravel(from: LatLng, to: LatLng, mode: TravelMode) {
   const minutes = Math.max(3, Math.round((km / speed) * 60))
   return { km, minutes, duration: formatDuration(minutes), note: TRAVEL_NOTES[mode] }
 }
+
+export function routeAvailability(from: LatLng, to: LatLng, mode: TravelMode): { available: boolean; reason?: string } {
+  const km = haversineKm(from, to)
+  if (mode === 'flight' && km < 220) {
+    return { available: false, reason: 'Flight is not a practical route for this distance.' }
+  }
+  if (mode === 'train') {
+    return { available: false, reason: 'Train routing is not available for this route yet.' }
+  }
+  if (mode === 'bike' && km > 80) {
+    return { available: false, reason: 'Bike routing is not practical for this distance.' }
+  }
+  if (mode === 'walk' && km > 35) {
+    return { available: false, reason: 'Walking is not practical for this distance.' }
+  }
+  return { available: true }
+}

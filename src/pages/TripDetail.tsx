@@ -6,7 +6,6 @@ import {
   MoreVertical,
   Download,
   FileUp,
-  Share2,
   Pencil,
   Trash2,
   CalendarDays,
@@ -28,6 +27,7 @@ import { TopNav } from '../components/TopNav'
 import { CountryFlag } from '../components/CountryFlag'
 import { DaySelect } from '../itinerary/DaySelect'
 import { DayLine } from '../itinerary/DayLine'
+import { DayOptionsPanel } from '../itinerary/DayOptionsPanel'
 import { BookingDetail } from '../itinerary/BookingDetail'
 import { FlightDetail } from '../itinerary/FlightDetail'
 import { AddItemModal } from '../itinerary/AddItemModal'
@@ -43,7 +43,11 @@ import { TripCalendar } from '../calendar/TripCalendar'
 import { lineColorForIndex } from '../utils/lineColors'
 import { actionForItem, bookingUrlForItem, mapsUrlForItem } from '../utils/itemActions'
 import { downloadItinerary } from '../utils/exportItinerary'
+import { APP_SETTINGS_EVENT, getAppSettings, shouldConfirmBeforeDelete } from '../utils/settings'
+import { filterItemsForView, loadMustSeeIds, saveMustSeeIds } from '../utils/mustSee'
 import type { TravelMode } from '../utils/distance'
+import type { AppSettings } from '../utils/settings'
+import type { DayOptionView } from '../utils/mustSee'
 import type { Trip, Day, Item } from '../types/trip'
 
 function formatShortDate(date: string): string {
@@ -59,13 +63,15 @@ export default function TripDetail() {
   const [loading, setLoading] = useState(true)
   const [activeDayId, setActiveDayId] = useState<string | null>(null)
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null)
-  const [travelMode, setTravelMode] = useState<TravelMode>('car')
+  const [travelMode, setTravelMode] = useState<TravelMode>(() => getAppSettings().defaultTravelMode)
   const [addModalDate, setAddModalDate] = useState<string | null>(null)
   const [editingItem, setEditingItem] = useState<Item | null>(null)
   const [showCalendar, setShowCalendar] = useState(false)
   const [showImportModal, setShowImportModal] = useState(false)
   const [showMenu, setShowMenu] = useState(false)
   const [showEditTrip, setShowEditTrip] = useState(false)
+  const [dayOptionView, setDayOptionView] = useState<DayOptionView>('all')
+  const [mustSeeIds, setMustSeeIds] = useState<Set<string>>(() => new Set())
   const [screen, setScreen] = useState<'itinerary' | 'booking' | 'flight'>('itinerary')
   const [bookingItemId, setBookingItemId] = useState<string | null>(null)
   const [flightItemId, setFlightItemId] = useState<string | null>(null)
@@ -92,6 +98,20 @@ export default function TripDetail() {
     load()
   }, [tripId])
 
+  useEffect(() => {
+    if (!tripId) return
+    setMustSeeIds(loadMustSeeIds(tripId))
+  }, [tripId])
+
+  useEffect(() => {
+    function handleSettings(event: Event) {
+      const settings = (event as CustomEvent<AppSettings>).detail
+      setTravelMode(settings.defaultTravelMode)
+    }
+    window.addEventListener(APP_SETTINGS_EVENT, handleSettings)
+    return () => window.removeEventListener(APP_SETTINGS_EVENT, handleSettings)
+  }, [])
+
   const activeDayIndex = days.findIndex((d) => d.id === activeDayId)
   const activeColor = activeDayIndex >= 0 ? lineColorForIndex(activeDayIndex) : lineColorForIndex(0)
   const activeDay = days.find((d) => d.id === activeDayId) ?? null
@@ -106,38 +126,44 @@ export default function TripDetail() {
   const activeItems = items
     .filter((item) => item.dayId === activeDayId && item.type !== 'stay')
     .sort((a, b) => a.position - b.position)
+  const displayedActiveItems = filterItemsForView(activeItems, mustSeeIds, dayOptionView)
+  const displayedActiveIds = new Set(displayedActiveItems.map((item) => item.id))
+  const mapItems =
+    dayOptionView === 'all'
+      ? items
+      : items.filter((item) => item.dayId !== activeDayId || item.type === 'stay' || displayedActiveIds.has(item.id))
 
   useEffect(() => {
-    if (!activeItems.some((item) => item.id === selectedItemId)) {
-      setSelectedItemId(activeItems[0]?.id ?? null)
+    if (!displayedActiveItems.some((item) => item.id === selectedItemId)) {
+      setSelectedItemId(displayedActiveItems[0]?.id ?? null)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeDayId, items])
+  }, [activeDayId, items, dayOptionView, mustSeeIds])
 
   // Auto-tour: step through the day's stops on a timer, reusing the same
   // selection -> flyTo/highlight path a manual click already triggers. The
   // route line between stops already reflects whichever travel mode is
   // selected, so switching mode mid-tour changes what the tour shows.
   useEffect(() => {
-    if (!isTouring || activeItems.length < 2) return
+    if (!isTouring || displayedActiveItems.length < 2) return
     const timer = window.setInterval(() => {
       setSelectedItemId((current) => {
-        const index = activeItems.findIndex((item) => item.id === current)
-        const nextIndex = (index + 1) % activeItems.length
-        return activeItems[nextIndex].id
+        const index = displayedActiveItems.findIndex((item) => item.id === current)
+        const nextIndex = (index + 1) % displayedActiveItems.length
+        return displayedActiveItems[nextIndex].id
       })
     }, 2800)
     return () => window.clearInterval(timer)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isTouring, activeDayId, activeItems.length])
+  }, [isTouring, activeDayId, displayedActiveItems.length])
 
   useEffect(() => {
     setIsTouring(false)
   }, [activeDayId])
 
-  const selectedIndex = activeItems.findIndex((item) => item.id === selectedItemId)
-  const nextItem = selectedIndex >= 0 ? activeItems[selectedIndex + 1] : undefined
-  const selectedItem = selectedIndex >= 0 ? activeItems[selectedIndex] : undefined
+  const selectedIndex = displayedActiveItems.findIndex((item) => item.id === selectedItemId)
+  const nextItem = selectedIndex >= 0 ? displayedActiveItems[selectedIndex + 1] : undefined
+  const selectedItem = selectedIndex >= 0 ? displayedActiveItems[selectedIndex] : undefined
   const bookingItem = items.find((item) => item.id === bookingItemId) ?? null
   const flightItem = items.find((item) => item.id === flightItemId) ?? null
 
@@ -164,8 +190,21 @@ export default function TripDetail() {
   }
 
   async function handleDelete(id: string) {
+    const item = items.find((candidate) => candidate.id === id)
+    if (shouldConfirmBeforeDelete() && item && !confirm(`Remove "${item.name}" from this itinerary?`)) return
     setItems((current) => current.filter((item) => item.id !== id))
     await deleteItem(id)
+  }
+
+  function handleToggleMustSee(id: string) {
+    if (!tripId) return
+    setMustSeeIds((current) => {
+      const next = new Set(current)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      saveMustSeeIds(tripId, next)
+      return next
+    })
   }
 
   function handleAction(item: Item) {
@@ -185,7 +224,7 @@ export default function TripDetail() {
 
   async function handleCancelBooking() {
     if (!bookingItem) return
-    if (!confirm(`Cancel booking for ${bookingItem.name}? This removes it from the trip.`)) return
+    if (shouldConfirmBeforeDelete() && !confirm(`Cancel booking for ${bookingItem.name}? This removes it from the trip.`)) return
     await handleDelete(bookingItem.id)
     setBookingItemId(null)
     setScreen('itinerary')
@@ -193,7 +232,7 @@ export default function TripDetail() {
 
   async function handleCancelFlight() {
     if (!flightItem) return
-    if (!confirm(`Cancel ${flightItem.flightNumber || 'this flight'}? This removes it from the trip.`)) return
+    if (shouldConfirmBeforeDelete() && !confirm(`Cancel ${flightItem.flightNumber || 'this flight'}? This removes it from the trip.`)) return
     await handleDelete(flightItem.id)
     setFlightItemId(null)
     setScreen('itinerary')
@@ -214,7 +253,7 @@ export default function TripDetail() {
 
   async function handleDeleteTrip() {
     if (!trip) return
-    if (!confirm(`Delete "${trip.name}"? This removes the whole trip and everything in it.`)) return
+    if (shouldConfirmBeforeDelete() && !confirm(`Delete "${trip.name}"? This removes the whole trip and everything in it.`)) return
     await deleteTrip(trip.id)
     navigate('/')
   }
@@ -243,7 +282,7 @@ export default function TripDetail() {
 
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-ink text-text">
-      <TopNav active="Itinerary" />
+      <TopNav />
 
       <div className="flex min-h-0 flex-1">
         <aside className="relative flex w-[400px] shrink-0 flex-col border-r border-border overflow-hidden">
@@ -263,7 +302,7 @@ export default function TripDetail() {
                       <Plus size={15} />
                     </button>
                     <button
-                      onClick={() => downloadItinerary(trip, days, items)}
+                      onClick={() => downloadItinerary(trip, days, items, mustSeeIds)}
                       aria-label="Export itinerary"
                       title="Export itinerary"
                       className="hover:text-text"
@@ -278,9 +317,6 @@ export default function TripDetail() {
                     >
                       <FileUp size={14} />
                     </button>
-                    <span title="Share — coming soon" className="cursor-default opacity-60">
-                      <Share2 size={14} />
-                    </span>
                     <div className="relative">
                       <button
                         onClick={() => setShowMenu((v) => !v)}
@@ -421,10 +457,18 @@ export default function TripDetail() {
               </div>
 
               <div className="min-h-0 flex-1 overflow-y-auto px-[22px] pb-6 pt-0.5">
+                {activeItems.length > 0 && (
+                  <DayOptionsPanel
+                    items={activeItems}
+                    mustSeeIds={mustSeeIds}
+                    view={dayOptionView}
+                    onViewChange={setDayOptionView}
+                  />
+                )}
                 {activeDay ? (
                   <DayLine
                     day={activeDay}
-                    items={activeItems}
+                    items={displayedActiveItems}
                     color={activeColor}
                     selectedItemId={selectedItemId}
                     onSelectItem={setSelectedItemId}
@@ -432,8 +476,10 @@ export default function TripDetail() {
                     onEdit={setEditingItem}
                     onReorder={handleReorder}
                     onDelete={handleDelete}
+                    onToggleMustSee={handleToggleMustSee}
                     getMapsUrl={mapsUrlForItem}
                     getBookingUrl={bookingUrlForItem}
+                    mustSeeIds={mustSeeIds}
                     onAddClick={setAddModalDate}
                   />
                 ) : (
@@ -462,7 +508,7 @@ export default function TripDetail() {
           <TripMap
             ref={mapRef}
             days={days}
-            items={items}
+            items={mapItems}
             activeDayId={activeDayId}
             selectedItemId={selectedItemId}
             travelMode={travelMode}
@@ -478,7 +524,7 @@ export default function TripDetail() {
             />
           )}
 
-          {activeItems.length > 1 && (
+          {displayedActiveItems.length > 1 && (
             <button
               onClick={() => setIsTouring((v) => !v)}
               aria-label={isTouring ? 'Pause tour' : 'Play tour'}
@@ -541,6 +587,15 @@ export default function TripDetail() {
           onClose={() => setShowImportModal(false)}
           onDayCreated={handleDayCreated}
           onItemsCreated={(createdItems) => setItems((current) => [...current, ...createdItems])}
+          onMustSeeCreated={(itemIds) => {
+            if (!tripId || itemIds.length === 0) return
+            setMustSeeIds((current) => {
+              const next = new Set(current)
+              itemIds.forEach((id) => next.add(id))
+              saveMustSeeIds(tripId, next)
+              return next
+            })
+          }}
         />
       )}
 

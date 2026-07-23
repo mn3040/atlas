@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Plus, MapPin, Trash2 } from 'lucide-react'
+import { Plus, MapPin, Trash2, Wand2 } from 'lucide-react'
 import { useSession } from '../hooks/useSession'
 import { fetchTrips, createTrip, deleteTrip } from '../api/trips'
 import { TopNav } from '../components/TopNav'
 import { CountryFlag } from '../components/CountryFlag'
 import { lineColorForIndex } from '../utils/lineColors'
+import { createSampleTrips } from '../utils/sampleTrips'
+import { shouldConfirmBeforeDelete } from '../utils/settings'
 import type { Trip } from '../types/trip'
 
 const inputClass =
@@ -19,6 +21,7 @@ export default function Dashboard() {
   const [createError, setCreateError] = useState<string | null>(null)
   const [deleteError, setDeleteError] = useState<string | null>(null)
   const [deletingTripId, setDeletingTripId] = useState<string | null>(null)
+  const [addingSamples, setAddingSamples] = useState(false)
 
   useEffect(() => {
     fetchTrips()
@@ -45,7 +48,7 @@ export default function Dashboard() {
   }
 
   async function handleDeleteTrip(trip: Trip) {
-    if (!confirm(`Delete "${trip.name}"? This removes the whole trip and everything in it.`)) return
+    if (shouldConfirmBeforeDelete() && !confirm(`Delete "${trip.name}"? This removes the whole trip and everything in it.`)) return
     setDeleteError(null)
     setDeletingTripId(trip.id)
     const previousTrips = trips
@@ -60,6 +63,23 @@ export default function Dashboard() {
     }
   }
 
+  async function handleAddSamples() {
+    if (!session) return
+    setCreateError(null)
+    setAddingSamples(true)
+    try {
+      const createdTrips = await createSampleTrips(
+        session.user.id,
+        trips.map((trip) => trip.name),
+      )
+      setTrips((current) => [...current, ...createdTrips].sort((a, b) => a.startDate.localeCompare(b.startDate)))
+    } catch (err) {
+      setCreateError(err instanceof Error ? err.message : 'Failed to create sample trips.')
+    } finally {
+      setAddingSamples(false)
+    }
+  }
+
   return (
     <div className="atlas-dashboard flex h-screen flex-col bg-ink">
       <TopNav />
@@ -70,12 +90,21 @@ export default function Dashboard() {
             <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.24em] text-paper">Atlas archive</p>
             <h1 className="text-4xl font-extrabold tracking-tight text-text">Your trips</h1>
           </div>
-          <button
-            onClick={() => setShowForm((v) => !v)}
-            className="flex items-center gap-1.5 rounded-md bg-paper px-4 py-2 text-sm font-bold text-ink hover:bg-paper-dim"
-          >
-            <Plus size={15} /> {showForm ? 'Cancel' : 'New trip'}
-          </button>
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            <button
+              onClick={handleAddSamples}
+              disabled={!session || addingSamples}
+              className="flex items-center gap-1.5 rounded-md border border-border bg-surface px-4 py-2 text-sm font-bold text-text hover:border-green hover:text-green disabled:cursor-wait disabled:opacity-50"
+            >
+              <Wand2 size={15} /> {addingSamples ? 'Adding...' : 'Add sample trips'}
+            </button>
+            <button
+              onClick={() => setShowForm((v) => !v)}
+              className="flex items-center gap-1.5 rounded-md bg-paper px-4 py-2 text-sm font-bold text-ink hover:bg-paper-dim"
+            >
+              <Plus size={15} /> {showForm ? 'Cancel' : 'New trip'}
+            </button>
+          </div>
         </div>
 
         {showForm && <NewTripForm onCreate={handleCreate} error={createError} />}

@@ -15,6 +15,7 @@ export interface ExtractedItineraryItem {
   flightNumber: string
   confirmationNumber: string
   notes: string
+  mustSee: boolean
 }
 
 const MONTHS: Record<string, number> = {
@@ -71,6 +72,10 @@ export function extractItineraryItems(text: string, trip: Trip): ExtractedItiner
 
     const flightNumber = line.match(/\b([A-Z]{2}|[A-Z][0-9]|[0-9][A-Z])\s?\d{2,4}\b/)?.[0] ?? ''
     const lower = line.toLowerCase()
+    const mustSee = /\u2b50|\bmust see\b/i.test(line)
+    const placeLine = lower.includes('atlas_place_link')
+
+    if ((isSectionHeader(line) || isInstructionLine(line)) && !placeLine) continue
 
     if (flightNumber || /\bflight\b|\bdepart(?:ure|s)?\b|\barriv(?:al|es)?\b/.test(lower)) {
       const airports = airportPair(line)
@@ -82,6 +87,7 @@ export function extractItineraryItems(text: string, trip: Trip): ExtractedItiner
         locationLabel: airports[0],
         location2Label: airports[1],
         notes: line,
+        mustSee,
       }))
       continue
     }
@@ -94,6 +100,7 @@ export function extractItineraryItems(text: string, trip: Trip): ExtractedItiner
         locationLabel: locationAfterWords(line, ['at', 'hotel', 'address']) || stayName(line),
         confirmationNumber: confirmation(line),
         notes: line,
+        mustSee,
       }))
       continue
     }
@@ -101,6 +108,8 @@ export function extractItineraryItems(text: string, trip: Trip): ExtractedItiner
     if (
       parsedDate ||
       firstTime(line) ||
+      mustSee ||
+      placeLine ||
       /\btour\b|\bmuseum\b|\bticket\b|\bdinner\b|\blunch\b|\bbreakfast\b|\bvisit\b|\breservation\b|\bpark\b|\bmarket\b|\btrain\b/.test(
         lower,
       )
@@ -113,6 +122,7 @@ export function extractItineraryItems(text: string, trip: Trip): ExtractedItiner
         endTime: secondTime(line),
         locationLabel: locationAfterWords(line, ['at', 'to', 'visit']) || activityName(line),
         notes: line,
+        mustSee,
       }))
     }
   }
@@ -143,8 +153,27 @@ function normalizeLines(text: string): string[] {
   return text
     .replace(/\r/g, '\n')
     .split('\n')
+    .map(markdownToText)
     .map((line) => line.replace(/\s+/g, ' ').trim())
     .filter((line) => line.length > 5 && !/^(page \d+|\d+)$/.test(line.toLowerCase()))
+}
+
+function markdownToText(line: string): string {
+  const hasLink = /\[[^\]]+\]\([^)]+\)/.test(line)
+  const text = line.replace(/\[([^\]]+)\]\([^)]+\)/g, '$1').replace(/https?:\/\/\S+/g, '')
+  return hasLink ? `${text} atlas_place_link` : text
+}
+
+function isSectionHeader(line: string): boolean {
+  return (
+    /:\s*\d{1,2}\//.test(line) ||
+    /\)\s*\d{1,2}\//.test(line) ||
+    /\b\d{1,2}\/\d{1,2}\s*-\s*\d{1,2}\/\d{1,2}\b/.test(line)
+  )
+}
+
+function isInstructionLine(line: string): boolean {
+  return /\bitinerary\b/i.test(line) || /\badd a star\b/i.test(line) || /\bborder zone permits\b/i.test(line)
 }
 
 function baseSuggestion(
@@ -168,11 +197,12 @@ function baseSuggestion(
     flightNumber: patch.flightNumber?.trim() ?? '',
     confirmationNumber: patch.confirmationNumber?.trim() ?? '',
     notes: patch.notes?.trim() ?? '',
+    mustSee: patch.mustSee ?? false,
   }
 }
 
 function dateFromLine(line: string, trip: Trip): string | null {
-  const numeric = line.match(/\b(\d{1,2})[/-](\d{1,2})(?:[/-](\d{2,4}))?\b/)
+  const numeric = line.match(/\b(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?\b/)
   if (numeric) {
     const year = numeric[3] ? normalizeYear(numeric[3]) : new Date(`${trip.startDate}T00:00:00`).getFullYear()
     return isoDate(year, Number(numeric[1]), Number(numeric[2]))
@@ -188,7 +218,7 @@ function dateFromLine(line: string, trip: Trip): string | null {
 }
 
 function checkoutDate(line: string, trip: Trip): string | null {
-  const dates = [...line.matchAll(/\b(\d{1,2})[/-](\d{1,2})(?:[/-](\d{2,4}))?\b/g)]
+  const dates = [...line.matchAll(/\b(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?\b/g)]
   if (dates.length < 2) return null
   const match = dates[1]
   const year = match[3] ? normalizeYear(match[3]) : new Date(`${trip.startDate}T00:00:00`).getFullYear()
@@ -250,7 +280,9 @@ function activityName(line: string): string {
 function cleanName(value: string): string {
   return value
     .replace(/\b(?:confirmation|reservation|check-?in|check-?out|depart(?:ure|s)?|arriv(?:al|es)?)\b.*$/i, '')
-    .replace(/\b\d{1,2}[/-]\d{1,2}(?:[/-]\d{2,4})?\b/g, '')
+    .replace(/\batlas_place_link\b/gi, '')
+    .replace(/\b\d{1,2}\/\d{1,2}(?:\/\d{2,4})?\b/g, '')
+    .replace(/\u2b50/g, '')
     .trim()
     .slice(0, 90)
 }
@@ -266,6 +298,7 @@ function locationAfterWords(line: string, words: string[]): string {
 function cleanLocation(value: string): string {
   return value
     .replace(/\b(?:flight|depart(?:ure|s)?|arriv(?:al|es)?|at|from|to)\b/gi, '')
+    .replace(/\batlas_place_link\b/gi, '')
     .replace(/\b\d{1,2}:?\d{0,2}\s?(?:am|pm)?\b/gi, '')
     .trim()
     .slice(0, 90)

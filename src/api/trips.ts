@@ -185,10 +185,10 @@ export async function fetchDays(tripId: string): Promise<Day[]> {
   return (data as DayRow[]).map(mapDay)
 }
 
-export async function createDay(tripId: string, date: string): Promise<Day> {
+export async function createDay(tripId: string, date: string, label?: string | null): Promise<Day> {
   const { data, error } = await supabase
     .from('days')
-    .insert({ trip_id: tripId, date })
+    .insert({ trip_id: tripId, date, label: label || null })
     .select()
     .single()
 

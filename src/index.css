@@ -27,12 +27,12 @@
   --color-purple: #bca5ed;
 
   /* Line palette — one color per trip day, shared between timeline and map */
-  --color-line-1: #f7ff88;
-  --color-line-2: #22dd85;
-  --color-line-3: #bca5ed;
-  --color-line-4: #5fd4e8;
-  --color-line-5: #ff8fa3;
-  --color-line-6: #ffffff;
+  --color-line-1: #22dd85;
+  --color-line-2: #f7ff88;
+  --color-line-3: #083740;
+  --color-line-4: #fefefe;
+  --color-line-5: #070606;
+  --color-line-6: #22dd85;
 
   --font-display: 'Poppins', sans-serif;
   --font-body: 'Poppins', sans-serif;
@@ -67,6 +67,14 @@ body {
 .rounded-lg,
 .rounded-\[9px\] {
   border-radius: 8px;
+}
+
+.atlas-compact .itinerary-card {
+  padding: 0.5rem;
+}
+
+.atlas-compact .itinerary-station-body {
+  padding-bottom: 0.75rem;
 }
 
 select {

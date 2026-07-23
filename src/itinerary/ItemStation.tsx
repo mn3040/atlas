@@ -1,8 +1,9 @@
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { X, Pencil } from 'lucide-react'
+import { X, Pencil, Star } from 'lucide-react'
 import { actionForItem } from '../utils/itemActions'
 import { iconForItem } from '../utils/categoryIcons'
+import { textColorForLine } from '../utils/lineColors'
 import { formatTime } from '../utils/time'
 import type { Item } from '../types/trip'
 
@@ -16,8 +17,10 @@ export function ItemStation({
   onAction,
   onEdit,
   onDelete,
+  onToggleMustSee,
   mapsUrl,
   bookingUrl,
+  mustSee,
 }: {
   item: Item
   number: number
@@ -28,8 +31,10 @@ export function ItemStation({
   onAction: (item: Item) => void
   onEdit: (item: Item) => void
   onDelete: (id: string) => void
+  onToggleMustSee: (id: string) => void
   mapsUrl: string
   bookingUrl: string
+  mustSee: boolean
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: item.id,
@@ -50,6 +55,7 @@ export function ItemStation({
           style={{
             background: selected ? color : 'var(--color-surface-3)',
             borderColor: selected ? color : 'var(--color-ink)',
+            color: selected ? textColorForLine(color) : 'var(--color-text)',
           }}
         >
           {number}
@@ -65,7 +71,7 @@ export function ItemStation({
         )}
       </div>
 
-      <div className="min-w-0 flex-1 pb-5">
+      <div className="itinerary-station-body min-w-0 flex-1 pb-5">
         {item.startTime && (
           <p className="mb-1 text-[11px] font-semibold text-text-dimmer">
             {formatTime(item.startTime)}
@@ -76,7 +82,7 @@ export function ItemStation({
           onClick={() => onSelect(item.id)}
           {...attributes}
           {...listeners}
-          className="relative flex cursor-pointer gap-3 rounded-xl border p-2.5 transition-colors active:cursor-grabbing"
+          className="itinerary-card relative flex cursor-pointer gap-3 rounded-xl border p-2.5 transition-colors active:cursor-grabbing"
           style={{
             background: selected ? 'var(--color-surface-2)' : 'var(--color-surface)',
             borderColor: selected ? color : 'var(--color-border)',
@@ -126,7 +132,19 @@ export function ItemStation({
               </button>
             )}
           </div>
-          <div className="absolute right-1.5 top-1.5 flex items-center gap-2 opacity-0 group-hover:opacity-100">
+          <div className="absolute right-1.5 top-1.5 flex items-center gap-2 opacity-0 group-hover:opacity-100 focus-within:opacity-100">
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation()
+                onToggleMustSee(item.id)
+              }}
+              className="flex h-5 w-5 items-center justify-center rounded-full bg-ink/70 text-text-dim hover:text-paper"
+              aria-label={mustSee ? `Unstar ${item.name}` : `Star ${item.name} as must-see`}
+              title={mustSee ? 'Remove must-see' : 'Mark must-see'}
+            >
+              <Star size={11} fill={mustSee ? 'var(--color-paper)' : 'none'} />
+            </button>
             <button
               type="button"
               onClick={(e) => {

@@ -1,6 +1,7 @@
 import { ArrowRight } from 'lucide-react'
 import type { TravelMode } from '../utils/distance'
-import { estimateTravel, TRAVEL_MODES, TRAVEL_CTAS } from '../utils/distance'
+import { estimateTravel, routeAvailability, TRAVEL_MODES, TRAVEL_CTAS } from '../utils/distance'
+import { textColorForLine } from '../utils/lineColors'
 import type { Item } from '../types/trip'
 
 const GOOGLE_TRAVELMODE: Partial<Record<TravelMode, string>> = {
@@ -11,11 +12,20 @@ const GOOGLE_TRAVELMODE: Partial<Record<TravelMode, string>> = {
 }
 
 function directionsUrl(from: Item, to: Item, mode: TravelMode): string {
+  const origin = onwardPoint(from)
+  const destination = onwardPoint(to)
   if (mode === 'flight') {
     return `https://www.google.com/travel/flights?q=Flights%20from%20${encodeURIComponent(from.name)}%20to%20${encodeURIComponent(to.name)}`
   }
   const travelmode = GOOGLE_TRAVELMODE[mode] ?? 'driving'
-  return `https://www.google.com/maps/dir/?api=1&origin=${from.lat},${from.lng}&destination=${to.lat},${to.lng}&travelmode=${travelmode}`
+  return `https://www.google.com/maps/dir/?api=1&origin=${origin.lat},${origin.lng}&destination=${destination.lat},${destination.lng}&travelmode=${travelmode}`
+}
+
+function onwardPoint(item: Item) {
+  if (item.type === 'flight' && item.lat2 != null && item.lng2 != null) {
+    return { lat: item.lat2, lng: item.lng2 }
+  }
+  return { lat: item.lat, lng: item.lng }
 }
 
 export function TransitCard({
@@ -29,7 +39,10 @@ export function TransitCard({
   mode: TravelMode
   color: string
 }) {
-  const travel = estimateTravel(from, to, mode)
+  const origin = onwardPoint(from)
+  const destination = onwardPoint(to)
+  const availability = routeAvailability(origin, destination, mode)
+  const travel = availability.available ? estimateTravel(origin, destination, mode) : null
   const modeLabel = TRAVEL_MODES.find((m) => m.id === mode)!.label
 
   return (
@@ -39,23 +52,29 @@ export function TransitCard({
           className="flex h-[26px] w-[26px] shrink-0 items-center justify-center rounded-lg"
           style={{ background: color }}
         >
-          <ArrowRight size={13} className="text-white" />
+          <ArrowRight size={13} style={{ color: textColorForLine(color) }} />
         </div>
         <div>
           <p className="text-[10px] text-text-dim">{modeLabel} Route</p>
-          <p className="text-sm font-extrabold leading-none text-text">{travel.duration}</p>
+          <p className="text-sm font-extrabold leading-none text-text">{travel?.duration ?? 'Not available'}</p>
         </div>
       </div>
-      <p className="mb-2.5 text-[10.5px] leading-snug text-text-dim">{travel.note}</p>
-      <a
-        href={directionsUrl(from, to, mode)}
-        target="_blank"
-        rel="noreferrer"
-        className="block rounded-md py-2 text-center text-[11.5px] font-bold text-white"
-        style={{ background: color }}
-      >
-        {TRAVEL_CTAS[mode]}
-      </a>
+      <p className="mb-2.5 text-[10.5px] leading-snug text-text-dim">{travel?.note ?? availability.reason}</p>
+      {availability.available ? (
+        <a
+          href={directionsUrl(from, to, mode)}
+          target="_blank"
+          rel="noreferrer"
+          className="block rounded-md py-2 text-center text-[11.5px] font-bold text-white"
+          style={{ background: color, color: textColorForLine(color) }}
+        >
+          {TRAVEL_CTAS[mode]}
+        </a>
+      ) : (
+        <div className="block rounded-md border border-border-strong py-2 text-center text-[11.5px] font-bold text-text-dim">
+          Not available
+        </div>
+      )}
     </div>
   )
 }

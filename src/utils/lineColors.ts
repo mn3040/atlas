@@ -1,12 +1,10 @@
-export const LINE_COLORS = [
-  '#f7ff88', // day 1 — yellow (chrome accent)
-  '#22dd85', // day 2 — green
-  '#bca5ed', // day 3 — purple
-  '#5fd4e8', // day 4 — cyan
-  '#ff8fa3', // day 5 — coral
-  '#ffffff', // day 6 — white
-] as const
+export const LINE_COLORS = ['#22dd85', '#f7ff88', '#083740', '#fefefe', '#070606'] as const
 
 export function lineColorForIndex(index: number): string {
   return LINE_COLORS[index % LINE_COLORS.length]
+}
+
+export function textColorForLine(color: string): string {
+  const normalized = color.toLowerCase()
+  return normalized === '#083740' || normalized === '#070606' ? '#fefefe' : '#070606'
 }

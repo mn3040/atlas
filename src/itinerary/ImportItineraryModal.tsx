@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { FileUp, Loader2, Trash2 } from 'lucide-react'
+import { FileUp, Loader2, Star, Trash2 } from 'lucide-react'
 import { createDay, createItem } from '../api/trips'
 import type { NewItemInput } from '../api/trips'
 import { googleMapsSearchUrl, searchPlaces } from '../api/geocoding'
@@ -20,6 +20,7 @@ export function ImportItineraryModal({
   onClose,
   onDayCreated,
   onItemsCreated,
+  onMustSeeCreated,
 }: {
   trip: Trip
   days: Day[]
@@ -27,6 +28,7 @@ export function ImportItineraryModal({
   onClose: () => void
   onDayCreated: (day: Day) => void
   onItemsCreated: (items: Item[]) => void
+  onMustSeeCreated: (itemIds: string[]) => void
 }) {
   const [suggestions, setSuggestions] = useState<ExtractedItineraryItem[]>([])
   const [fileName, setFileName] = useState('')
@@ -74,6 +76,7 @@ export function ImportItineraryModal({
     try {
       const knownDays = [...days]
       const createdItems: Item[] = []
+      const mustSeeCreatedIds: string[] = []
 
       for (const [index, suggestion] of selected.entries()) {
         const dayId = await ensureDayFor(suggestion.startDate, trip.id, knownDays, onDayCreated)
@@ -108,10 +111,13 @@ export function ImportItineraryModal({
           position: itemCount + index,
         }
 
-        createdItems.push(await createItem(input))
+        const created = await createItem(input)
+        createdItems.push(created)
+        if (suggestion.mustSee) mustSeeCreatedIds.push(created.id)
       }
 
       onItemsCreated(createdItems)
+      onMustSeeCreated(mustSeeCreatedIds)
       onClose()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Import failed.')
@@ -167,6 +173,7 @@ export function ImportItineraryModal({
                   <th className="border-b border-border p-2">Time</th>
                   <th className="border-b border-border p-2">Location</th>
                   <th className="border-b border-border p-2">Details</th>
+                  <th className="w-12 border-b border-border p-2">Star</th>
                   <th className="w-10 border-b border-border p-2" />
                 </tr>
               </thead>
@@ -271,6 +278,16 @@ export function ImportItineraryModal({
                         onChange={(event) => updateSuggestion(item.id, { notes: event.target.value })}
                         className={`${inputClass} mt-1 min-h-14 resize-y`}
                       />
+                    </td>
+                    <td className="p-2">
+                      <button
+                        type="button"
+                        onClick={() => updateSuggestion(item.id, { mustSee: !item.mustSee })}
+                        aria-label={item.mustSee ? `Unstar ${item.name}` : `Star ${item.name} as must-see`}
+                        className="flex h-8 w-8 items-center justify-center rounded-md border border-border bg-ink text-paper hover:border-paper"
+                      >
+                        <Star size={14} fill={item.mustSee ? 'var(--color-paper)' : 'none'} />
+                      </button>
                     </td>
                     <td className="p-2">
                       <button

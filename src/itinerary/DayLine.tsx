@@ -20,8 +20,10 @@ export function DayLine({
   onEdit,
   onReorder,
   onDelete,
+  onToggleMustSee,
   getMapsUrl,
   getBookingUrl,
+  mustSeeIds,
   onAddClick,
 }: {
   day: Day
@@ -33,8 +35,10 @@ export function DayLine({
   onEdit: (item: Item) => void
   onReorder: (dayId: string, orderedItemIds: string[]) => void
   onDelete: (id: string) => void
+  onToggleMustSee: (id: string) => void
   getMapsUrl: (item: Item) => string
   getBookingUrl: (item: Item) => string
+  mustSeeIds: Set<string>
   onAddClick: (date: string) => void
 }) {
   const itemIds = items.map((s) => s.id)
@@ -72,8 +76,10 @@ export function DayLine({
                   onAction={onAction}
                   onEdit={onEdit}
                   onDelete={onDelete}
+                  onToggleMustSee={onToggleMustSee}
                   mapsUrl={getMapsUrl(item)}
                   bookingUrl={getBookingUrl(item)}
+                  mustSee={mustSeeIds.has(item.id)}
                 />
               ))}
             </div>

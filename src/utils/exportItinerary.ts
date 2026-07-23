@@ -4,14 +4,14 @@ import { formatTime } from './time'
 const PAGE_WIDTH = 595.28
 const PAGE_HEIGHT = 841.89
 const MARGIN = 44
-const BLUE = [0, 47, 167] as const
-const ORANGE = [255, 79, 0] as const
-const RED = [228, 0, 43] as const
-const BLACK = [17, 17, 17] as const
-const GREY = [85, 87, 96] as const
-const LIGHT_GREY = [247, 247, 248] as const
-const RULE = [217, 217, 220] as const
-const WHITE = [255, 255, 255] as const
+const TEAL = [8, 55, 64] as const
+const YELLOW = [247, 255, 136] as const
+const GREEN = [34, 221, 133] as const
+const BLACK = [7, 6, 6] as const
+const GREY = [70, 89, 93] as const
+const LIGHT_TEAL = [232, 246, 244] as const
+const RULE = [181, 211, 207] as const
+const WHITE = [254, 254, 254] as const
 
 interface PdfPage {
   ops: string[]
@@ -86,19 +86,21 @@ class ItineraryPdf {
   private y = PAGE_HEIGHT - MARGIN
   private pageNumber = 0
   private trip: Trip
+  private mustSeeIds: Set<string>
 
-  constructor(trip: Trip) {
+  constructor(trip: Trip, mustSeeIds = new Set<string>()) {
     this.trip = trip
+    this.mustSeeIds = mustSeeIds
     this.addPage()
   }
 
   addCover(days: Day[], items: Item[]) {
-    this.rect(0, PAGE_HEIGHT - 118, PAGE_WIDTH, 118, LIGHT_GREY, true)
-    this.rect(MARGIN, PAGE_HEIGHT - 118, 4, 118, BLUE, true)
-    this.text('ATLAS', MARGIN, PAGE_HEIGHT - 42, 9, BLUE, 'Helvetica-Bold')
-    this.text(`${days.length} DAYS`, PAGE_WIDTH - MARGIN - 92, PAGE_HEIGHT - 42, 9, BLACK, 'Helvetica-Bold')
-    this.text(cleanText(this.trip.name), MARGIN, PAGE_HEIGHT - 80, 30, BLACK, 'Helvetica-Bold')
-    this.text(`${formatDate(this.trip.startDate)} - ${formatDate(this.trip.endDate)}`, MARGIN, PAGE_HEIGHT - 104, 11, GREY)
+    this.rect(0, PAGE_HEIGHT - 122, PAGE_WIDTH, 122, TEAL, true)
+    this.rect(MARGIN, PAGE_HEIGHT - 122, 5, 122, GREEN, true)
+    this.text('ATLAS', MARGIN + 18, PAGE_HEIGHT - 42, 9, YELLOW, 'Helvetica-Bold')
+    this.text(`${days.length} DAYS`, PAGE_WIDTH - MARGIN - 92, PAGE_HEIGHT - 42, 9, WHITE, 'Helvetica-Bold')
+    this.text(cleanText(this.trip.name), MARGIN + 18, PAGE_HEIGHT - 80, 30, WHITE, 'Helvetica-Bold')
+    this.text(`${formatDate(this.trip.startDate)} - ${formatDate(this.trip.endDate)}`, MARGIN + 18, PAGE_HEIGHT - 104, 11, WHITE)
     this.y = PAGE_HEIGHT - 156
 
     if (this.trip.description) {
@@ -116,7 +118,7 @@ class ItineraryPdf {
 
   addStaySection(stays: Item[]) {
     if (stays.length === 0) return
-    this.sectionTitle("Where You're Staying", BLUE)
+    this.sectionTitle("Where You're Staying", GREEN)
     for (const stay of stays) {
       this.ensure(92)
       this.cardStart(82)
@@ -134,7 +136,7 @@ class ItineraryPdf {
 
   addFlightSection(flights: Item[]) {
     if (flights.length === 0) return
-    this.sectionTitle('Flights', ORANGE)
+    this.sectionTitle('Flights', YELLOW)
     for (const flight of flights) {
       const cardHeight = 128
       this.ensure(cardHeight + 14)
@@ -143,7 +145,7 @@ class ItineraryPdf {
 
       // Header stub
       this.text('BOARDING PASS', MARGIN + 16, top - 17, 8, GREY, 'Helvetica-Bold')
-      this.text(cleanText(flight.flightNumber || 'Flight'), PAGE_WIDTH - MARGIN - 96, top - 17, 8, ORANGE, 'Helvetica-Bold')
+      this.text(cleanText(flight.flightNumber || 'Flight'), PAGE_WIDTH - MARGIN - 96, top - 17, 8, TEAL, 'Helvetica-Bold')
       this.line(MARGIN, top - 26, PAGE_WIDTH - MARGIN, top - 26, RULE)
 
       // Route row: depart -- duration -- arrive
@@ -173,7 +175,7 @@ class ItineraryPdf {
 
   addDay(day: Day, index: number, items: Item[]) {
     this.ensure(98)
-    this.sectionTitle(`Day ${index + 1}`, index % 3 === 0 ? BLUE : index % 3 === 1 ? ORANGE : RED)
+    this.sectionTitle(`Day ${index + 1}`, index % 2 === 0 ? GREEN : YELLOW)
     this.text(formatDate(day.date), MARGIN, this.y, 12, BLACK, 'Helvetica-Bold')
     this.y -= 16
     if (day.label) {
@@ -239,9 +241,9 @@ class ItineraryPdf {
     const height = notes ? 86 : 66
     this.ensure(height + 14)
     const top = this.y
-    this.circle(MARGIN + 11, top - 19, 9, BLUE)
-    this.text(String(number), MARGIN + 8.2, top - 23, 8, [255, 255, 255], 'Helvetica-Bold')
-    this.text(cleanText(item.name), MARGIN + 34, top - 12, 12, BLACK, 'Helvetica-Bold')
+    this.circle(MARGIN + 11, top - 19, 9, GREEN)
+    this.text(String(number), MARGIN + 8.2, top - 23, 8, BLACK, 'Helvetica-Bold')
+    this.text(`${this.mustSeeIds.has(item.id) ? '* ' : ''}${cleanText(item.name)}`, MARGIN + 34, top - 12, 12, BLACK, 'Helvetica-Bold')
     if (detailLines.length) this.text(detailLines.join('  /  '), MARGIN + 34, top - 29, 9, GREY)
     if (notes) this.paragraph(notes, 9, GREY, 13, PAGE_WIDTH - MARGIN * 2 - 34, MARGIN + 34, top - 47)
     this.line(MARGIN + 11, top - 34, MARGIN + 11, top - height + 4, RULE)
@@ -253,7 +255,7 @@ class ItineraryPdf {
     this.ensure(72)
     for (const [index, [label, value]] of entries.entries()) {
       const x = MARGIN + index * (width + 8)
-      this.rect(x, this.y - 56, width, 56, LIGHT_GREY, true)
+      this.rect(x, this.y - 56, width, 56, LIGHT_TEAL, true)
       this.rect(x, this.y - 56, width, 56, RULE, false)
       this.text(value, x + 10, this.y - 22, 18, BLACK, 'Helvetica-Bold')
       this.text(label, x + 10, this.y - 42, 8, GREY, 'Helvetica-Bold')
@@ -321,7 +323,7 @@ class ItineraryPdf {
   }
 
   private cardStart(height: number) {
-    this.rect(MARGIN, this.y - height, PAGE_WIDTH - MARGIN * 2, height, LIGHT_GREY, true)
+    this.rect(MARGIN, this.y - height, PAGE_WIDTH - MARGIN * 2, height, LIGHT_TEAL, true)
     this.rect(MARGIN, this.y - height, PAGE_WIDTH - MARGIN * 2, height, RULE, false)
   }
 
@@ -364,8 +366,8 @@ class ItineraryPdf {
   }
 }
 
-export function buildItineraryPdf(trip: Trip, days: Day[], items: Item[]): Uint8Array {
-  const pdf = new ItineraryPdf(trip)
+export function buildItineraryPdf(trip: Trip, days: Day[], items: Item[], mustSeeIds = new Set<string>()): Uint8Array {
+  const pdf = new ItineraryPdf(trip, mustSeeIds)
   const sortedDays = [...days].sort((a, b) => a.date.localeCompare(b.date))
   const sortedItems = [...items].sort((a, b) => a.position - b.position)
   const stays = sortedItems.filter((item) => item.type === 'stay').sort((a, b) => a.startDate.localeCompare(b.startDate))
@@ -384,8 +386,8 @@ export function buildItineraryPdf(trip: Trip, days: Day[], items: Item[]): Uint8
   return pdf.finish()
 }
 
-export function downloadItinerary(trip: Trip, days: Day[], items: Item[]): void {
-  const pdf = buildItineraryPdf(trip, days, items)
+export function downloadItinerary(trip: Trip, days: Day[], items: Item[], mustSeeIds = new Set<string>()): void {
+  const pdf = buildItineraryPdf(trip, days, items, mustSeeIds)
   const buffer = new ArrayBuffer(pdf.byteLength)
   new Uint8Array(buffer).set(pdf)
   const blob = new Blob([buffer], { type: 'application/pdf' })
