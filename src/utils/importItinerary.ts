@@ -65,19 +65,35 @@ export function extractItineraryItems(text: string, trip: Trip): ExtractedItiner
   const lines = normalizeLines(text)
   const suggestions: ExtractedItineraryItem[] = []
   let currentDate = trip.startDate
+  let pendingMustSee = false
 
-  for (const line of lines) {
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index]
     const parsedDate = dateFromLine(line, trip)
     if (parsedDate) currentDate = parsedDate
+    if (parsedDate && isDateOnlyLine(line)) continue
 
     const flightNumber = line.match(/\b([A-Z]{2}|[A-Z][0-9]|[0-9][A-Z])\s?\d{2,4}\b/)?.[0] ?? ''
     const lower = line.toLowerCase()
-    const mustSee = /\u2b50|\bmust see\b/i.test(line)
+    const mustSee = hasMustSee(line) || pendingMustSee
     const placeLine = lower.includes('atlas_place_link')
 
-    if ((isSectionHeader(line) || isInstructionLine(line)) && !placeLine) continue
+    if (isMustSeeMarker(line)) {
+      pendingMustSee = true
+      continue
+    }
 
-    if (flightNumber || /\bflight\b|\bdepart(?:ure|s)?\b|\barriv(?:al|es)?\b/.test(lower)) {
+    if ((isSectionHeader(line) || isInstructionLine(line) || isTravelNoteLine(line)) && !placeLine) continue
+    if (isBulletLine(line) && !flightNumber) {
+      const bulletText = stripBullet(line)
+      if (isBulletPlaceTitle(bulletText)) {
+        addActivitySuggestions(suggestions, trip, currentDate, bulletText, mustSee, index, lines)
+        pendingMustSee = false
+      }
+      continue
+    }
+
+    if (flightNumber || /\b(?:depart(?:ure|s)?|arriv(?:al|es)?)\b/.test(lower)) {
       const airports = airportPair(line)
       suggestions.push(baseSuggestion('flight', trip, currentDate, {
         name: flightNumber || 'Flight',
@@ -89,6 +105,7 @@ export function extractItineraryItems(text: string, trip: Trip): ExtractedItiner
         notes: line,
         mustSee,
       }))
+      pendingMustSee = false
       continue
     }
 
@@ -102,6 +119,7 @@ export function extractItineraryItems(text: string, trip: Trip): ExtractedItiner
         notes: line,
         mustSee,
       }))
+      pendingMustSee = false
       continue
     }
 
@@ -114,16 +132,14 @@ export function extractItineraryItems(text: string, trip: Trip): ExtractedItiner
         lower,
       )
     ) {
-      const category = categoryForLine(line)
-      suggestions.push(baseSuggestion('activity', trip, parsedDate ?? currentDate, {
-        category,
-        name: activityName(line),
-        startTime: firstTime(line),
-        endTime: secondTime(line),
-        locationLabel: locationAfterWords(line, ['at', 'to', 'visit']) || activityName(line),
-        notes: line,
-        mustSee,
-      }))
+      addActivitySuggestions(suggestions, trip, parsedDate ?? currentDate, line, mustSee, index, lines)
+      pendingMustSee = false
+      continue
+    }
+
+    if (isPlaceTitleLine(line, lines[index + 1], pendingMustSee)) {
+      addActivitySuggestions(suggestions, trip, currentDate, line, mustSee, index, lines)
+      pendingMustSee = false
     }
   }
 
@@ -143,19 +159,53 @@ async function extractPdfText(file: File): Promise<string> {
   for (let index = 1; index <= pdf.numPages; index += 1) {
     const page = await pdf.getPage(index)
     const content = await page.getTextContent()
-    pages.push(content.items.map((item) => ('str' in item ? item.str : '')).join(' '))
+    pages.push(pdfTextContentToLines(content.items))
   }
 
   return pages.join('\n')
 }
 
+function pdfTextContentToLines(items: unknown[]): string {
+  const lines: string[] = []
+  let currentLine: string[] = []
+  let currentY: number | null = null
+
+  for (const item of items) {
+    if (!isPdfTextItem(item)) continue
+    const text = item.str.trim()
+    if (!text) continue
+    const y: number | null = typeof item.transform?.[5] === 'number' ? item.transform[5] : currentY
+    if (currentY != null && y != null && Math.abs(y - currentY) > 4) {
+      lines.push(currentLine.join(' '))
+      currentLine = []
+    }
+    currentLine.push(text)
+    currentY = y
+    if (item.hasEOL) {
+      lines.push(currentLine.join(' '))
+      currentLine = []
+      currentY = null
+    }
+  }
+
+  if (currentLine.length > 0) lines.push(currentLine.join(' '))
+  return lines.join('\n')
+}
+
+function isPdfTextItem(item: unknown): item is { str: string; transform?: number[]; hasEOL?: boolean } {
+  return Boolean(item && typeof item === 'object' && 'str' in item && typeof (item as { str?: unknown }).str === 'string')
+}
+
 function normalizeLines(text: string): string[] {
   return text
     .replace(/\r/g, '\n')
+    .replace(/â­\u0090/g, '⭐')
+    .replace(/â€™/g, "'")
+    .replace(/â€“/g, '-')
     .split('\n')
     .map(markdownToText)
-    .map((line) => line.replace(/\s+/g, ' ').trim())
-    .filter((line) => line.length > 5 && !/^(page \d+|\d+)$/.test(line.toLowerCase()))
+    .map((line) => line.replace(/^[•*]\s+/, '- ').replace(/\s+/g, ' ').trim())
+    .filter((line) => (line.length > 2 || isMustSeeMarker(line)) && !/^(page \d+|\d+)$/.test(line.toLowerCase()))
 }
 
 function markdownToText(line: string): string {
@@ -166,14 +216,38 @@ function markdownToText(line: string): string {
 
 function isSectionHeader(line: string): boolean {
   return (
+    /^---\s*page\s+\d+\s*---$/i.test(line) ||
+    /^day\s+\d+\s+\d{1,2}\/\d{1,2}(?:\/\d{2,4})?$/i.test(line) ||
     /:\s*\d{1,2}\//.test(line) ||
     /\)\s*\d{1,2}\//.test(line) ||
-    /\b\d{1,2}\/\d{1,2}\s*-\s*\d{1,2}\/\d{1,2}\b/.test(line)
+    /\b\d{1,2}\/\d{1,2}\s*-\s*\d{1,2}\/\d{1,2}\b/.test(line) ||
+    /^(kyrgyz|kazakhstan|tajikistan|turkey)(?:\s+\d{1,2}\/\d{1,2})?$/i.test(line)
   )
 }
 
 function isInstructionLine(line: string): boolean {
-  return /\bitinerary\b/i.test(line) || /\badd a star\b/i.test(line) || /\bborder zone permits\b/i.test(line)
+  return (
+    /\bitinerary\b/i.test(line) ||
+    /\badd a star\b/i.test(line) ||
+    /\bborder zone permits\b/i.test(line) ||
+    /^https?:\/\//i.test(line) ||
+    /\bwill fill this out\b/i.test(line)
+  )
+}
+
+function isDateOnlyLine(line: string): boolean {
+  return (
+    /^\d{1,2}\/\d{1,2}(?:\/\d{2,4})?$/.test(line) ||
+    /^(Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:t|tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\.?\s+\d{1,2}(?:,?\s+\d{4})?$/i.test(
+      line,
+    )
+  )
+}
+
+function isTravelNoteLine(line: string): boolean {
+  return /\b(?:fly back|get there|drive to|drive from|round trip|minute drive|hour drive|leave next|according to|best to just|same distance)\b/i.test(
+    line,
+  )
 }
 
 function baseSuggestion(
@@ -199,6 +273,115 @@ function baseSuggestion(
     notes: patch.notes?.trim() ?? '',
     mustSee: patch.mustSee ?? false,
   }
+}
+
+function addActivitySuggestions(
+  suggestions: ExtractedItineraryItem[],
+  trip: Trip,
+  date: string,
+  line: string,
+  mustSee: boolean,
+  index: number,
+  lines: string[],
+) {
+  const notes = collectNotes(line, index, lines)
+  const category = categoryForLine(`${line} ${notes}`)
+  const names = splitActivityNames(activityName(line))
+
+  for (const name of names) {
+    suggestions.push(baseSuggestion('activity', trip, date, {
+      category,
+      name,
+      startTime: firstTime(line),
+      endTime: secondTime(line),
+      locationLabel: locationAfterWords(line, ['at', 'to', 'visit']) || name,
+      notes,
+      mustSee,
+    }))
+  }
+}
+
+function collectNotes(line: string, index: number, lines: string[]): string {
+  const notes = [line]
+  for (let cursor = index + 1; cursor < lines.length; cursor += 1) {
+    const next = lines[cursor]
+    if (isMustSeeMarker(next) || isSectionHeader(next) || isInstructionLine(next)) break
+    if (isPlaceTitleLine(next, lines[cursor + 1], false)) break
+    if (isBulletLine(next)) {
+      notes.push(stripBullet(next))
+      continue
+    }
+    if (/^[a-z(]/.test(next) || notes.at(-1)?.endsWith(',')) {
+      notes.push(next)
+      continue
+    }
+    break
+  }
+  return notes.join(' ')
+}
+
+function splitActivityNames(name: string): string[] {
+  const normalized = name
+    .replace(/\s+\((?:frontend|backend)\)\s*$/i, '')
+    .replace(/\s+and\s+/gi, ' & ')
+    .replace(/\s*\+\s*/g, ' & ')
+
+  const parts = normalized
+    .split(/\s*&\s*|,\s*/)
+    .map((part) => cleanName(part))
+    .filter((part) => part.length > 1)
+
+  return parts.length > 1 ? parts : [normalized]
+}
+
+function hasMustSee(line: string): boolean {
+  return /⭐|\u2b50|★|\bmust see\b/i.test(line)
+}
+
+function isMustSeeMarker(line: string): boolean {
+  return /^[\s⭐\u2b50★*]+$/.test(line)
+}
+
+function isBulletLine(line: string): boolean {
+  return /^[-•*]\s+/.test(line)
+}
+
+function stripBullet(line: string): string {
+  return line.replace(/^[-•*]\s+/, '').trim()
+}
+
+function isPlaceTitleLine(line: string, nextLine?: string, pendingMustSee = false): boolean {
+  const clean = cleanName(line)
+  if (!clean || clean.length < 3 || clean.length > 100) return false
+  if (isBulletLine(line) || isSectionHeader(line) || isInstructionLine(line) || isMustSeeMarker(line)) return false
+  if (/[.!?]$/.test(clean)) return false
+  if (/^\d/.test(clean)) return false
+  if (!/[A-Z]/.test(clean[0])) return false
+
+  const lower = clean.toLowerCase()
+  if (
+    /\b(?:guide|option|booking|permit|route|routes|sunlight|moon|ordered|dependent|arrange|leave|only way|same direction|roughly|probably|according|best to)\b/.test(
+      lower,
+    )
+  ) {
+    return false
+  }
+  if (clean.split(/\s+/).length > 8 && !/[,&+]/.test(clean)) return false
+  return pendingMustSee || !nextLine || isBulletLine(nextLine) || isMustSeeMarker(nextLine) || isSectionHeader(nextLine)
+}
+
+function isBulletPlaceTitle(line: string): boolean {
+  if (!isPlaceTitleLine(line, undefined, false)) return false
+  const words = line.split(/\s+/)
+  if (words.length > 3) return false
+  if (
+    /\b(?:also|eagles|great|only|ideally|take|more|there|highly|springs|horseback|guide|option|booking|permits?|same|roughly|probably)\b/i.test(
+      line,
+    )
+  ) {
+    return false
+  }
+  return words.every((word) => /^(?:[A-Z][A-Za-z'’-]*|[A-Z]{2,})$/.test(word))
 }
 
 function dateFromLine(line: string, trip: Trip): string | null {
@@ -249,8 +432,8 @@ function secondTime(line: string): string {
 }
 
 function timeMatches(line: string): string[] {
-  return [...line.matchAll(/\b(\d{1,2})(?::(\d{2}))?\s?(am|pm)?\b/gi)]
-    .map((match) => toTime(match[1], match[2], match[3]))
+  return [...line.matchAll(/\b(?:(\d{1,2})(?::(\d{2}))?\s*(am|pm)|(\d{1,2}):(\d{2}))\b/gi)]
+    .map((match) => toTime(match[1] ?? match[4], match[2] ?? match[5], match[3]))
     .filter(Boolean)
 }
 
