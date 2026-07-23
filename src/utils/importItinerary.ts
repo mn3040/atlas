@@ -307,6 +307,7 @@ function addActivitySuggestions(
   const names = splitActivityNames(activityName(line))
 
   for (const name of names) {
+    if (!isImportablePlaceName(name, line, notes, mustSee)) continue
     suggestions.push(baseSuggestion('activity', trip, date, {
       category,
       name,
@@ -352,6 +353,30 @@ function splitActivityNames(name: string): string[] {
   return parts.length > 1 ? parts : [normalized]
 }
 
+function isImportablePlaceName(name: string, line: string, notes: string, mustSee: boolean): boolean {
+  const clean = cleanName(name)
+  const lowerNameLine = `${clean} ${line}`.toLowerCase()
+  const lowerAll = `${lowerNameLine} ${notes}`.toLowerCase()
+  if (clean.length < 3 || clean.length > 70) return false
+  if (/^\d+$/.test(clean)) return false
+  if (/\b(?:guide|option|booking|permit|permits|transfer|transfers|route|routes|frontend|backend|according|same distance|best to|only way|take days|more solitude|highly recommended)\b/.test(lowerNameLine)) {
+    return false
+  }
+  if (/\b(?:travellers pass hike|no man'?s land)\b/.test(lowerAll) && !mustSee) return false
+  if (mustSee || /\batlas_place_link\b/i.test(line)) return true
+  if (knownCentralAsiaPlace(clean)) return true
+  if (/\b(?:park|tower|bazaar|lake|kul|kol|valley|canyon|monument|base camp|pass|camp|town|hike|trek|market)\b/i.test(clean)) {
+    return true
+  }
+  return clean.split(/\s+/).length <= 3 && /^[A-Z]/.test(clean)
+}
+
+function knownCentralAsiaPlace(name: string): boolean {
+  return /\b(?:peak lenin|tulpar|ala-archa|burana|dordoi|bishkek|osh|naryn|kok kiya|kel suu|kel-suu|tash rabat|song kol|song kul|bokonbayevo|skazka|jeti oguz|kok jaiyk|barskoon|karakol|enilchek|jyrgalan|ala-kul|ala kul|altyn arashan|karakul|ak baital)\b/i.test(
+    name,
+  )
+}
+
 function hasMustSee(line: string): boolean {
   return /⭐|\u2b50|★|\bmust see\b/i.test(line)
 }
@@ -378,7 +403,7 @@ function isPlaceTitleLine(line: string, nextLine?: string, pendingMustSee = fals
 
   const lower = clean.toLowerCase()
   if (
-    /\b(?:guide|option|booking|permit|route|routes|sunlight|moon|ordered|dependent|arrange|leave|only way|same direction|roughly|probably|according|best to)\b/.test(
+    /\b(?:guide|option|booking|permit|permits?|route|routes|sunlight|moon|ordered|dependent|arrange|leave|only way|same direction|roughly|probably|according|best to|take days|more solitude|highly recommended|source|notes?)\b/.test(
       lower,
     )
   ) {
