@@ -151,7 +151,7 @@ export function AddItemModal({
           photoUrl: photoUrl || null,
           ...googleFields,
           startDate,
-          endDate: type === 'stay' ? endDate : editItem.endDate,
+          endDate: type === 'stay' ? endDate : endTime ? startDate : editItem.endDate,
           startTime: startTime || null,
           endTime: endTime || null,
           flightNumber: type === 'flight' ? flightNumber || null : null,
@@ -188,7 +188,7 @@ export function AddItemModal({
         lng2: type === 'flight' ? place2!.lng : null,
         location2Label: type === 'flight' ? place2!.label : null,
         startDate,
-        endDate: type === 'stay' ? endDate : type === 'flight' && endTime ? startDate : null,
+        endDate: type === 'stay' ? endDate : endTime ? startDate : null,
         startTime: startTime || null,
         endTime: endTime || null,
         flightNumber: type === 'flight' ? flightNumber || null : null,
@@ -299,7 +299,7 @@ export function AddItemModal({
                   className={inputClass}
                 />
               </Field>
-              <div className="grid gap-2 sm:grid-cols-3">
+              <div className="grid gap-2 sm:grid-cols-4">
                 <Field label="Category" icon={MapPin}>
                   <select
                     value={category}
@@ -324,11 +324,19 @@ export function AddItemModal({
                     className={inputClass}
                   />
                 </Field>
-                <Field label="Time" icon={Clock3}>
+                <Field label="Starts" icon={Clock3}>
                   <input
                     type="time"
                     value={startTime}
                     onChange={(e) => setStartTime(e.target.value)}
+                    className={inputClass}
+                  />
+                </Field>
+                <Field label="Ends" icon={Clock3}>
+                  <input
+                    type="time"
+                    value={endTime}
+                    onChange={(e) => setEndTime(e.target.value)}
                     className={inputClass}
                   />
                 </Field>

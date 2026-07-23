@@ -29,6 +29,7 @@ import {
   deleteTrip,
   deleteItem,
 } from '../api/trips'
+import { supabase } from '../api/supabaseClient'
 import { fetchItemVoteSummary, setItemMustSeeVote } from '../api/votes'
 import { TopNav } from '../components/TopNav'
 import { useSession } from '../hooks/useSession'
@@ -171,6 +172,40 @@ export default function TripDetail() {
 
     return () => {
       cancelled = true
+    }
+  }, [tripId, session?.user.id, trip?.visibility])
+
+  useEffect(() => {
+    if (!tripId || !session?.user.id || trip?.visibility !== 'group') return
+
+    let cancelled = false
+    let refreshTimer: number | null = null
+    const refreshVotes = () => {
+      if (refreshTimer != null) window.clearTimeout(refreshTimer)
+      refreshTimer = window.setTimeout(() => {
+        fetchItemVoteSummary(tripId, session.user.id)
+          .then((summary) => {
+            if (!cancelled) setVoteSummary(summary)
+          })
+          .catch((err) => {
+            if (!cancelled) setVoteError(err instanceof Error ? err.message : 'Could not refresh group votes.')
+          })
+      }, 160)
+    }
+
+    const channel = supabase
+      .channel(`trip-votes:${tripId}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'item_votes', filter: `trip_id=eq.${tripId}` },
+        refreshVotes,
+      )
+      .subscribe()
+
+    return () => {
+      cancelled = true
+      if (refreshTimer != null) window.clearTimeout(refreshTimer)
+      void supabase.removeChannel(channel)
     }
   }, [tripId, session?.user.id, trip?.visibility])
 

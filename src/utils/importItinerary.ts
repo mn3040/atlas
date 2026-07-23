@@ -161,6 +161,14 @@ export function extractItineraryItems(text: string, trip: Trip): ExtractedItiner
 }
 
 async function extractPdfText(file: File): Promise<string> {
+  if (isLikelyMobileSafari()) {
+    try {
+      return await extractPdfTextOnServer(file)
+    } catch (error) {
+      console.warn('Atlas server PDF extraction failed; falling back to browser extraction.', error)
+    }
+  }
+
   ensurePdfJsCompatibility()
   const [{ GlobalWorkerOptions, getDocument }, worker] = await Promise.all([
     import('pdfjs-dist/legacy/build/pdf.mjs'),
@@ -168,7 +176,16 @@ async function extractPdfText(file: File): Promise<string> {
   ])
   GlobalWorkerOptions.workerSrc = worker.default
   const arrayBuffer = await fileToArrayBuffer(file)
-  const pdf = await getDocument({ data: arrayBuffer, disableFontFace: true, useSystemFonts: true }).promise
+  const pdf = await getDocument({
+    data: new Uint8Array(arrayBuffer),
+    disableFontFace: true,
+    disableRange: true,
+    disableStream: true,
+    isImageDecoderSupported: false,
+    isOffscreenCanvasSupported: false,
+    useSystemFonts: true,
+    useWasm: false,
+  }).promise
   const pages: string[] = []
 
   for (let index = 1; index <= pdf.numPages; index += 1) {
@@ -178,6 +195,22 @@ async function extractPdfText(file: File): Promise<string> {
   }
 
   return pages.join('\n')
+}
+
+async function extractPdfTextOnServer(file: File): Promise<string> {
+  const response = await fetch('/api/extract-document', {
+    method: 'POST',
+    headers: {
+      'content-type': file.type || 'application/pdf',
+      'x-file-name': encodeURIComponent(file.name),
+    },
+    body: await fileToArrayBuffer(file),
+  })
+  const payload = (await response.json().catch(() => null)) as { text?: string; error?: string } | null
+  if (!response.ok || !payload?.text) {
+    throw new Error(payload?.error ?? 'Could not read that PDF on this device.')
+  }
+  return payload.text
 }
 
 function pdfTextContentToLines(items: unknown[]): string {
@@ -570,6 +603,13 @@ function fileToText(file: File): Promise<string> {
     reader.onerror = () => reject(reader.error ?? new Error('Could not read that file.'))
     reader.readAsText(file)
   })
+}
+
+function isLikelyMobileSafari(): boolean {
+  if (typeof navigator === 'undefined') return false
+  const userAgent = navigator.userAgent
+  const isAppleMobile = /iPad|iPhone|iPod/.test(userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
+  return isAppleMobile && /Safari/i.test(userAgent) && !/CriOS|FxiOS|EdgiOS/i.test(userAgent)
 }
 
 function regexFlags(pattern: RegExp): string {

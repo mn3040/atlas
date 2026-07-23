@@ -109,7 +109,7 @@ export function ItemStation({
         {item.startTime && (
           <p className="mb-1 text-[11px] font-semibold text-text-dimmer">
             {formatTime(item.startTime)}
-            {item.type === 'flight' && item.endTime ? ` – ${formatTime(item.endTime)}` : ''}
+            {item.endTime ? ` - ${formatTime(item.endTime)}` : ''}
           </p>
         )}
         <div
