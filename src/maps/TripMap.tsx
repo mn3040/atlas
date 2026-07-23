@@ -168,6 +168,8 @@ export const TripMap = forwardRef<
           padding?: number | { top: number; right: number; bottom: number; left: number }
         }
         map.fitBounds(bounds, { padding: fitPadding(), maxZoom: 15, duration: 0 } as FitBoundsOptions)
+        const selectedItem = dayItems.find((item) => item.id === selectedItemId)
+        if (selectedItem) window.setTimeout(() => focusMapOnItem(map, selectedItem, false), 80)
       }
 
       // Straight line above is the instant baseline; upgrade it to a real
@@ -212,8 +214,7 @@ export const TripMap = forwardRef<
       // The SDK's flyTo() type omits center/zoom despite supporting them at runtime
       // (it's inherited from CameraOptions, like easeTo/fitBounds) — cast around it.
       if (item) {
-        type FlyToOptions = Parameters<typeof map.easeTo>[0] & { curve?: number }
-        map.flyTo({ center: [item.lng, item.lat], zoom: Math.max(map.getZoom(), 13) } as FlyToOptions)
+        focusMapOnItem(map, item, true)
       }
     }
     prevDayRef.current = activeDayId
@@ -322,6 +323,23 @@ function fitPadding(): number | { top: number; right: number; bottom: number; le
     bottom: Math.round(window.innerHeight * 0.52),
     left: 48,
   }
+}
+
+function selectedPinOffset(): [number, number] {
+  if (typeof window === 'undefined' || window.innerWidth >= 768) return [0, 0]
+  return [0, -Math.round(window.innerHeight * 0.22)]
+}
+
+function focusMapOnItem(map: tt.Map, item: Item, animate: boolean) {
+  type CameraOptions = Parameters<typeof map.easeTo>[0] & { curve?: number; offset?: [number, number] }
+  const options = {
+    center: [item.lng, item.lat],
+    zoom: Math.max(map.getZoom(), 13),
+    offset: selectedPinOffset(),
+    duration: animate ? 900 : 280,
+  } as CameraOptions
+  if (animate) map.flyTo(options)
+  else map.easeTo(options)
 }
 
 function addAnimatedFlightMarker(

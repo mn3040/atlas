@@ -1,5 +1,6 @@
 import { AlertTriangle, CalendarCheck, Clock3, MapPin, Star, X } from 'lucide-react'
 import { scheduleInsightsForItems } from '../utils/scheduleInsights'
+import type { TravelMode } from '../utils/distance'
 import type { Day, Item, ItemVoteSummary, Trip } from '../types/trip'
 
 export function TripBriefModal({
@@ -7,6 +8,7 @@ export function TripBriefModal({
   days,
   items,
   voteSummary,
+  travelMode,
   onClose,
   onSelectItem,
 }: {
@@ -14,6 +16,7 @@ export function TripBriefModal({
   days: Day[]
   items: Item[]
   voteSummary: Record<string, ItemVoteSummary>
+  travelMode: TravelMode
   onClose: () => void
   onSelectItem: (item: Item) => void
 }) {
@@ -27,7 +30,7 @@ export function TripBriefModal({
   const scheduleInsights = days.flatMap((day) =>
     scheduleInsightsForItems(
       items.filter((item) => item.dayId === day.id),
-      'car',
+      travelMode,
     ),
   )
   const readiness = Math.round(
@@ -90,7 +93,7 @@ export function TripBriefModal({
         {scheduleInsights.length > 0 && (
           <div className="mt-3 rounded-lg border border-border bg-ink p-3">
             <p className="mb-2 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.2em] text-text-dimmer">
-              <AlertTriangle size={12} /> Timing warnings
+              <AlertTriangle size={12} /> Timing warnings / {modeLabel(travelMode)}
             </p>
             <div className="space-y-1.5">
               {scheduleInsights.slice(0, 6).map((insight) => {
@@ -197,4 +200,8 @@ function IssueList({
 
 function average(values: number[]): number {
   return values.reduce((sum, value) => sum + value, 0) / values.length
+}
+
+function modeLabel(mode: TravelMode): string {
+  return mode === 'walk' ? 'Walking' : mode === 'bike' ? 'Cycling' : mode === 'car' ? 'Car' : mode === 'train' ? 'Train' : 'Flight'
 }

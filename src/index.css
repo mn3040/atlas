@@ -136,11 +136,7 @@ body {
     linear-gradient(315deg, rgba(247, 255, 136, 0.12), transparent 34%);
   opacity: 0;
   transition: opacity 220ms var(--motion-soft);
-}
-
-.atlas-cinematic-card > * {
-  position: relative;
-  z-index: 1;
+  pointer-events: none;
 }
 
 .atlas-cinematic-card:hover,

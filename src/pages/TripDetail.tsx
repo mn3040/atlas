@@ -939,6 +939,7 @@ export default function TripDetail() {
           days={days}
           items={items}
           voteSummary={voteSummary}
+          travelMode={travelMode}
           onClose={() => setShowTripBrief(false)}
           onSelectItem={(item) => {
             setActiveDayId(item.dayId)
