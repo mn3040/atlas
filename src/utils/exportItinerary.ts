@@ -36,6 +36,9 @@ function formatShortDate(date: string): string {
 
 function cleanText(value: string | null | undefined): string {
   return (value ?? '')
+    .replace(/<a\b[^>]*>(.*?)<\/a>/gi, '$1')
+    .replace(/<\/?[^>]+>/g, '')
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
     .normalize('NFKD')
     .replace(/[\u0300-\u036f]/g, '')
     .replace(/[^\x20-\x7E]/g, '-')

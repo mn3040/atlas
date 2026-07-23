@@ -297,15 +297,37 @@ function normalizeLines(text: string): string[] {
     .replace(/â€™/g, "'")
     .replace(/â€“/g, '-')
     .split('\n')
-    .map(markdownToText)
+    .map(importMarkupToText)
     .map((line) => line.replace(/^[•*]\s+/, '- ').replace(/\s+/g, ' ').trim())
     .filter((line) => (line.length > 2 || isMustSeeMarker(line)) && !/^(page \d+|\d+)$/.test(line.toLowerCase()))
 }
 
-function markdownToText(line: string): string {
+function importMarkupToText(line: string): string {
   const hasLink = /\[[^\]]+\]\([^)]+\)/.test(line)
-  const text = line.replace(/\[([^\]]+)\]\([^)]+\)/g, '$1').replace(/https?:\/\/\S+/g, '')
-  return hasLink ? `${text} atlas_place_link` : text
+  const hasHtmlLink = /<a\b[^>]*href=/i.test(line)
+  const text = stripImportMarkup(line)
+  return hasLink || hasHtmlLink ? `${text} atlas_place_link` : text
+}
+
+function stripImportMarkup(value: string): string {
+  return decodeHtmlEntities(value)
+    .replace(/<a\b[^>]*>(.*?)<\/a>/gi, '$1')
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+    .replace(/<\/?[^>]+>/g, '')
+    .replace(/https?:\/\/\S+/g, '')
+    .replace(/^#{1,6}\s*/, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+function decodeHtmlEntities(value: string): string {
+  return value
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;|&apos;/gi, "'")
 }
 
 function isSectionHeader(line: string): boolean {
@@ -417,7 +439,12 @@ function baseSuggestion(
 
 function cleanImportValue(value: unknown): string {
   if (typeof value !== 'string') return ''
-  const clean = value.replace(/\b(?:undefined|null)\b/gi, '').replace(/\s+/g, ' ').trim()
+  const clean = stripImportMarkup(value)
+    .replace(/\batlas_place_link\b/gi, '')
+    .replace(/[\u2b50â­â˜…?]+/g, '')
+    .replace(/\b(?:undefined|null)\b/gi, '')
+    .replace(/\s+/g, ' ')
+    .trim()
   return clean === '-' ? '' : clean
 }
 
@@ -746,12 +773,12 @@ function activityName(line: string): string {
 }
 
 function cleanName(value: string): string {
-  return value
+  return stripImportMarkup(value)
     .replace(/\bAlamaty\b/gi, 'Almaty')
     .replace(/\b(?:confirmation|reservation|check-?in|check-?out|depart(?:ure|s)?|arriv(?:al|es)?)\b.*$/i, '')
     .replace(/\batlas_place_link\b/gi, '')
     .replace(/\b\d{1,2}\/\d{1,2}(?:\/\d{2,4})?\b/g, '')
-    .replace(/\u2b50/g, '')
+    .replace(/[\u2b50â­â˜…?]+$/g, '')
     .trim()
     .slice(0, 90)
 }
@@ -765,7 +792,7 @@ function locationAfterWords(line: string, words: string[]): string {
 }
 
 function cleanLocation(value: string): string {
-  return value
+  return stripImportMarkup(value)
     .replace(/\b(?:flight|depart(?:ure|s)?|arriv(?:al|es)?|at|from|to)\b/gi, '')
     .replace(/\batlas_place_link\b/gi, '')
     .replace(/\b\d{1,2}:?\d{0,2}\s?(?:am|pm)?\b/gi, '')
