@@ -316,7 +316,7 @@ export default function TripDetail() {
                   {mobileSheetExpanded ? <Minimize2 size={13} /> : <Maximize2 size={13} />}
                 </button>
               </div>
-              <div className="px-4 pt-4 sm:px-[22px] sm:pt-[18px]">
+              <div className="itinerary-scroll min-h-0 flex-1 touch-pan-y overflow-y-auto px-4 pb-6 pt-4 sm:px-[22px] sm:pt-[18px]">
                 <div className="mb-4 flex items-center justify-between">
                   <Link to="/" className="flex items-center gap-2 text-xs font-semibold text-text-dim hover:text-text">
                     <ChevronLeft size={14} /> Itinerary Detail
@@ -482,42 +482,42 @@ export default function TripDetail() {
                     />
                   </div>
                 )}
-              </div>
 
-              <div className="itinerary-scroll min-h-0 flex-1 touch-pan-y overflow-y-auto px-4 pb-6 pt-0.5 sm:px-[22px]">
-                {activeItems.length > 0 && (
-                  <DayOptionsPanel
-                    items={activeItems}
-                    mustSeeIds={mustSeeIds}
-                    view={dayOptionView}
-                    onViewChange={setDayOptionView}
-                  />
-                )}
-                {activeDay ? (
-                  <DayLine
-                    day={activeDay}
-                    items={displayedActiveItems}
-                    color={activeColor}
-                    selectedItemId={selectedItemId}
-                    onSelectItem={(id) => {
-                      setSelectedItemId(id)
-                      mapRef.current?.resize()
-                    }}
-                    onAction={handleAction}
-                    onEdit={setEditingItem}
-                    onReorder={handleReorder}
-                    onDelete={handleDelete}
-                    onToggleMustSee={handleToggleMustSee}
-                    getMapsUrl={mapsUrlForItem}
-                    getBookingUrl={bookingUrlForItem}
-                    mustSeeIds={mustSeeIds}
-                    onAddClick={setAddModalDate}
-                    travelMode={travelMode}
-                    showCommutes={showRouteTools}
-                  />
-                ) : (
-                  <p className="text-text-dim">No days yet — add your first flight, stay, or activity.</p>
-                )}
+                <div className="pt-0.5">
+                  {activeItems.length > 0 && (
+                    <DayOptionsPanel
+                      items={activeItems}
+                      mustSeeIds={mustSeeIds}
+                      view={dayOptionView}
+                      onViewChange={setDayOptionView}
+                    />
+                  )}
+                  {activeDay ? (
+                    <DayLine
+                      day={activeDay}
+                      items={displayedActiveItems}
+                      color={activeColor}
+                      selectedItemId={selectedItemId}
+                      onSelectItem={(id) => {
+                        setSelectedItemId(id)
+                        mapRef.current?.resize()
+                      }}
+                      onAction={handleAction}
+                      onEdit={setEditingItem}
+                      onReorder={handleReorder}
+                      onDelete={handleDelete}
+                      onToggleMustSee={handleToggleMustSee}
+                      getMapsUrl={mapsUrlForItem}
+                      getBookingUrl={bookingUrlForItem}
+                      mustSeeIds={mustSeeIds}
+                      onAddClick={setAddModalDate}
+                      travelMode={travelMode}
+                      showCommutes={showRouteTools}
+                    />
+                  ) : (
+                    <p className="text-text-dim">No days yet — add your first flight, stay, or activity.</p>
+                  )}
+                </div>
               </div>
             </>
           ) : screen === 'booking' && bookingItem ? (
