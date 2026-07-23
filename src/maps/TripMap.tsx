@@ -298,7 +298,7 @@ function addMarker(
     el.style.boxShadow = '0 0 0 1px #111111'
   })
 
-  const marker = new tt.Marker({ element: wrapper }).setLngLat(lngLat).addTo(map)
+  const marker = new tt.Marker({ element: wrapper, anchor: 'center' }).setLngLat(lngLat).addTo(map)
   registry.push(marker)
 }
 
@@ -311,7 +311,7 @@ function addMutedMarker(map: tt.Map, registry: tt.Marker[], lngLat: [number, num
   el.style.border = '1.5px solid #ffffff'
   el.style.filter = 'invert(1) hue-rotate(180deg)'
 
-  const marker = new tt.Marker({ element: el }).setLngLat(lngLat).addTo(map)
+  const marker = new tt.Marker({ element: el, anchor: 'center' }).setLngLat(lngLat).addTo(map)
   registry.push(marker)
 }
 
@@ -379,7 +379,7 @@ function addAnimatedFlightMarker(
   `
   el.addEventListener('click', onClick)
 
-  const marker = new tt.Marker({ element: el }).setLngLat(from).addTo(map)
+  const marker = new tt.Marker({ element: el, anchor: 'center' }).setLngLat(from).addTo(map)
   registry.push(marker)
 
   if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
