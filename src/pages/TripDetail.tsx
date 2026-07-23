@@ -30,6 +30,7 @@ import {
   deleteItem,
 } from '../api/trips'
 import { supabase } from '../api/supabaseClient'
+import { clearItemDecision, fetchItemDecisions, isMissingDecisionsTable, setItemDecision } from '../api/decisions'
 import { fetchItemVoteSummary, setItemMustSeeVote } from '../api/votes'
 import { TopNav } from '../components/TopNav'
 import { useSession } from '../hooks/useSession'
@@ -62,7 +63,7 @@ import { countryCodesForTrip } from '../utils/flags'
 import type { TravelMode } from '../utils/distance'
 import type { AppSettings } from '../utils/settings'
 import type { DayOptionView } from '../utils/mustSee'
-import type { Trip, Day, Item, TripVisibility, ItemVoteSummary, Profile } from '../types/trip'
+import type { Trip, Day, Item, TripVisibility, ItemVoteSummary, Profile, ItemDecision } from '../types/trip'
 
 function formatShortDate(date: string): string {
   return new Date(`${date}T00:00:00`).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
@@ -118,7 +119,9 @@ export default function TripDetail() {
   const [dayOptionView, setDayOptionView] = useState<DayOptionView>('all')
   const [mustSeeIds, setMustSeeIds] = useState<Set<string>>(() => new Set())
   const [voteSummary, setVoteSummary] = useState<Record<string, ItemVoteSummary>>({})
+  const [decisions, setDecisions] = useState<Record<string, ItemDecision>>({})
   const [voteError, setVoteError] = useState<string | null>(null)
+  const [decisionError, setDecisionError] = useState<string | null>(null)
   const [screen, setScreen] = useState<'itinerary' | 'booking' | 'flight'>('itinerary')
   const [bookingItemId, setBookingItemId] = useState<string | null>(null)
   const [flightItemId, setFlightItemId] = useState<string | null>(null)
@@ -157,17 +160,25 @@ export default function TripDetail() {
   useEffect(() => {
     if (!tripId || !session?.user.id || trip?.visibility !== 'group') {
       setVoteSummary({})
+      setDecisions({})
       return
     }
 
     let cancelled = false
     setVoteError(null)
-    fetchItemVoteSummary(tripId, session.user.id)
-      .then((summary) => {
-        if (!cancelled) setVoteSummary(summary)
+    setDecisionError(null)
+    Promise.all([fetchItemVoteSummary(tripId, session.user.id), fetchItemDecisions(tripId)])
+      .then(([summary, decisionData]) => {
+        if (!cancelled) {
+          setVoteSummary(summary)
+          setDecisions(decisionData)
+        }
       })
       .catch((err) => {
-        if (!cancelled) setVoteError(err instanceof Error ? err.message : 'Could not load group votes.')
+        if (!cancelled) {
+          if (isMissingDecisionsTable(err)) setDecisionError('Run the latest Supabase migration to enable locked group decisions.')
+          else setVoteError(err instanceof Error ? err.message : 'Could not load group votes.')
+        }
       })
 
     return () => {
@@ -208,6 +219,42 @@ export default function TripDetail() {
       void supabase.removeChannel(channel)
     }
   }, [tripId, session?.user.id, trip?.visibility])
+
+  useEffect(() => {
+    if (!tripId || trip?.visibility !== 'group') return
+
+    let cancelled = false
+    let refreshTimer: number | null = null
+    const refreshDecisions = () => {
+      if (refreshTimer != null) window.clearTimeout(refreshTimer)
+      refreshTimer = window.setTimeout(() => {
+        fetchItemDecisions(tripId)
+          .then((decisionData) => {
+            if (!cancelled) setDecisions(decisionData)
+          })
+          .catch((err) => {
+            if (!cancelled && !isMissingDecisionsTable(err)) {
+              setDecisionError(err instanceof Error ? err.message : 'Could not refresh group decisions.')
+            }
+          })
+      }, 160)
+    }
+
+    const channel = supabase
+      .channel(`trip-decisions:${tripId}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'item_decisions', filter: `trip_id=eq.${tripId}` },
+        refreshDecisions,
+      )
+      .subscribe()
+
+    return () => {
+      cancelled = true
+      if (refreshTimer != null) window.clearTimeout(refreshTimer)
+      void supabase.removeChannel(channel)
+    }
+  }, [tripId, trip?.visibility])
 
   useEffect(() => {
     function handleSettings(event: Event) {
@@ -341,6 +388,31 @@ export default function TripDetail() {
       saveMustSeeIds(tripId, next)
       return next
     })
+  }
+
+  async function handleDecide(item: Item) {
+    if (!trip || !session?.user.id || !item.dayId) return
+    setDecisionError(null)
+    try {
+      const decision = await setItemDecision({ tripId: trip.id, dayId: item.dayId, itemId: item.id, userId: session.user.id })
+      setDecisions((current) => ({ ...current, [decision.dayId]: decision }))
+    } catch (err) {
+      setDecisionError(isMissingDecisionsTable(err) ? 'Run the latest Supabase migration to enable locked group decisions.' : err instanceof Error ? err.message : 'Could not lock this pick.')
+    }
+  }
+
+  async function handleClearDecision(dayId: string) {
+    setDecisionError(null)
+    try {
+      await clearItemDecision(dayId)
+      setDecisions((current) => {
+        const next = { ...current }
+        delete next[dayId]
+        return next
+      })
+    } catch (err) {
+      setDecisionError(err instanceof Error ? err.message : 'Could not unlock this pick.')
+    }
   }
 
   function handleAction(item: Item) {
@@ -847,12 +919,18 @@ export default function TripDetail() {
           days={days}
           items={items}
           voteSummary={voteSummary}
+          decisions={decisions}
+          memberCount={trip.memberLimit ?? 0}
+          canDecide={trip.ownerId === session?.user.id}
+          decisionError={decisionError}
           onClose={() => setShowGroupPicks(false)}
           onSelectItem={(item) => {
             setActiveDayId(item.dayId)
             setSelectedItemId(item.id)
             setShowGroupPicks(false)
           }}
+          onDecide={handleDecide}
+          onClearDecision={handleClearDecision}
         />
       )}
       {showTripBrief && (

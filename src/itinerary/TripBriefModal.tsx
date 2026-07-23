@@ -1,4 +1,5 @@
 import { AlertTriangle, CalendarCheck, Clock3, MapPin, Star, X } from 'lucide-react'
+import { scheduleInsightsForItems } from '../utils/scheduleInsights'
 import type { Day, Item, ItemVoteSummary, Trip } from '../types/trip'
 
 export function TripBriefModal({
@@ -23,6 +24,12 @@ export function TripBriefModal({
     (item) => item.confirmationNumber || item.flightNumber || /ticket|reservation|booking|required/i.test(item.priceLabel ?? ''),
   )
   const votedItems = items.filter((item) => (voteSummary[item.id]?.voters.length ?? 0) > 0)
+  const scheduleInsights = days.flatMap((day) =>
+    scheduleInsightsForItems(
+      items.filter((item) => item.dayId === day.id),
+      'car',
+    ),
+  )
   const readiness = Math.round(
     average([
       activeItems.length ? (activeItems.length - missingTimes.length) / activeItems.length : 1,
@@ -67,6 +74,7 @@ export function TripBriefModal({
           <Metric icon={CalendarCheck} label="Days" value={days.length} />
           <Metric icon={MapPin} label="Stops" value={items.length} />
           <Metric icon={Clock3} label="Missing times" value={missingTimes.length} warning={missingTimes.length > 0} />
+          <Metric icon={AlertTriangle} label="Timing flags" value={scheduleInsights.length} warning={scheduleInsights.length > 0} />
           <Metric icon={Star} label="Group picks" value={votedItems.length} />
         </div>
 
@@ -78,6 +86,34 @@ export function TripBriefModal({
           onSelectItem={onSelectItem}
           onClose={onClose}
         />
+
+        {scheduleInsights.length > 0 && (
+          <div className="mt-3 rounded-lg border border-border bg-ink p-3">
+            <p className="mb-2 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.2em] text-text-dimmer">
+              <AlertTriangle size={12} /> Timing warnings
+            </p>
+            <div className="space-y-1.5">
+              {scheduleInsights.slice(0, 6).map((insight) => {
+                const item = items.find((candidate) => candidate.id === insight.itemId)
+                if (!item) return null
+                return (
+                  <button
+                    key={insight.id}
+                    type="button"
+                    onClick={() => {
+                      onSelectItem(item)
+                      onClose()
+                    }}
+                    className="w-full rounded-md bg-surface px-2 py-1.5 text-left hover:text-paper"
+                  >
+                    <span className="block text-xs font-bold text-text">{insight.title}</span>
+                    <span className="block text-[10.5px] leading-snug text-text-dim">{insight.detail}</span>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        )}
 
         {bookedItems.length > 0 && (
           <div className="mt-4 rounded-lg border border-border bg-ink p-3">

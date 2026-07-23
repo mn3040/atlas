@@ -2,9 +2,10 @@ import { useEffect, useState } from 'react'
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors } from '@dnd-kit/core'
 import type { DragEndEvent } from '@dnd-kit/core'
 import { SortableContext, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable'
-import { Plus } from 'lucide-react'
+import { AlertTriangle, Info, Plus } from 'lucide-react'
 import { ItemStation } from './ItemStation'
 import type { TravelMode } from '../utils/distance'
+import { scheduleInsightsForItems } from '../utils/scheduleInsights'
 import type { Day, Item, ItemVoteSummary } from '../types/trip'
 
 // Module-level so the object identity is stable across renders -- useSensor
@@ -54,6 +55,7 @@ export function DayLine({
   const itemIds = items.map((s) => s.id)
   const coarsePointer = useCoarsePointer()
   const dragEnabled = !coarsePointer
+  const insights = scheduleInsightsForItems(items, travelMode).slice(0, 3)
 
   // Without an activation distance, dnd-kit's PointerSensor treats every
   // click as a zero-distance drag and the co-located onClick on each card
@@ -70,6 +72,28 @@ export function DayLine({
 
   return (
     <div>
+      {insights.length > 0 && (
+        <div className="mb-3 space-y-2 rounded-lg border border-border bg-ink p-2">
+          {insights.map((insight) => {
+            const Icon = insight.tone === 'warn' ? AlertTriangle : Info
+            return (
+              <button
+                key={insight.id}
+                type="button"
+                onClick={() => onSelectItem(insight.itemId)}
+                className="flex w-full items-start gap-2 rounded-md px-2 py-1.5 text-left hover:bg-surface"
+              >
+                <Icon size={14} className={insight.tone === 'warn' ? 'mt-0.5 shrink-0 text-paper' : 'mt-0.5 shrink-0 text-green'} />
+                <span className="min-w-0">
+                  <span className="block text-[11px] font-extrabold text-text">{insight.title}</span>
+                  <span className="block text-[10.5px] leading-snug text-text-dim">{insight.detail}</span>
+                </span>
+              </button>
+            )
+          })}
+        </div>
+      )}
+
       {items.length === 0 ? (
         <p className="py-4 text-sm text-text-dim">Nothing planned yet.</p>
       ) : (

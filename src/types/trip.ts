@@ -57,6 +57,14 @@ export interface ItemVoteSummary {
   viewerVoted: boolean
 }
 
+export interface ItemDecision {
+  tripId: string
+  dayId: string
+  itemId: string
+  decidedBy: string
+  decidedAt: string
+}
+
 export interface Profile {
   userId: string
   displayName: string

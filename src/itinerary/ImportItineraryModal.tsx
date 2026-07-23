@@ -135,8 +135,19 @@ export function ImportItineraryModal({
         {error && <p className="mb-3 border-l-4 border-line-3 bg-surface-2 px-3 py-2 text-sm font-semibold text-text">{error}</p>}
 
         {suggestions.length > 0 && (
-          <div className="max-h-[52vh] overflow-auto border border-border">
-            <table className="w-full min-w-[920px] border-collapse text-left text-xs">
+          <div className="max-h-[52vh] overflow-y-auto rounded-lg border border-border">
+            <div className="space-y-3 p-3 md:hidden">
+              {suggestions.map((item) => (
+                <ImportReviewCard
+                  key={item.id}
+                  item={item}
+                  updateSuggestion={updateSuggestion}
+                  removeSuggestion={removeSuggestion}
+                />
+              ))}
+            </div>
+
+            <table className="hidden w-full min-w-[920px] border-collapse text-left text-xs md:table">
               <thead className="sticky top-0 bg-surface-2 text-text-dim">
                 <tr>
                   <th className="w-10 border-b border-border p-2">Use</th>
@@ -294,6 +305,141 @@ export function ImportItineraryModal({
         </div>
       </div>
     </div>
+  )
+}
+
+function ImportReviewCard({
+  item,
+  updateSuggestion,
+  removeSuggestion,
+}: {
+  item: ExtractedItineraryItem
+  updateSuggestion: (id: string, patch: Partial<ExtractedItineraryItem>) => void
+  removeSuggestion: (id: string) => void
+}) {
+  return (
+    <article className="rounded-lg border border-border bg-ink p-3">
+      <div className="mb-3 flex items-start gap-3">
+        <input
+          type="checkbox"
+          checked={item.selected}
+          onChange={(event) => updateSuggestion(item.id, { selected: event.target.checked })}
+          className="mt-1"
+          aria-label={`Import ${item.name}`}
+        />
+        <div className="min-w-0 flex-1">
+          <input
+            value={item.name ?? ''}
+            onChange={(event) => updateSuggestion(item.id, { name: event.target.value })}
+            className="w-full bg-transparent text-base font-extrabold text-text outline-none"
+          />
+          <p className="mt-1 text-[10px] font-bold uppercase tracking-wide text-text-dim">
+            {item.type} / {item.startDate || 'Needs date'}
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => removeSuggestion(item.id)}
+          aria-label={`Remove ${item.name}`}
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-text-dim hover:bg-surface-3 hover:text-line-3"
+        >
+          <Trash2 size={14} />
+        </button>
+      </div>
+
+      <div className="grid grid-cols-2 gap-2">
+        <label className="block">
+          <span className="mb-1 block text-[10px] font-bold uppercase tracking-wide text-text-dim">Type</span>
+          <select
+            value={item.type}
+            onChange={(event) => updateSuggestion(item.id, { type: event.target.value as ItemType })}
+            className={inputClass}
+          >
+            {types.map((type) => (
+              <option key={type} value={type}>
+                {type}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="block">
+          <span className="mb-1 block text-[10px] font-bold uppercase tracking-wide text-text-dim">Date</span>
+          <input
+            type="date"
+            value={item.startDate ?? ''}
+            onChange={(event) => updateSuggestion(item.id, { startDate: event.target.value })}
+            className={inputClass}
+          />
+        </label>
+        <label className="block">
+          <span className="mb-1 block text-[10px] font-bold uppercase tracking-wide text-text-dim">Starts</span>
+          <input
+            type="time"
+            value={item.startTime ?? ''}
+            onChange={(event) => updateSuggestion(item.id, { startTime: event.target.value })}
+            className={inputClass}
+          />
+        </label>
+        <label className="block">
+          <span className="mb-1 block text-[10px] font-bold uppercase tracking-wide text-text-dim">Ends</span>
+          <input
+            type="time"
+            value={item.endTime ?? ''}
+            onChange={(event) => updateSuggestion(item.id, { endTime: event.target.value })}
+            className={inputClass}
+          />
+        </label>
+      </div>
+
+      {item.type === 'activity' && (
+        <label className="mt-2 block">
+          <span className="mb-1 block text-[10px] font-bold uppercase tracking-wide text-text-dim">Category</span>
+          <select
+            value={item.category}
+            onChange={(event) => updateSuggestion(item.id, { category: event.target.value as ActivityCategory })}
+            className={inputClass}
+          >
+            {categories.map((category) => (
+              <option key={category} value={category}>
+                {category}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
+
+      <label className="mt-2 block">
+        <span className="mb-1 block text-[10px] font-bold uppercase tracking-wide text-text-dim">Location</span>
+        <input
+          value={item.locationLabel ?? ''}
+          onChange={(event) => updateSuggestion(item.id, { locationLabel: event.target.value })}
+          placeholder="Place or address"
+          className={inputClass}
+        />
+      </label>
+      {item.type === 'flight' && (
+        <label className="mt-2 block">
+          <span className="mb-1 block text-[10px] font-bold uppercase tracking-wide text-text-dim">Arrival</span>
+          <input
+            value={item.location2Label ?? ''}
+            onChange={(event) => updateSuggestion(item.id, { location2Label: event.target.value })}
+            placeholder="Arrival airport"
+            className={inputClass}
+          />
+        </label>
+      )}
+
+      <div className="mt-3 flex items-center justify-between gap-2">
+        <button
+          type="button"
+          onClick={() => updateSuggestion(item.id, { mustSee: !item.mustSee })}
+          className="inline-flex min-h-9 items-center gap-1.5 rounded-md border border-border bg-surface px-3 text-xs font-extrabold text-paper"
+        >
+          <Star size={13} fill={item.mustSee ? 'var(--color-paper)' : 'none'} />
+          Must see
+        </button>
+      </div>
+    </article>
   )
 }
 
