@@ -224,8 +224,8 @@ export function DashboardImportModal({
 
             <div className="mb-3 grid grid-cols-3 gap-2">
               <ImportMetric label="Confidence" value={`${importConfidence.average}%`} tone="green" />
-              <ImportMetric label="Ready" value={importConfidence.ready} tone="green" />
-              <ImportMetric label="Review" value={importConfidence.review + importConfidence.needsFix} tone="paper" />
+              <ImportMetric label="Branches" value={importConfidence.branchCount} tone="paper" />
+              <ImportMetric label="Flights / stays" value={`${importConfidence.flightCount}/${importConfidence.stayCount}`} tone={importConfidence.flightCount || importConfidence.stayCount ? 'green' : 'line-4'} />
             </div>
 
             <div className="max-h-[42vh] overflow-y-auto rounded-lg border border-border">
@@ -249,6 +249,11 @@ export function DashboardImportModal({
                       {item.startTime ? ` / ${item.startTime}` : ''}
                     </p>
                     <ImportConfidencePill item={item} />
+                    {item.branchLabel && (
+                      <span className="ml-1 mt-2 inline-flex rounded-full border border-paper/35 bg-paper/10 px-2 py-1 text-[10px] font-extrabold uppercase tracking-wide text-paper">
+                        {item.branchLabel}
+                      </span>
+                    )}
                     <input
                       value={item.locationLabel ?? ''}
                       onChange={(event) => updateSuggestion(item.id, { locationLabel: event.target.value })}

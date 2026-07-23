@@ -141,8 +141,8 @@ export function ImportItineraryModal({
           <div className="mb-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
             <ConfidenceMetric label="Import confidence" value={`${confidence.average}%`} tone="green" />
             <ConfidenceMetric label="Ready" value={confidence.ready} tone="green" />
-            <ConfidenceMetric label="Review" value={confidence.review} tone="paper" />
-            <ConfidenceMetric label="Needs fix" value={confidence.needsFix} tone="line-4" />
+            <ConfidenceMetric label="Branches" value={confidence.branchCount} tone="paper" />
+            <ConfidenceMetric label="Flights / stays" value={`${confidence.flightCount}/${confidence.stayCount}`} tone={confidence.flightCount || confidence.stayCount ? 'green' : 'line-4'} />
           </div>
           <div className="max-h-[52vh] overflow-y-auto rounded-lg border border-border">
             <div className="space-y-3 p-3 md:hidden">
@@ -183,6 +183,11 @@ export function ImportItineraryModal({
                     </td>
                     <td className="p-2">
                       <ImportConfidenceBadge item={item} />
+                      {item.branchLabel && (
+                        <span className="mt-1 block rounded-md bg-surface-3 px-2 py-1 text-[10px] font-bold text-paper">
+                          {item.branchLabel}
+                        </span>
+                      )}
                     </td>
                     <td className="p-2">
                       <select
@@ -356,6 +361,9 @@ function ImportReviewCard({
           </div>
           {confidence.reasons.length > 0 && (
             <p className="mt-1 text-[10.5px] leading-snug text-text-dim">Check {confidence.reasons.join(', ')} before importing.</p>
+          )}
+          {item.branchLabel && (
+            <p className="mt-1 inline-flex rounded-md bg-surface-3 px-2 py-1 text-[10px] font-bold text-paper">{item.branchLabel}</p>
           )}
         </div>
         <button
@@ -537,7 +545,7 @@ export async function importSuggestionsToTrip({
       type: suggestion.type,
       category: suggestion.type === 'activity' ? suggestion.category : null,
       name: suggestion.name,
-      notes: suggestion.notes || null,
+      notes: notesWithImportContext(suggestion),
       lat: primary.lat,
       lng: primary.lng,
       locationLabel: primary.label,
@@ -563,6 +571,15 @@ export async function importSuggestionsToTrip({
   }
 
   return { createdItems, mustSeeCreatedIds, warnings }
+}
+
+function notesWithImportContext(suggestion: ExtractedItineraryItem): string | null {
+  const parts = [
+    suggestion.branchLabel ? `[Branch: ${suggestion.branchLabel}]` : '',
+    suggestion.importRole && suggestion.importRole !== 'confirmed' ? `[Import: ${suggestion.importRole}]` : '',
+    suggestion.notes,
+  ].filter(Boolean)
+  return parts.length ? parts.join(' ') : null
 }
 
 async function ensureDayFor(

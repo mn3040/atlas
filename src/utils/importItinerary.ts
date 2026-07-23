@@ -16,6 +16,8 @@ export interface ExtractedItineraryItem {
   confirmationNumber: string
   notes: string
   mustSee: boolean
+  branchLabel?: string
+  importRole?: 'confirmed' | 'option' | 'resource' | 'warning'
 }
 
 const MONTHS: Record<string, number> = {
@@ -52,9 +54,15 @@ export async function extractTextFromFile(file: File): Promise<string> {
     file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
     lowerName.endsWith('.docx')
   ) {
-    const mammoth = await import('mammoth/mammoth.browser')
+    const mammothModule = await import('mammoth/mammoth.browser')
+    const mammoth = (mammothModule.default ?? mammothModule) as unknown as {
+      convertToMarkdown: (input: { arrayBuffer: ArrayBuffer }) => Promise<{ value: string }>
+      extractRawText: (input: { arrayBuffer: ArrayBuffer }) => Promise<{ value: string }>
+    }
     const arrayBuffer = await fileToArrayBuffer(file)
-    const result = await mammoth.extractRawText({ arrayBuffer })
+    const result = typeof mammoth.convertToMarkdown === 'function'
+      ? await mammoth.convertToMarkdown({ arrayBuffer })
+      : await mammoth.extractRawText({ arrayBuffer })
     return result.value
   }
   if (file.type.startsWith('text/') || lowerName.endsWith('.txt') || lowerName.endsWith('.md')) return fileToText(file)
@@ -68,6 +76,8 @@ export function extractItineraryItems(text: string, trip: Trip): ExtractedItiner
   let pendingMustSee = false
   let sectionDates: string[] = [trip.startDate]
   let sectionStopIndex = 0
+  let sectionLabel = ''
+  let branchLabel = ''
 
   for (let index = 0; index < lines.length; index += 1) {
     const line = lines[index]
@@ -77,10 +87,16 @@ export function extractItineraryItems(text: string, trip: Trip): ExtractedItiner
       sectionDates = parsedRange
       sectionStopIndex = 0
       currentDate = parsedRange[0]
+      sectionLabel = sectionLabelFromHeader(line)
+      branchLabel = defaultBranchForSection(sectionLabel)
     } else if (parsedDate) {
       currentDate = parsedDate
       sectionDates = [parsedDate]
       sectionStopIndex = 0
+      if (isSectionHeader(line)) {
+        sectionLabel = sectionLabelFromHeader(line)
+        branchLabel = defaultBranchForSection(sectionLabel)
+      }
     }
     if (parsedDate && isDateOnlyLine(line)) continue
 
@@ -94,21 +110,28 @@ export function extractItineraryItems(text: string, trip: Trip): ExtractedItiner
       continue
     }
 
-    if ((isSectionHeader(line) || isInstructionLine(line) || isTravelNoteLine(line)) && !placeLine) continue
+    const branchFromLine = branchLabelFromLine(line, sectionLabel)
+    if (branchFromLine) {
+      branchLabel = branchFromLine
+      if (!isImportableBranchPlaceLine(line)) continue
+    }
+
+    const flightLikeLine = flightNumber || /\b(?:depart(?:ure|s)?|arriv(?:al|es)?)\b/.test(lower) || /\bflight\b.+\bfrom\b.+\bto\b/i.test(line)
+    if ((isSectionHeader(line) || isInstructionLine(line) || (isTravelNoteLine(line) && !flightLikeLine)) && !placeLine) continue
     if (isBulletLine(line) && !flightNumber) {
       const bulletText = stripBullet(line)
       if (isBulletPlaceTitle(bulletText)) {
-        addActivitySuggestions(suggestions, trip, sectionDate(sectionDates, sectionStopIndex), bulletText, mustSee, index, lines)
+        addActivitySuggestions(suggestions, trip, sectionDate(sectionDates, sectionStopIndex), bulletText, mustSee, index, lines, branchLabel)
         sectionStopIndex += 1
         pendingMustSee = false
       }
       continue
     }
 
-    if (flightNumber || /\b(?:depart(?:ure|s)?|arriv(?:al|es)?)\b/.test(lower)) {
+    if (flightLikeLine) {
       const airports = airportPair(line)
       suggestions.push(baseSuggestion('flight', trip, currentDate, {
-        name: flightNumber || 'Flight',
+        name: flightNumber || (airports[0] && airports[1] ? `Flight ${airports[0]} to ${airports[1]}` : 'Flight'),
         flightNumber,
         startTime: firstTime(line),
         endTime: secondTime(line),
@@ -116,12 +139,16 @@ export function extractItineraryItems(text: string, trip: Trip): ExtractedItiner
         location2Label: airports[1],
         notes: line,
         mustSee,
+        branchLabel,
       }))
       pendingMustSee = false
       continue
     }
 
-    if (/\bhotel\b|\bcheck-?in\b|\breservation\b|\bconfirmation\b|\blodging\b|\bstay\b/.test(lower)) {
+    if (
+      /\bhotel\b|\bcheck-?in\b|\breservation\b|\bconfirmation\b|\blodging\b|\bstay\b/.test(lower) &&
+      !/^\d+(?:\.\d+)?\s+hours?\s+stay\b/i.test(line)
+    ) {
       suggestions.push(baseSuggestion('stay', trip, parsedDate ?? currentDate, {
         name: stayName(line),
         endDate: checkoutDate(line, trip) ?? '',
@@ -130,6 +157,7 @@ export function extractItineraryItems(text: string, trip: Trip): ExtractedItiner
         confirmationNumber: confirmation(line),
         notes: line,
         mustSee,
+        branchLabel,
       }))
       pendingMustSee = false
       continue
@@ -144,14 +172,14 @@ export function extractItineraryItems(text: string, trip: Trip): ExtractedItiner
         lower,
       )
     ) {
-      addActivitySuggestions(suggestions, trip, parsedDate ?? sectionDate(sectionDates, sectionStopIndex), line, mustSee, index, lines)
+      addActivitySuggestions(suggestions, trip, parsedDate ?? sectionDate(sectionDates, sectionStopIndex), line, mustSee, index, lines, branchLabel)
       sectionStopIndex += 1
       pendingMustSee = false
       continue
     }
 
     if (isPlaceTitleLine(line, lines[index + 1], pendingMustSee)) {
-      addActivitySuggestions(suggestions, trip, sectionDate(sectionDates, sectionStopIndex), line, mustSee, index, lines)
+      addActivitySuggestions(suggestions, trip, sectionDate(sectionDates, sectionStopIndex), line, mustSee, index, lines, branchLabel)
       sectionStopIndex += 1
       pendingMustSee = false
     }
@@ -314,8 +342,47 @@ function sectionDate(dates: string[], index: number): string {
   return dates[Math.min(index, dates.length - 1)] ?? dates[0]
 }
 
+function sectionLabelFromHeader(line: string): string {
+  return cleanName(
+    line
+      .replace(/\([^)]*\)/g, '')
+      .replace(/\b\d{1,2}\/\d{1,2}(?:\/\d{2,4})?(?:\s*-\s*\d{1,2}\/\d{1,2}(?:\/\d{2,4})?)?\b/g, '')
+      .replace(/:\s*$/, '')
+      .trim(),
+  )
+}
+
+function defaultBranchForSection(sectionLabel: string): string {
+  const label = sectionLabel.toLowerCase()
+  if (/osh|south/.test(label)) return 'Plan A: Peak Lenin sprint'
+  if (/central/.test(label)) return 'Plan A: Kel Suu core route'
+  if (/issyk|kul|karakol/.test(label)) return ''
+  return ''
+}
+
+function branchLabelFromLine(line: string, sectionLabel: string): string {
+  const clean = cleanName(line)
+  const lower = clean.toLowerCase()
+  if (/^tajikistan$/.test(lower)) return 'Plan B: Tajik border detour'
+  if (/no man['’]?s land|karakul|ak baital/.test(lower)) return 'Plan B: Tajik border detour'
+  if (/^kazakhstan\b/.test(lower)) return 'Plan A: Kazakhstan transfer day'
+  if (/^turkey$/.test(lower)) return 'Plan A: Turkey connection'
+  if (/enilcheck|enilchek/.test(lower)) return 'Plan A: Enilchek day trip'
+  if (/jyrgalan/.test(lower)) return 'Plan B: Jyrgalan trek'
+  if (/ala-kul|ala kul|altyn arashan/.test(lower)) return 'Plan C: Ala-Kul and Altyn Arashan'
+  if (/tash rabat/.test(lower)) return 'Plan B: Tash Rabat add-on'
+  if (/song kol|song kul/.test(lower)) return 'Plan B: Song Kol stargazing'
+  if (/\boption\s*1\b/i.test(line)) return `${sectionLabel || 'Route'} / Option 1`
+  if (/\boption\s*2\b/i.test(line)) return `${sectionLabel || 'Route'} / Option 2`
+  return ''
+}
+
+function isImportableBranchPlaceLine(line: string): boolean {
+  return knownCentralAsiaPlace(line) || /\batlas_place_link\b/i.test(line)
+}
+
 function isTravelNoteLine(line: string): boolean {
-  return /\b(?:fly back|get there|drive to|drive from|round trip|minute drive|hour drive|leave next|according to|best to just|same distance)\b/i.test(
+  return /\b(?:fly back|get there|drive to|drive from|round trip|minute drive|hour drive|leave next|leave from|according to|best to just|same distance)\b/i.test(
     line,
   )
 }
@@ -343,6 +410,8 @@ function baseSuggestion(
     confirmationNumber: cleanImportValue(patch.confirmationNumber),
     notes: cleanImportValue(patch.notes),
     mustSee: patch.mustSee ?? false,
+    branchLabel: cleanImportValue(patch.branchLabel),
+    importRole: patch.importRole ?? (patch.branchLabel ? 'option' : 'confirmed'),
   }
 }
 
@@ -366,6 +435,7 @@ function addActivitySuggestions(
   mustSee: boolean,
   index: number,
   lines: string[],
+  branchLabel = '',
 ) {
   const notes = collectNotes(line, index, lines)
   const category = categoryForLine(`${line} ${notes}`)
@@ -381,6 +451,7 @@ function addActivitySuggestions(
       locationLabel: locationAfterWords(line, ['at', 'to', 'visit']) || name,
       notes,
       mustSee,
+      branchLabel,
     }))
   }
 }
@@ -424,10 +495,11 @@ function isImportablePlaceName(name: string, line: string, notes: string, mustSe
   const lowerAll = `${lowerNameLine} ${notes}`.toLowerCase()
   if (clean.length < 3 || clean.length > 70) return false
   if (/^\d+$/.test(clean)) return false
-  if (/\b(?:guide|option|booking|permit|permits|transfer|transfers|route|routes|frontend|backend|according|same distance|best to|only way|take days|more solitude|highly recommended)\b/.test(lowerNameLine)) {
+  if (/^(?:great|good|only|probably|according|best|same|more|highly|leave|get|arrange)\b/i.test(clean)) return false
+  if (/\b(?:guide|option|booking|permit|permits|transfer|transfers|route|routes|according|same distance|best to|only way|take days|more solitude|highly recommended)\b/.test(lowerNameLine)) {
     return false
   }
-  if (/\b(?:travellers pass hike|no man'?s land)\b/.test(lowerAll) && !mustSee) return false
+  if (/\b(?:travellers pass hike)\b/.test(lowerAll) && !mustSee) return false
   if (mustSee || /\batlas_place_link\b/i.test(line)) return true
   if (knownCentralAsiaPlace(clean)) return true
   if (/\b(?:park|tower|bazaar|lake|kul|kol|valley|canyon|monument|base camp|pass|camp|town|hike|trek|market)\b/i.test(clean)) {
@@ -437,7 +509,7 @@ function isImportablePlaceName(name: string, line: string, notes: string, mustSe
 }
 
 function knownCentralAsiaPlace(name: string): boolean {
-  return /\b(?:peak lenin|tulpar|ala-archa|burana|dordoi|bishkek|osh|naryn|kok kiya|kel suu|kel-suu|tash rabat|song kol|song kul|bokonbayevo|skazka|jeti oguz|kok jaiyk|barskoon|karakol|enilchek|jyrgalan|ala-kul|ala kul|altyn arashan|karakul|ak baital)\b/i.test(
+  return /\b(?:peak lenin|tulpar|ala-archa|burana|dordoi|bishkek|osh|naryn|kok kiya|kel suu|kel-suu|tash rabat|song kol|song kul|bokonbayevo|skazka|skakza|jeti oguz|kok jaiyk|barskoon|karakol|enilchek|enilcheck|jyrgalan|ala-kul|ala kul|altyn arashan|no man['’]?s land|karakul|ak baital|kaindy|charyn|almaty|alamaty|karkara)\b/i.test(
     name,
   )
 }
@@ -475,7 +547,7 @@ function isPlaceTitleLine(line: string, nextLine?: string, pendingMustSee = fals
     return false
   }
   if (clean.split(/\s+/).length > 8 && !/[,&+]/.test(clean)) return false
-  return pendingMustSee || !nextLine || isBulletLine(nextLine) || isMustSeeMarker(nextLine) || isSectionHeader(nextLine)
+  return pendingMustSee || knownCentralAsiaPlace(clean) || !nextLine || isBulletLine(nextLine) || isMustSeeMarker(nextLine) || isSectionHeader(nextLine)
 }
 
 function isBulletPlaceTitle(line: string): boolean {
@@ -657,6 +729,8 @@ function toTime(hourValue: string, minuteValue?: string, meridiem?: string): str
 }
 
 function airportPair(line: string): [string, string] {
+  const fromTo = line.match(/\bfrom\s+(.+?)\s+to\s+([^,;.]+?)(?:\s+and\s+|\s+\d|\s*,|$)/i)
+  if (fromTo) return [cleanLocation(fromTo[1]), cleanLocation(fromTo[2])]
   const arrow = line.match(/(.+?)\s(?:to|->|-)\s(.+)/i)
   if (!arrow) return ['', '']
   return [cleanLocation(arrow[1]), cleanLocation(arrow[2])]
@@ -673,6 +747,7 @@ function activityName(line: string): string {
 
 function cleanName(value: string): string {
   return value
+    .replace(/\bAlamaty\b/gi, 'Almaty')
     .replace(/\b(?:confirmation|reservation|check-?in|check-?out|depart(?:ure|s)?|arriv(?:al|es)?)\b.*$/i, '')
     .replace(/\batlas_place_link\b/gi, '')
     .replace(/\b\d{1,2}\/\d{1,2}(?:\/\d{2,4})?\b/g, '')

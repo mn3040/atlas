@@ -40,6 +40,7 @@ import { CountryFlags } from '../components/CountryFlag'
 import { DaySelect } from '../itinerary/DaySelect'
 import { DayLine } from '../itinerary/DayLine'
 import { DayOptionsPanel } from '../itinerary/DayOptionsPanel'
+import { DayBranchesPanel } from '../itinerary/DayBranchesPanel'
 import { BookingDetail } from '../itinerary/BookingDetail'
 import { FlightDetail } from '../itinerary/FlightDetail'
 import { AddItemModal } from '../itinerary/AddItemModal'
@@ -62,6 +63,7 @@ import { actionForItem, bookingUrlForItem, mapsUrlForItem } from '../utils/itemA
 import { downloadItinerary } from '../utils/exportItinerary'
 import { APP_SETTINGS_EVENT, getAppSettings, shouldConfirmBeforeDelete } from '../utils/settings'
 import { filterItemsForView, loadMustSeeIds, saveMustSeeIds } from '../utils/mustSee'
+import { branchesForItems, filterItemsForBranch } from '../utils/branches'
 import { countryCodesForTrip } from '../utils/flags'
 import type { TravelMode } from '../utils/distance'
 import type { AppSettings } from '../utils/settings'
@@ -121,6 +123,7 @@ export default function TripDetail() {
   const [showTripBrief, setShowTripBrief] = useState(false)
   const [showDailyBriefing, setShowDailyBriefing] = useState(false)
   const [dayOptionView, setDayOptionView] = useState<DayOptionView>('all')
+  const [activeBranchByDay, setActiveBranchByDay] = useState<Record<string, string>>({})
   const [mustSeeIds, setMustSeeIds] = useState<Set<string>>(() => new Set())
   const [voteSummary, setVoteSummary] = useState<Record<string, ItemVoteSummary>>({})
   const [decisions, setDecisions] = useState<Record<string, ItemDecision>>({})
@@ -288,35 +291,41 @@ export default function TripDetail() {
     ? new Set(Object.values(voteSummary).filter((summary) => summary.viewerVoted).map((summary) => summary.itemId))
     : mustSeeIds
   const displayedActiveItems = filterItemsForView(activeItems, currentMustSeeIds, dayOptionView)
-  const displayedActiveIds = new Set(displayedActiveItems.map((item) => item.id))
+  const voteCounts = Object.fromEntries(Object.entries(voteSummary).map(([id, summary]) => [id, summary.voters.length]))
+  const dayBranches = branchesForItems(activeItems, currentMustSeeIds, voteCounts)
+  const activeBranchId = activeDayId ? activeBranchByDay[activeDayId] ?? 'all' : 'all'
+  const branchedActiveItems = filterItemsForBranch(displayedActiveItems, activeBranchId)
+  const branchDisplayedIds = new Set(branchedActiveItems.map((item) => item.id))
   const mapItems =
     dayOptionView === 'all'
-      ? items
-      : items.filter((item) => item.dayId !== activeDayId || item.type === 'stay' || displayedActiveIds.has(item.id))
+      ? activeBranchId === 'all'
+        ? items
+        : items.filter((item) => item.dayId !== activeDayId || item.type === 'stay' || branchDisplayedIds.has(item.id))
+      : items.filter((item) => item.dayId !== activeDayId || item.type === 'stay' || branchDisplayedIds.has(item.id))
 
   useEffect(() => {
-    if (!displayedActiveItems.some((item) => item.id === selectedItemId)) {
-      setSelectedItemId(displayedActiveItems[0]?.id ?? null)
+    if (!branchedActiveItems.some((item) => item.id === selectedItemId)) {
+      setSelectedItemId(branchedActiveItems[0]?.id ?? null)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeDayId, items, dayOptionView, mustSeeIds, voteSummary])
+  }, [activeDayId, items, dayOptionView, mustSeeIds, voteSummary, activeBranchId])
 
   // Auto-tour: step through the day's stops on a timer, reusing the same
   // selection -> flyTo/highlight path a manual click already triggers. The
   // route line between stops already reflects whichever travel mode is
   // selected, so switching mode mid-tour changes what the tour shows.
   useEffect(() => {
-    if (!isTouring || displayedActiveItems.length < 2) return
+    if (!isTouring || branchedActiveItems.length < 2) return
     const timer = window.setInterval(() => {
       setSelectedItemId((current) => {
-        const index = displayedActiveItems.findIndex((item) => item.id === current)
-        const nextIndex = (index + 1) % displayedActiveItems.length
-        return displayedActiveItems[nextIndex].id
+        const index = branchedActiveItems.findIndex((item) => item.id === current)
+        const nextIndex = (index + 1) % branchedActiveItems.length
+        return branchedActiveItems[nextIndex].id
       })
     }, 2800)
     return () => window.clearInterval(timer)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isTouring, activeDayId, displayedActiveItems.length])
+  }, [isTouring, activeDayId, branchedActiveItems.length])
 
   useEffect(() => {
     setIsTouring(false)
@@ -327,9 +336,9 @@ export default function TripDetail() {
     return () => window.clearTimeout(timer)
   }, [mobileSheetExpanded])
 
-  const selectedIndex = displayedActiveItems.findIndex((item) => item.id === selectedItemId)
-  const nextItem = selectedIndex >= 0 ? displayedActiveItems[selectedIndex + 1] : undefined
-  const selectedItem = selectedIndex >= 0 ? displayedActiveItems[selectedIndex] : undefined
+  const selectedIndex = branchedActiveItems.findIndex((item) => item.id === selectedItemId)
+  const nextItem = selectedIndex >= 0 ? branchedActiveItems[selectedIndex + 1] : undefined
+  const selectedItem = selectedIndex >= 0 ? branchedActiveItems[selectedIndex] : undefined
   const bookingItem = items.find((item) => item.id === bookingItemId) ?? null
   const flightItem = items.find((item) => item.id === flightItemId) ?? null
   const tripCountryCodes = trip ? countryCodesForTrip(trip, items) : []
@@ -763,6 +772,14 @@ export default function TripDetail() {
                       onViewChange={setDayOptionView}
                     />
                   )}
+                  <DayBranchesPanel
+                    branches={dayBranches}
+                    activeBranchId={activeBranchId}
+                    onSelectBranch={(branchId) => {
+                      if (!activeDayId) return
+                      setActiveBranchByDay((current) => ({ ...current, [activeDayId]: branchId }))
+                    }}
+                  />
                   {voteError && (
                     <p className="mb-3 rounded-md border border-line-4/40 bg-line-4/10 px-3 py-2 text-xs font-semibold text-line-4">
                       {voteError}
@@ -771,7 +788,7 @@ export default function TripDetail() {
                   {activeDay ? (
                     <DayLine
                       day={activeDay}
-                      items={displayedActiveItems}
+                      items={branchedActiveItems}
                       color={activeColor}
                       selectedItemId={selectedItemId}
                       onSelectItem={(id) => {
@@ -835,7 +852,7 @@ export default function TripDetail() {
             />
           )}
 
-          {displayedActiveItems.length > 1 && (
+          {branchedActiveItems.length > 1 && (
             <button
               onClick={() => setIsTouring((v) => !v)}
               aria-label={isTouring ? 'Pause tour' : 'Play tour'}
@@ -868,7 +885,7 @@ export default function TripDetail() {
             <TransitCard from={selectedItem} to={nextItem} mode={travelMode} color={activeColor} />
           )}
 
-          <WeatherChip item={selectedItem ?? displayedActiveItems[0]} date={activeDay?.date} />
+          <WeatherChip item={selectedItem ?? branchedActiveItems[0]} date={activeDay?.date} />
 
           <ZoomControl
             zoom={zoom}

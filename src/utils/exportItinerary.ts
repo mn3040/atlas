@@ -1,6 +1,7 @@
 import type { Trip, Day, Item } from '../types/trip'
 import { formatTime } from './time'
 import { countryCodesForTrip } from './flags'
+import { stripImportTags } from './branches'
 
 const PAGE_WIDTH = 595.28
 const PAGE_HEIGHT = 841.89
@@ -239,7 +240,7 @@ class ItineraryPdf {
       cleanText(item.priceLabel),
       item.locationLabel ? firstLabel(item.locationLabel) : '',
     ].filter(Boolean)
-    const notes = cleanText(item.notes)
+    const notes = cleanText(stripImportTags(item.notes))
     const height = notes ? 86 : 66
     this.ensure(height + 14)
     const top = this.y
