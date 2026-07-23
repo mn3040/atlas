@@ -36,7 +36,7 @@ export const TripMap = forwardRef<
   const readyRef = useRef(false)
   const prevDayRef = useRef(activeDayId)
   const prevSelectedRef = useRef(selectedItemId)
-  const prevDayItemCountRef = useRef(items.filter((i) => i.dayId === activeDayId).length)
+  const prevDaySignatureRef = useRef(daySignature(items, activeDayId))
   const travelModeRef = useRef(travelMode)
   const routeRequestRef = useRef(0)
   travelModeRef.current = travelMode
@@ -95,7 +95,7 @@ export const TripMap = forwardRef<
       const dayIndex = days.findIndex((d) => d.id === activeDayId)
       const color = dayIndex >= 0 ? lineColorForIndex(dayIndex) : lineColorForIndex(0)
       const dayItems = items
-        .filter((item) => item.dayId === activeDayId)
+        .filter((item) => item.dayId === activeDayId && item.type !== 'stay')
         .sort((a, b) => a.position - b.position)
 
       const routeCoords: [number, number][] = []
@@ -126,6 +126,7 @@ export const TripMap = forwardRef<
       })
 
       const routeSource = map.getSource('route-line') as tt.GeoJSONSource | undefined
+      const requestId = ++routeRequestRef.current
       const setRouteLine = (coords: [number, number][]) =>
         routeSource?.setData({
           type: 'FeatureCollection',
@@ -147,7 +148,6 @@ export const TripMap = forwardRef<
       // road/path-following route once the routing API responds.
       const mode = travelModeRef.current
       if (isRoutable(mode) && dayItems.length > 1) {
-        const requestId = ++routeRequestRef.current
         fetchRoute(
           dayItems.map((item) => ({ lat: item.lat, lng: item.lng })),
           mode,
@@ -177,10 +177,10 @@ export const TripMap = forwardRef<
 
     const dayChanged = prevDayRef.current !== activeDayId
     const selectionChanged = prevSelectedRef.current !== selectedItemId
-    const dayItemCount = items.filter((i) => i.dayId === activeDayId).length
-    const itemCountChanged = prevDayItemCountRef.current !== dayItemCount
-    render(dayChanged || itemCountChanged)
-    if (!dayChanged && !itemCountChanged && selectionChanged) {
+    const signature = daySignature(items, activeDayId)
+    const dayItemsChanged = prevDaySignatureRef.current !== signature
+    render(dayChanged || dayItemsChanged)
+    if (!dayChanged && !dayItemsChanged && selectionChanged) {
       const item = items.find((i) => i.id === selectedItemId)
       // The SDK's flyTo() type omits center/zoom despite supporting them at runtime
       // (it's inherited from CameraOptions, like easeTo/fitBounds) — cast around it.
@@ -191,7 +191,7 @@ export const TripMap = forwardRef<
     }
     prevDayRef.current = activeDayId
     prevSelectedRef.current = selectedItemId
-    prevDayItemCountRef.current = dayItemCount
+    prevDaySignatureRef.current = signature
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [days, items, activeDayId, selectedItemId, travelMode])
 
@@ -212,6 +212,14 @@ export const TripMap = forwardRef<
   return <div ref={containerRef} className="map-invert absolute inset-0" />
 })
 
+function daySignature(items: Item[], activeDayId: string | null): string {
+  return items
+    .filter((item) => item.dayId === activeDayId && item.type !== 'stay')
+    .sort((a, b) => a.position - b.position)
+    .map((item) => `${item.id}:${item.position}:${item.lat}:${item.lng}:${item.lat2 ?? ''}:${item.lng2 ?? ''}`)
+    .join('|')
+}
+
 function addMarker(
   map: tt.Map,
   registry: tt.Marker[],
@@ -227,6 +235,8 @@ function addMarker(
   wrapper.style.width = `${size}px`
   wrapper.style.height = `${size}px`
   wrapper.style.cursor = 'pointer'
+  // Counter-act .map-invert on the map container so the marker keeps its
+  // real color instead of inverting along with the map tiles.
   wrapper.style.filter = 'invert(1) hue-rotate(180deg)'
   if (selected) wrapper.className = 'pulse-ring'
 
@@ -237,15 +247,15 @@ function addMarker(
   el.style.height = '100%'
   el.style.borderRadius = '50%'
   el.style.background = color
-  el.style.border = '2px solid #17191f'
-  el.style.boxShadow = '0 3px 8px rgba(0,0,0,.4)'
+  el.style.border = '2px solid #ffffff'
+  el.style.boxShadow = '0 0 0 1px #111111'
   el.style.display = 'flex'
   el.style.alignItems = 'center'
   el.style.justifyContent = 'center'
   el.style.fontSize = selected ? '13px' : '11px'
   el.style.fontWeight = '700'
   el.style.color = '#fff'
-  el.style.fontFamily = 'Inter, sans-serif'
+  el.style.fontFamily = 'Helvetica Neue, Helvetica, Arial, sans-serif'
   el.textContent = String(number)
   wrapper.appendChild(el)
   wrapper.addEventListener('click', onClick)
@@ -259,8 +269,8 @@ function addMutedMarker(map: tt.Map, registry: tt.Marker[], lngLat: [number, num
   el.style.width = '10px'
   el.style.height = '10px'
   el.style.borderRadius = '50%'
-  el.style.background = '#5b6b8c'
-  el.style.border = '1.5px solid #17191f'
+  el.style.background = '#777983'
+  el.style.border = '1.5px solid #ffffff'
   el.style.filter = 'invert(1) hue-rotate(180deg)'
 
   const marker = new tt.Marker({ element: el }).setLngLat(lngLat).addTo(map)

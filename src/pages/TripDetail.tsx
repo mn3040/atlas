@@ -5,6 +5,7 @@ import {
   Plus,
   MoreVertical,
   Download,
+  FileUp,
   Share2,
   Pencil,
   Trash2,
@@ -30,6 +31,7 @@ import { DayLine } from '../itinerary/DayLine'
 import { BookingDetail } from '../itinerary/BookingDetail'
 import { FlightDetail } from '../itinerary/FlightDetail'
 import { AddItemModal } from '../itinerary/AddItemModal'
+import { ImportItineraryModal } from '../itinerary/ImportItineraryModal'
 import { EditTripModal } from '../itinerary/EditTripModal'
 import { TripMap } from '../maps/TripMap'
 import type { TripMapHandle } from '../maps/TripMap'
@@ -39,7 +41,7 @@ import { DayPager } from '../maps/DayPager'
 import { ZoomControl } from '../maps/ZoomControl'
 import { TripCalendar } from '../calendar/TripCalendar'
 import { lineColorForIndex } from '../utils/lineColors'
-import { actionForItem } from '../utils/itemActions'
+import { actionForItem, bookingUrlForItem, mapsUrlForItem } from '../utils/itemActions'
 import { downloadItinerary } from '../utils/exportItinerary'
 import type { TravelMode } from '../utils/distance'
 import type { Trip, Day, Item } from '../types/trip'
@@ -61,6 +63,7 @@ export default function TripDetail() {
   const [addModalDate, setAddModalDate] = useState<string | null>(null)
   const [editingItem, setEditingItem] = useState<Item | null>(null)
   const [showCalendar, setShowCalendar] = useState(false)
+  const [showImportModal, setShowImportModal] = useState(false)
   const [showMenu, setShowMenu] = useState(false)
   const [showEditTrip, setShowEditTrip] = useState(false)
   const [screen, setScreen] = useState<'itinerary' | 'booking' | 'flight'>('itinerary')
@@ -173,8 +176,8 @@ export default function TripDetail() {
     } else if (action === 'flight') {
       setFlightItemId(item.id)
       setScreen('flight')
-    } else if (item.googleMapsUrl) {
-      window.open(item.googleMapsUrl, '_blank', 'noopener')
+    } else if (action === 'maps') {
+      window.open(bookingUrlForItem(item), '_blank', 'noopener')
     } else {
       setEditingItem(item)
     }
@@ -266,6 +269,14 @@ export default function TripDetail() {
                       className="hover:text-text"
                     >
                       <Download size={14} />
+                    </button>
+                    <button
+                      onClick={() => setShowImportModal(true)}
+                      aria-label="Import itinerary document"
+                      title="Import itinerary document"
+                      className="hover:text-text"
+                    >
+                      <FileUp size={14} />
                     </button>
                     <span title="Share — coming soon" className="cursor-default opacity-60">
                       <Share2 size={14} />
@@ -421,6 +432,8 @@ export default function TripDetail() {
                     onEdit={setEditingItem}
                     onReorder={handleReorder}
                     onDelete={handleDelete}
+                    getMapsUrl={mapsUrlForItem}
+                    getBookingUrl={bookingUrlForItem}
                     onAddClick={setAddModalDate}
                   />
                 ) : (
@@ -517,6 +530,17 @@ export default function TripDetail() {
           onItemUpdated={(updated) => {
             setItems((current) => current.map((i) => (i.id === updated.id ? updated : i)))
           }}
+        />
+      )}
+
+      {showImportModal && (
+        <ImportItineraryModal
+          trip={trip}
+          days={days}
+          itemCount={items.length}
+          onClose={() => setShowImportModal(false)}
+          onDayCreated={handleDayCreated}
+          onItemsCreated={(createdItems) => setItems((current) => [...current, ...createdItems])}
         />
       )}
 

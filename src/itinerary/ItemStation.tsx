@@ -2,7 +2,7 @@ import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { X, Pencil } from 'lucide-react'
 import { actionForItem } from '../utils/itemActions'
-import { emojiForItem } from '../utils/categoryIcons'
+import { iconForItem } from '../utils/categoryIcons'
 import { formatTime } from '../utils/time'
 import type { Item } from '../types/trip'
 
@@ -16,6 +16,8 @@ export function ItemStation({
   onAction,
   onEdit,
   onDelete,
+  mapsUrl,
+  bookingUrl,
 }: {
   item: Item
   number: number
@@ -26,12 +28,15 @@ export function ItemStation({
   onAction: (item: Item) => void
   onEdit: (item: Item) => void
   onDelete: (id: string) => void
+  mapsUrl: string
+  bookingUrl: string
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: item.id,
   })
 
   const { label: actionLabel, action } = actionForItem(item)
+  const ItemIcon = iconForItem(item.type, item.category)
 
   return (
     <div
@@ -81,29 +86,26 @@ export function ItemStation({
             {item.photoUrl ? (
               <img src={item.photoUrl} alt={item.name} className="h-full w-full object-cover" />
             ) : (
-              <span>{emojiForItem(item.type, item.category)}</span>
+              <ItemIcon size={20} className="text-text-dim" />
             )}
           </div>
           <div className="min-w-0 flex-1">
             <p className="mb-0.5 truncate text-[13.5px] font-bold text-text">{item.name}</p>
-            {item.locationLabel &&
-              (item.googleMapsUrl ? (
-                <a
-                  href={item.googleMapsUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  onClick={(e) => e.stopPropagation()}
-                  className="mb-0.5 block truncate text-[10.5px] text-text-dim hover:text-paper hover:underline"
-                >
-                  {item.locationLabel.split(',')[0]} &rsaquo;
-                </a>
-              ) : (
-                <p className="mb-0.5 truncate text-[10.5px] text-text-dim">{item.locationLabel.split(',')[0]}</p>
-              ))}
-            {item.priceLabel && <p className="mb-1.5 text-[10.5px] text-text-dim">{item.priceLabel}</p>}
-            {action === 'maps' && item.googleMapsUrl ? (
+            {item.locationLabel && (
               <a
-                href={item.googleMapsUrl}
+                href={mapsUrl}
+                target="_blank"
+                rel="noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                className="mb-0.5 block truncate text-[10.5px] text-text-dim hover:text-paper hover:underline"
+              >
+                {item.locationLabel.split(',')[0]} &rsaquo;
+              </a>
+            )}
+            {item.priceLabel && <p className="mb-1.5 text-[10.5px] text-text-dim">{item.priceLabel}</p>}
+            {action === 'maps' ? (
+              <a
+                href={bookingUrl}
                 target="_blank"
                 rel="noreferrer"
                 onClick={(e) => e.stopPropagation()}
@@ -116,7 +118,7 @@ export function ItemStation({
                 type="button"
                 onClick={(e) => {
                   e.stopPropagation()
-                  action === 'maps' ? onEdit(item) : onAction(item)
+                  onAction(item)
                 }}
                 className="inline-block rounded-md bg-surface-3 px-2.5 py-1.5 text-[10.5px] font-bold text-paper"
               >

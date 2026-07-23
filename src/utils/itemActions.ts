@@ -23,3 +23,26 @@ export function actionForItem(item: Item): ItemActionMeta {
   }
   return { label: 'View Details', action: 'maps' }
 }
+
+function searchUrl(query: string): string {
+  return `https://www.google.com/search?q=${encodeURIComponent(query)}`
+}
+
+export function mapsUrlForItem(item: Item): string {
+  const label = [item.name, item.locationLabel].filter(Boolean).join(', ')
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(label || `${item.lat},${item.lng}`)}`
+}
+
+export function bookingUrlForItem(item: Item): string {
+  const location = item.locationLabel?.split(',').slice(0, 3).join(', ') ?? ''
+  const nameAndPlace = [item.name, location].filter(Boolean).join(' ')
+
+  if (item.type === 'stay') return searchUrl(`${nameAndPlace} book hotel`)
+  if (item.type === 'flight') {
+    const route = [item.locationLabel, item.location2Label].filter(Boolean).join(' to ')
+    return searchUrl(`${item.flightNumber || route || item.name} book flight`)
+  }
+  if (item.category === 'food') return searchUrl(`${nameAndPlace} reservation`)
+  if (item.category === 'attraction' || item.category === 'nature') return searchUrl(`${nameAndPlace} official tickets`)
+  return mapsUrlForItem(item)
+}

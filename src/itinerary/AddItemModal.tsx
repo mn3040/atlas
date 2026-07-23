@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Plane, BedDouble, MapPin } from 'lucide-react'
 import { PlaceSearchInput } from '../components/PlaceSearchInput'
+import { googleMapsSearchUrl } from '../api/geocoding'
 import type { PlaceResult } from '../api/geocoding'
 import { createDay, createItem, updateItem } from '../api/trips'
 import type { NewItemInput } from '../api/trips'
@@ -25,11 +26,13 @@ const inputClass =
   'w-full rounded-md border border-border bg-ink px-3 py-2 text-sm text-text placeholder:text-text-dim focus:border-paper focus:outline-none'
 
 function placeFromItem(label: string | null, lat: number, lng: number): PlaceResult {
+  const fallback = `${lat},${lng}`
+  const query = label?.trim() || fallback
   return {
-    label: label ?? '',
+    label: label ?? fallback,
     lat,
     lng,
-    mapsUrl: `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`,
+    mapsUrl: googleMapsSearchUrl(query),
     countryCode: null,
   }
 }
@@ -116,7 +119,9 @@ export function AddItemModal({
 
     setSubmitting(true)
     try {
-      const googleFields = { googleMapsUrl: place?.mapsUrl ?? null }
+      const googleFields = {
+        googleMapsUrl: place ? googleMapsSearchUrl([name, place.label].filter(Boolean).join(', ')) : null,
+      }
 
       if (isEdit && editItem) {
         // Stays are anchored to their check-in day so they actually show up

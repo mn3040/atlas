@@ -18,7 +18,9 @@ npm run dev
 - **TomTom** (trip map + routes between stops): free key at [developer.tomtom.com](https://developer.tomtom.com/)
   → `VITE_TOMTOM_API_KEY`. Without it, the map pane shows an explanatory empty state instead of failing.
 - **Place search** uses Nominatim (OpenStreetMap) — no key or billing required. "View on Google Maps" links
-  are plain `google.com/maps` deep links built from the picked coordinates, not an API call.
+  are plain `google.com/maps` deep links built from the picked place name, not raw coordinates.
+- **Booking links** open targeted web searches for real booking paths: official tickets for attractions/nature,
+  reservations for food stops, hotel booking options for stays, and flight booking options for flights.
 
 ## Supabase setup
 
@@ -32,7 +34,8 @@ npm run dev
 1. Push this repo to GitHub.
 2. Import it in [Vercel](https://vercel.com/new) — the Vite build is auto-detected (`npm run build`, output `dist/`).
 3. Add `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, and `VITE_TOMTOM_API_KEY` as Environment Variables in the Vercel project settings (same values as your local `.env`).
-4. Every push to the connected branch redeploys automatically.
+4. Keep the included `vercel.json` so direct links like `/trips/:id` route back to the React app.
+5. Every push to the connected branch redeploys automatically.
 
 ## Project structure
 

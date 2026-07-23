@@ -1,5 +1,6 @@
-import { ChevronLeft } from 'lucide-react'
+import { BedDouble, ChevronLeft, ExternalLink } from 'lucide-react'
 import { formatTime } from '../utils/time'
+import { bookingUrlForItem, mapsUrlForItem } from '../utils/itemActions'
 import type { Item } from '../types/trip'
 
 function nightsBetween(start: string, end: string | null): number {
@@ -33,6 +34,8 @@ export function BookingDetail({
   const roomTotal = rate * nights
   const total = roomTotal + taxes
   const rating = item.rating ?? 0
+  const mapsUrl = mapsUrlForItem(item)
+  const bookingUrl = bookingUrlForItem(item)
 
   return (
     <div className="flex-1 overflow-y-auto px-5 pb-6 pt-4">
@@ -47,7 +50,7 @@ export function BookingDetail({
         {item.photoUrl ? (
           <img src={item.photoUrl} alt={item.name} className="h-full w-full object-cover" />
         ) : (
-          <span>🏨</span>
+          <BedDouble size={42} className="text-text-dim" />
         )}
       </div>
 
@@ -62,17 +65,24 @@ export function BookingDetail({
         ))}
       </div>
       <p className="mb-1 text-xs text-text-dim">{item.locationLabel}</p>
-      {item.googleMapsUrl && (
+      <div className="mb-5 flex flex-wrap gap-2">
         <a
-          href={item.googleMapsUrl}
+          href={mapsUrl}
           target="_blank"
           rel="noreferrer"
-          className="mb-5 inline-block text-xs font-semibold text-paper hover:underline"
+          className="inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-xs font-semibold text-paper hover:border-paper"
         >
-          View on Google Maps &rsaquo;
+          View on Google Maps <ExternalLink size={12} />
         </a>
-      )}
-      {!item.googleMapsUrl && <div className="mb-5" />}
+        <a
+          href={bookingUrl}
+          target="_blank"
+          rel="noreferrer"
+          className="inline-flex items-center gap-1.5 rounded-md bg-paper px-2.5 py-1.5 text-xs font-bold text-ink hover:bg-paper-dim"
+        >
+          Find booking options <ExternalLink size={12} />
+        </a>
+      </div>
 
       <div className="mb-4 flex rounded-xl border border-border py-3">
         <div className="flex-1 text-center">

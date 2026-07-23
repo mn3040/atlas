@@ -142,6 +142,10 @@ create policy "editors and owners can update trips"
   on trips for update
   using (trip_role(id) in ('owner', 'editor'));
 
+create policy "owners can delete trips"
+  on trips for delete
+  using (trip_role(id) = 'owner');
+
 create policy "members can view trip membership"
   on trip_members for select
   using (is_trip_member(trip_id));

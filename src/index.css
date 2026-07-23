@@ -2,36 +2,41 @@
 @import "@tomtom-international/web-sdk-maps/dist/maps.css" layer(base);
 
 @theme {
-  /* Waypoint — deep navy dusk, not neutral black */
-  --color-ink: oklch(0.16 0.012 260);
-  --color-map-bg: oklch(0.13 0.012 260);
-  --color-surface: oklch(0.2 0.012 260);
-  --color-surface-2: oklch(0.24 0.02 260);
-  --color-surface-3: oklch(0.22 0.012 260);
-  --color-border: oklch(0.27 0.012 260);
-  --color-border-strong: oklch(0.3 0.012 260);
+  /* Dark travel-app system, matched to the Figma "Travel Itinerary App"
+     community file: near-black canvas, dark teal cards, yellow accent,
+     green for price/rating/success. */
+  --color-ink: #070606;
+  --color-map-bg: #083740;
+  --color-surface: #083740;
+  --color-surface-2: #0a2e35;
+  --color-surface-3: #0f3d46;
+  --color-border: #14505c;
+  --color-border-strong: #1c6773;
 
   /* Text */
-  --color-text: oklch(0.95 0.006 260);
-  --color-text-dim: oklch(0.62 0.01 260);
-  --color-text-dimmer: oklch(0.55 0.01 260);
+  --color-text: #ffffff;
+  --color-text-dim: rgba(255, 255, 255, 0.5);
+  --color-text-dimmer: rgba(255, 255, 255, 0.35);
 
-  /* App-wide chrome accent (nav, buttons, focus rings) — kept as Atlas's
-     original brand turquoise, separate from the per-day line palette below */
-  --color-paper: #4fb8ae;
-  --color-paper-dim: #3d938c;
+  /* App-wide chrome accent, separate from the per-day line palette below. */
+  --color-paper: #f7ff88;
+  --color-paper-dim: #e4eb6e;
+
+  /* Secondary reference-palette accents. */
+  --color-green: #22dd85;
+  --color-purple: #bca5ed;
 
   /* Line palette — one color per trip day, shared between timeline and map */
-  --color-line-1: #e8734a;
-  --color-line-2: #4fb8ae;
-  --color-line-3: #e3b23c;
-  --color-line-4: #d06a93;
-  --color-line-5: #8fbf6b;
-  --color-line-6: #6e9fe0;
+  --color-line-1: #f7ff88;
+  --color-line-2: #22dd85;
+  --color-line-3: #bca5ed;
+  --color-line-4: #5fd4e8;
+  --color-line-5: #ff8fa3;
+  --color-line-6: #ffffff;
 
-  --font-display: 'Inter Variable', 'Inter', system-ui, sans-serif;
-  --font-body: 'Inter Variable', 'Inter', system-ui, sans-serif;
-  --font-mono: 'Inter Variable', 'Inter', system-ui, sans-serif;
+  --font-display: 'Poppins', sans-serif;
+  --font-body: 'Poppins', sans-serif;
+  --font-mono: 'Poppins', sans-serif;
 }
 
 :root {
@@ -46,8 +51,22 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+.atlas-dashboard {
+  background:
+    radial-gradient(circle at 78% 12%, rgba(247, 255, 136, 0.1), transparent 32%),
+    radial-gradient(circle at 12% 82%, rgba(34, 221, 133, 0.08), transparent 32%),
+    var(--color-ink);
+}
+
 .font-mono {
   font-variant-numeric: tabular-nums;
+}
+
+.rounded-xl,
+.rounded-2xl,
+.rounded-lg,
+.rounded-\[9px\] {
+  border-radius: 8px;
 }
 
 select {
@@ -61,7 +80,7 @@ select {
 }
 ::-webkit-scrollbar-thumb {
   background: var(--color-border-strong);
-  border-radius: 4px;
+  border-radius: 0;
 }
 
 @keyframes pulse-ring {
@@ -87,10 +106,8 @@ select {
   animation: pulse-ring 1.8s ease-out infinite;
 }
 
-/* TomTom's default tiles ship light; invert + hue-rotate turns them into a
-   dark map that matches the app chrome. Marker elements apply the same
-   filter to themselves (see TripMap) so the double-invert cancels out and
-   their true accent colors render on top of the dark tiles. */
+/* TomTom's free light-only map style, inverted to sit on a dark canvas.
+   Markers counter-invert (see TripMap.tsx) so they keep their real colors. */
 .map-invert {
   filter: invert(1) hue-rotate(180deg) brightness(1.05);
 }

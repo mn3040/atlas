@@ -27,7 +27,11 @@ export async function searchPlaces(query: string, signal?: AbortSignal): Promise
     label: r.display_name,
     lat: parseFloat(r.lat),
     lng: parseFloat(r.lon),
-    mapsUrl: `https://www.google.com/maps/search/?api=1&query=${r.lat},${r.lon}`,
+    mapsUrl: googleMapsSearchUrl(r.display_name),
     countryCode: r.address?.country_code ? r.address.country_code.toUpperCase() : null,
   }))
+}
+
+export function googleMapsSearchUrl(label: string): string {
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(label)}`
 }
