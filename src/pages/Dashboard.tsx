@@ -116,10 +116,10 @@ export default function Dashboard() {
       <TopNav />
 
       <div className="mx-auto w-full max-w-5xl flex-1 overflow-y-auto px-4 py-8 sm:px-6 sm:py-12">
-        <div className="atlas-reveal relative mb-6 overflow-hidden rounded-lg border border-border-strong bg-surface/82 p-5 shadow-2xl sm:p-7">
-          <div className="pointer-events-none absolute inset-y-0 right-0 hidden w-[36%] overflow-hidden sm:block">
-            <img src="/assets/atlas-orbit.svg" alt="" className="h-full w-full object-cover opacity-35 saturate-[0.85]" />
-            <div className="absolute inset-0 bg-gradient-to-r from-surface via-surface/75 to-surface/10" />
+        <div className="atlas-reveal relative mb-6 overflow-hidden rounded-lg border border-border-strong bg-surface/74 p-5 shadow-2xl backdrop-blur-md sm:p-7">
+          <div className="pointer-events-none absolute inset-0 opacity-70">
+            <div className="absolute inset-0 bg-[linear-gradient(135deg,rgba(34,221,133,0.13),transparent_35%),linear-gradient(315deg,rgba(247,255,136,0.11),transparent_32%)]" />
+            <div className="absolute right-8 top-6 hidden h-28 w-28 rounded-full border border-green/20 bg-surface-3/35 sm:block atlas-float" />
           </div>
           <div className="relative z-[1] flex flex-col gap-5">
             <div className="max-w-xl">

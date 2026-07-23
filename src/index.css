@@ -58,12 +58,49 @@ body {
 }
 
 .atlas-dashboard {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
   background:
-    linear-gradient(115deg, rgba(8, 55, 64, 0.76), transparent 46%),
-    url('/assets/atlas-orbit.svg') top right / min(920px, 96vw) auto no-repeat,
-    radial-gradient(circle at 78% 12%, rgba(247, 255, 136, 0.15), transparent 32%),
-    radial-gradient(circle at 12% 82%, rgba(34, 221, 133, 0.12), transparent 32%),
+    linear-gradient(115deg, rgba(8, 55, 64, 0.78), rgba(7, 6, 6, 0.46) 42%, rgba(7, 6, 6, 0.94) 88%),
+    radial-gradient(circle at 22% 78%, rgba(34, 221, 133, 0.16), transparent 34%),
+    radial-gradient(circle at 76% 18%, rgba(247, 255, 136, 0.11), transparent 30%),
     var(--color-ink);
+}
+
+.atlas-dashboard::before,
+.atlas-dashboard::after {
+  content: '';
+  pointer-events: none;
+  position: absolute;
+  inset: -9%;
+  z-index: -2;
+}
+
+.atlas-dashboard::before {
+  background:
+    linear-gradient(90deg, rgba(8, 55, 64, 0.88), rgba(8, 55, 64, 0.38) 35%, rgba(7, 6, 6, 0.14) 66%, rgba(7, 6, 6, 0.78)),
+    linear-gradient(180deg, rgba(7, 6, 6, 0.18), rgba(7, 6, 6, 0.6) 76%, rgba(7, 6, 6, 0.94)),
+    url('/assets/atlas-orbit.svg') center / cover no-repeat;
+  filter: saturate(1.24) contrast(1.06);
+  opacity: 0.78;
+  transform: scale(1.08);
+  animation: atlas-dashboard-drift 24s ease-in-out infinite alternate;
+}
+
+.atlas-dashboard::after {
+  z-index: -1;
+  background:
+    radial-gradient(ellipse at 24% 42%, rgba(34, 221, 133, 0.22), transparent 39%),
+    radial-gradient(ellipse at 68% 28%, rgba(247, 255, 136, 0.12), transparent 34%),
+    linear-gradient(90deg, rgba(7, 6, 6, 0.08), rgba(7, 6, 6, 0.7) 78%);
+  opacity: 0.9;
+  animation: atlas-dashboard-aurora 18s ease-in-out infinite alternate;
+}
+
+.atlas-dashboard > * {
+  position: relative;
+  z-index: 1;
 }
 
 .font-mono {
@@ -276,6 +313,26 @@ select {
   }
   50% {
     box-shadow: 0 0 0 5px rgba(247, 255, 136, 0.13), 0 14px 34px rgba(0, 0, 0, 0.34);
+  }
+}
+
+@keyframes atlas-dashboard-drift {
+  from {
+    transform: translate3d(-1.5%, -1%, 0) scale(1.08);
+  }
+  to {
+    transform: translate3d(1.8%, 1.4%, 0) scale(1.12);
+  }
+}
+
+@keyframes atlas-dashboard-aurora {
+  from {
+    transform: translate3d(-1.2%, 0, 0);
+    opacity: 0.78;
+  }
+  to {
+    transform: translate3d(1.4%, -1.5%, 0);
+    opacity: 1;
   }
 }
 
