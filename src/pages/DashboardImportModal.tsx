@@ -106,7 +106,9 @@ export function DashboardImportModal({
       if (visibility === 'group') {
         await Promise.all(
           mustSeeCreatedIds.map((itemId) =>
-            setItemMustSeeVote({ tripId: trip.id, itemId, userId: ownerId, active: true }),
+            setItemMustSeeVote({ tripId: trip.id, itemId, userId: ownerId, active: true }).catch((error) => {
+              console.warn('Atlas could not preserve imported group votes', error)
+            }),
           ),
         )
       } else {
@@ -380,9 +382,24 @@ function modeClass(active: boolean): string {
 }
 
 function importErrorMessage(error: unknown): string {
-  const message = error instanceof Error ? error.message : 'Import failed.'
+  const message = errorMessage(error)
   if (/failed to fetch/i.test(message)) return 'Import could not reach Supabase or TomTom. Check Vercel environment variables, then retry.'
+  if (/schema cache|column|relationship|table|item_votes|country_code|visibility|member_limit/i.test(message)) {
+    return `${message} Run the latest Supabase migrations, then try again.`
+  }
   return message
+}
+
+function errorMessage(error: unknown): string {
+  if (error instanceof Error && error.message) return error.message
+  if (error && typeof error === 'object') {
+    const record = error as Record<string, unknown>
+    for (const key of ['message', 'details', 'hint', 'code']) {
+      if (typeof record[key] === 'string' && record[key]) return record[key]
+    }
+  }
+  if (typeof error === 'string' && error) return error
+  return 'Import failed.'
 }
 
 function summarizeImportHealth(suggestions: ExtractedItineraryItem[]) {

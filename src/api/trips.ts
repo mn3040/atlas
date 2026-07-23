@@ -114,6 +114,16 @@ function mapItem(row: ItemRow): Item {
   }
 }
 
+function isMissingOptionalColumn(error: unknown, columns: string[]): boolean {
+  const message =
+    error && typeof error === 'object' && 'message' in error
+      ? String((error as { message?: unknown }).message ?? '')
+      : error instanceof Error
+        ? error.message
+        : ''
+  return columns.some((column) => message.toLowerCase().includes(column.toLowerCase()))
+}
+
 export async function fetchTrips(): Promise<Trip[]> {
   const { data, error } = await supabase
     .from('trips')
@@ -140,20 +150,32 @@ export async function createTrip(input: {
   endDate: string
   ownerId: string
 }): Promise<Trip> {
-  const { data, error } = await supabase
-    .from('trips')
-    .insert({
-      name: input.name,
-      description: input.description || null,
-      country_code: input.countryCode || null,
-      visibility: input.visibility ?? 'personal',
-      member_limit: input.visibility === 'group' ? input.memberLimit || null : null,
-      start_date: input.startDate,
-      end_date: input.endDate,
-      owner_id: input.ownerId,
-    })
-    .select()
-    .single()
+  const baseInsert = {
+    name: input.name,
+    description: input.description || null,
+    country_code: input.countryCode || null,
+    start_date: input.startDate,
+    end_date: input.endDate,
+    owner_id: input.ownerId,
+  }
+  const fullInsert = {
+    ...baseInsert,
+    visibility: input.visibility ?? 'personal',
+    member_limit: input.visibility === 'group' ? input.memberLimit || null : null,
+  }
+  const insert = (payload: Record<string, unknown>) =>
+    supabase
+      .from('trips')
+      .insert(payload)
+      .select()
+      .single()
+
+  let { data, error } = await insert(fullInsert)
+  if (error && isMissingOptionalColumn(error, ['visibility', 'member_limit', 'archived_at'])) {
+    const retry = await insert(baseInsert)
+    data = retry.data
+    error = retry.error
+  }
 
   if (error) throw error
   return mapTrip(data as TripRow)
@@ -265,9 +287,67 @@ export interface NewItemInput {
 }
 
 export async function createItem(input: NewItemInput): Promise<Item> {
-  const { data, error } = await supabase
-    .from('items')
-    .insert({
+  const baseInsert = {
+    trip_id: input.tripId,
+    day_id: input.dayId,
+    type: input.type,
+    category: input.category,
+    name: input.name,
+    notes: input.notes,
+    lat: input.lat,
+    lng: input.lng,
+    location_label: input.locationLabel,
+    lat2: input.lat2,
+    lng2: input.lng2,
+    location2_label: input.location2Label,
+    start_date: input.startDate,
+    end_date: input.endDate,
+    start_time: input.startTime,
+    end_time: input.endTime,
+    flight_number: input.flightNumber,
+    price_label: input.priceLabel ?? null,
+    photo_url: input.photoUrl ?? null,
+    google_place_id: input.googlePlaceId ?? null,
+    google_maps_url: input.googleMapsUrl ?? null,
+    google_rating: input.googleRating ?? null,
+    google_user_ratings_total: input.googleUserRatingsTotal ?? null,
+    room_type: input.roomType ?? null,
+    guests: input.guests ?? null,
+    nightly_rate: input.nightlyRate ?? null,
+    taxes_fees: input.taxesFees ?? null,
+    confirmation_number: input.confirmationNumber ?? null,
+    rating: input.rating ?? null,
+    position: input.position,
+  }
+  const fullInsert = {
+    ...baseInsert,
+    country_code: input.countryCode ?? null,
+  }
+  const insert = (payload: Record<string, unknown>) =>
+    supabase
+      .from('items')
+      .insert(payload)
+      .select()
+      .single()
+
+  let { data, error } = await insert(fullInsert)
+  if (
+    error &&
+    isMissingOptionalColumn(error, [
+      'country_code',
+      'google_place_id',
+      'google_maps_url',
+      'google_rating',
+      'google_user_ratings_total',
+      'room_type',
+      'guests',
+      'nightly_rate',
+      'taxes_fees',
+      'confirmation_number',
+      'rating',
+    ])
+  ) {
+    const coreInsert = {
       trip_id: input.tripId,
       day_id: input.dayId,
       type: input.type,
@@ -277,7 +357,6 @@ export async function createItem(input: NewItemInput): Promise<Item> {
       lat: input.lat,
       lng: input.lng,
       location_label: input.locationLabel,
-      country_code: input.countryCode ?? null,
       lat2: input.lat2,
       lng2: input.lng2,
       location2_label: input.location2Label,
@@ -288,20 +367,12 @@ export async function createItem(input: NewItemInput): Promise<Item> {
       flight_number: input.flightNumber,
       price_label: input.priceLabel ?? null,
       photo_url: input.photoUrl ?? null,
-      google_place_id: input.googlePlaceId ?? null,
-      google_maps_url: input.googleMapsUrl ?? null,
-      google_rating: input.googleRating ?? null,
-      google_user_ratings_total: input.googleUserRatingsTotal ?? null,
-      room_type: input.roomType ?? null,
-      guests: input.guests ?? null,
-      nightly_rate: input.nightlyRate ?? null,
-      taxes_fees: input.taxesFees ?? null,
-      confirmation_number: input.confirmationNumber ?? null,
-      rating: input.rating ?? null,
       position: input.position,
-    })
-    .select()
-    .single()
+    }
+    const retry = await insert(coreInsert)
+    data = retry.data
+    error = retry.error
+  }
 
   if (error) throw error
   return mapItem(data as ItemRow)

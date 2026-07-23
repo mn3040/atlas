@@ -581,12 +581,27 @@ const CENTRAL_ASIA_FIXTURES: Record<string, ResolvedLocation> = {
 }
 
 function importErrorMessage(error: unknown): string {
-  const message = error instanceof Error ? error.message : 'Import failed.'
+  const message = errorMessage(error)
   if (/failed to fetch/i.test(message)) {
     return 'Import could not reach one of its services. Check the Vercel environment variables for Supabase and TomTom, then try again.'
   }
   if (/country_code/i.test(message)) {
     return 'Your Supabase database is missing the items.country_code column. Run the latest migration, then retry the import.'
   }
+  if (/schema cache|column|relationship|table|visibility|member_limit/i.test(message)) {
+    return `${message} Run the latest Supabase migrations, then retry the import.`
+  }
   return message
+}
+
+function errorMessage(error: unknown): string {
+  if (error instanceof Error && error.message) return error.message
+  if (error && typeof error === 'object') {
+    const record = error as Record<string, unknown>
+    for (const key of ['message', 'details', 'hint', 'code']) {
+      if (typeof record[key] === 'string' && record[key]) return record[key]
+    }
+  }
+  if (typeof error === 'string' && error) return error
+  return 'Import failed.'
 }
