@@ -16,6 +16,7 @@ import {
   ChevronsUp,
   Route,
   Users,
+  Trophy,
 } from 'lucide-react'
 import {
   fetchTrip,
@@ -41,6 +42,7 @@ import { AddItemModal } from '../itinerary/AddItemModal'
 import { ImportItineraryModal } from '../itinerary/ImportItineraryModal'
 import { EditTripModal } from '../itinerary/EditTripModal'
 import { GroupTripModal } from '../itinerary/GroupTripModal'
+import { GroupPicksModal } from '../itinerary/GroupPicksModal'
 import { TripMap } from '../maps/TripMap'
 import type { TripMapHandle } from '../maps/TripMap'
 import { TravelModePicker } from '../maps/TravelModePicker'
@@ -108,6 +110,7 @@ export default function TripDetail() {
   const [showMenu, setShowMenu] = useState(false)
   const [showEditTrip, setShowEditTrip] = useState(false)
   const [showGroupTrip, setShowGroupTrip] = useState(false)
+  const [showGroupPicks, setShowGroupPicks] = useState(false)
   const [dayOptionView, setDayOptionView] = useState<DayOptionView>('all')
   const [mustSeeIds, setMustSeeIds] = useState<Set<string>>(() => new Set())
   const [voteSummary, setVoteSummary] = useState<Record<string, ItemVoteSummary>>({})
@@ -488,15 +491,26 @@ export default function TripDetail() {
                               <Pencil size={13} /> Edit trip details
                             </button>
                             {trip.visibility === 'group' && (
-                              <button
-                                onClick={() => {
-                                  setShowGroupTrip(true)
-                                  setShowMenu(false)
-                                }}
-                                className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-semibold text-text hover:bg-surface-2"
-                              >
-                                <Users size={13} /> Group invite
-                              </button>
+                              <>
+                                <button
+                                  onClick={() => {
+                                    setShowGroupPicks(true)
+                                    setShowMenu(false)
+                                  }}
+                                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-semibold text-text hover:bg-surface-2"
+                                >
+                                  <Trophy size={13} /> Group picks
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    setShowGroupTrip(true)
+                                    setShowMenu(false)
+                                  }}
+                                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-semibold text-text hover:bg-surface-2"
+                                >
+                                  <Users size={13} /> Group invite
+                                </button>
+                              </>
                             )}
                             <button
                               onClick={() => {
@@ -780,6 +794,19 @@ export default function TripDetail() {
       {showEditTrip && <EditTripModal trip={trip} onClose={() => setShowEditTrip(false)} onSave={handleUpdateTrip} />}
       {showGroupTrip && session?.user.id && (
         <GroupTripModal trip={trip} userId={session.user.id} onClose={() => setShowGroupTrip(false)} />
+      )}
+      {showGroupPicks && (
+        <GroupPicksModal
+          days={days}
+          items={items}
+          voteSummary={voteSummary}
+          onClose={() => setShowGroupPicks(false)}
+          onSelectItem={(item) => {
+            setActiveDayId(item.dayId)
+            setSelectedItemId(item.id)
+            setShowGroupPicks(false)
+          }}
+        />
       )}
     </div>
   )

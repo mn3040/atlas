@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import { useState } from 'react'
 import { FileUp, Loader2, Star, Trash2 } from 'lucide-react'
 import { createDay, createItem } from '../api/trips'
@@ -76,52 +77,14 @@ export function ImportItineraryModal({
     setError('')
     setStatus('Creating itinerary items...')
     try {
-      const knownDays = [...days]
-      const createdItems: Item[] = []
-      const mustSeeCreatedIds: string[] = []
-      const schedules = new Map<string, DayImportSchedule>()
-      const warnings: string[] = []
-
-      for (const [index, suggestion] of selected.entries()) {
-        const dayId = await ensureDayFor(suggestion.startDate, trip.id, knownDays, onDayCreated)
-        setStatus(`Importing ${index + 1} of ${selected.length}: ${suggestion.name}`)
-        const primary = await resolveLocation(suggestion.locationLabel || suggestion.name, trip, warnings)
-        const secondary =
-          suggestion.type === 'flight' && suggestion.location2Label
-            ? await resolveLocation(suggestion.location2Label, trip, warnings)
-            : null
-        const scheduled = scheduleSuggestion(schedules, suggestion, primary)
-
-        const input: NewItemInput = {
-          tripId: trip.id,
-          dayId,
-          type: suggestion.type,
-          category: suggestion.type === 'activity' ? suggestion.category : null,
-          name: suggestion.name,
-          notes: suggestion.notes || null,
-          lat: primary.lat,
-          lng: primary.lng,
-          locationLabel: primary.label,
-          countryCode: primary.countryCode,
-          lat2: secondary?.lat ?? null,
-          lng2: secondary?.lng ?? null,
-          location2Label: secondary?.label ?? null,
-          startDate: suggestion.startDate,
-          endDate: suggestion.type === 'stay' ? suggestion.endDate || trip.endDate : null,
-          startTime: scheduled.startTime || null,
-          endTime: scheduled.endTime || null,
-          flightNumber: suggestion.type === 'flight' ? suggestion.flightNumber || null : null,
-          priceLabel: null,
-          photoUrl: null,
-          googleMapsUrl: googleMapsSearchUrl([suggestion.name, primary.label].filter(Boolean).join(', ')),
-          confirmationNumber: suggestion.type === 'stay' ? suggestion.confirmationNumber || null : null,
-          position: itemCount + index,
-        }
-
-        const created = await createItem(input)
-        createdItems.push(created)
-        if (suggestion.mustSee) mustSeeCreatedIds.push(created.id)
-      }
+      const { createdItems, mustSeeCreatedIds, warnings } = await importSuggestionsToTrip({
+        trip,
+        days,
+        itemCount,
+        suggestions: selected,
+        onDayCreated,
+        onStatus: setStatus,
+      })
 
       onItemsCreated(createdItems)
       onMustSeeCreated(mustSeeCreatedIds)
@@ -332,6 +295,78 @@ export function ImportItineraryModal({
       </div>
     </div>
   )
+}
+
+export async function importSuggestionsToTrip({
+  trip,
+  days,
+  itemCount,
+  suggestions,
+  onDayCreated,
+  onStatus,
+}: {
+  trip: Trip
+  days: Day[]
+  itemCount: number
+  suggestions: ExtractedItineraryItem[]
+  onDayCreated: (day: Day) => void
+  onStatus?: (status: string) => void
+}): Promise<{ createdItems: Item[]; mustSeeCreatedIds: string[]; warnings: string[] }> {
+  const knownDays = [...days]
+  const createdItems: Item[] = []
+  const mustSeeCreatedIds: string[] = []
+  const schedules = new Map<string, DayImportSchedule>()
+  const warnings: string[] = []
+  const perDayPositions = new Map<string, number>()
+
+  for (const item of suggestions) {
+    perDayPositions.set(item.startDate, Math.max(perDayPositions.get(item.startDate) ?? itemCount, itemCount))
+  }
+
+  for (const [index, suggestion] of suggestions.entries()) {
+    const dayId = await ensureDayFor(suggestion.startDate, trip.id, knownDays, onDayCreated)
+    onStatus?.(`Importing ${index + 1} of ${suggestions.length}: ${suggestion.name}`)
+    const primary = await resolveLocation(suggestion.locationLabel || suggestion.name, trip, warnings)
+    const secondary =
+      suggestion.type === 'flight' && suggestion.location2Label
+        ? await resolveLocation(suggestion.location2Label, trip, warnings)
+        : null
+    const scheduled = scheduleSuggestion(schedules, suggestion, primary)
+    const position = perDayPositions.get(suggestion.startDate) ?? itemCount
+    perDayPositions.set(suggestion.startDate, position + 1)
+
+    const input: NewItemInput = {
+      tripId: trip.id,
+      dayId,
+      type: suggestion.type,
+      category: suggestion.type === 'activity' ? suggestion.category : null,
+      name: suggestion.name,
+      notes: suggestion.notes || null,
+      lat: primary.lat,
+      lng: primary.lng,
+      locationLabel: primary.label,
+      countryCode: primary.countryCode,
+      lat2: secondary?.lat ?? null,
+      lng2: secondary?.lng ?? null,
+      location2Label: secondary?.label ?? null,
+      startDate: suggestion.startDate,
+      endDate: suggestion.type === 'stay' ? suggestion.endDate || trip.endDate : null,
+      startTime: scheduled.startTime || null,
+      endTime: scheduled.endTime || null,
+      flightNumber: suggestion.type === 'flight' ? suggestion.flightNumber || null : null,
+      priceLabel: null,
+      photoUrl: null,
+      googleMapsUrl: googleMapsSearchUrl([suggestion.name, primary.label].filter(Boolean).join(', ')),
+      confirmationNumber: suggestion.type === 'stay' ? suggestion.confirmationNumber || null : null,
+      position,
+    }
+
+    const created = await createItem(input)
+    createdItems.push(created)
+    if (suggestion.mustSee) mustSeeCreatedIds.push(created.id)
+  }
+
+  return { createdItems, mustSeeCreatedIds, warnings }
 }
 
 async function ensureDayFor(

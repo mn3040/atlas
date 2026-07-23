@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Plus, MapPin, Trash2, Wand2, Users, UserRound, Archive } from 'lucide-react'
+import { FileUp, Plus, MapPin, Trash2, Wand2, Users, UserRound, Archive } from 'lucide-react'
 import { useSession } from '../hooks/useSession'
 import { fetchTrips, createTrip, deleteTrip, fetchItems } from '../api/trips'
 import { TopNav } from '../components/TopNav'
@@ -9,6 +9,7 @@ import { lineColorForIndex } from '../utils/lineColors'
 import { createSampleTrips } from '../utils/sampleTrips'
 import { shouldConfirmBeforeDelete } from '../utils/settings'
 import { countryCodesForTrip } from '../utils/flags'
+import { DashboardImportModal } from './DashboardImportModal'
 import type { Item, Trip, TripVisibility } from '../types/trip'
 
 const inputClass =
@@ -27,6 +28,7 @@ export default function Dashboard() {
   const [tripItems, setTripItems] = useState<Record<string, Item[]>>({})
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
+  const [showImport, setShowImport] = useState(false)
   const [createError, setCreateError] = useState<string | null>(null)
   const [deleteError, setDeleteError] = useState<string | null>(null)
   const [deletingTripId, setDeletingTripId] = useState<string | null>(null)
@@ -121,6 +123,13 @@ export default function Dashboard() {
           </div>
           <div className="flex flex-wrap items-center justify-end gap-2">
             <button
+              onClick={() => setShowImport(true)}
+              disabled={!session}
+              className="flex items-center gap-1.5 rounded-md border border-border bg-surface px-4 py-2 text-sm font-bold text-text hover:border-paper hover:text-paper disabled:opacity-50"
+            >
+              <FileUp size={15} /> Import trip
+            </button>
+            <button
               onClick={handleAddSamples}
               disabled={!session || addingSamples}
               className="flex items-center gap-1.5 rounded-md border border-border bg-surface px-4 py-2 text-sm font-bold text-text hover:border-green hover:text-green disabled:cursor-wait disabled:opacity-50"
@@ -136,6 +145,7 @@ export default function Dashboard() {
           </div>
         </div>
 
+        {showImport && session && <DashboardImportModal ownerId={session.user.id} onClose={() => setShowImport(false)} />}
         {showForm && <NewTripForm onCreate={handleCreate} error={createError} />}
         {deleteError && (
           <p className="mt-4 border-l-4 border-line-3 bg-surface px-3 py-2 text-sm font-semibold text-text">
