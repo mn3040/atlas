@@ -7,6 +7,7 @@ export type ActivityCategory =
   | 'other'
 
 export type ItemType = 'activity' | 'flight' | 'stay'
+export type TripVisibility = 'personal' | 'group'
 
 export interface Trip {
   id: string
@@ -15,6 +16,9 @@ export interface Trip {
   description: string | null
   /** ISO 3166-1 alpha-2, e.g. 'KZ' — drives the flag shown next to the dates. */
   countryCode: string | null
+  visibility: TripVisibility
+  memberLimit: number | null
+  archivedAt: string | null
   startDate: string
   endDate: string
   createdAt: string

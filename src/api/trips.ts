@@ -1,5 +1,5 @@
 import { supabase } from './supabaseClient'
-import type { Trip, Day, Item, ItemType, ActivityCategory } from '../types/trip'
+import type { Trip, Day, Item, ItemType, ActivityCategory, TripVisibility } from '../types/trip'
 
 interface TripRow {
   id: string
@@ -7,6 +7,9 @@ interface TripRow {
   name: string
   description: string | null
   country_code: string | null
+  visibility: TripVisibility | null
+  member_limit: number | null
+  archived_at: string | null
   start_date: string
   end_date: string
   created_at: string
@@ -61,6 +64,9 @@ function mapTrip(row: TripRow): Trip {
     name: row.name,
     description: row.description,
     countryCode: row.country_code,
+    visibility: row.visibility ?? 'personal',
+    memberLimit: row.member_limit,
+    archivedAt: row.archived_at,
     startDate: row.start_date,
     endDate: row.end_date,
     createdAt: row.created_at,
@@ -128,6 +134,8 @@ export async function createTrip(input: {
   name: string
   description?: string
   countryCode?: string
+  visibility?: TripVisibility
+  memberLimit?: number | null
   startDate: string
   endDate: string
   ownerId: string
@@ -138,6 +146,8 @@ export async function createTrip(input: {
       name: input.name,
       description: input.description || null,
       country_code: input.countryCode || null,
+      visibility: input.visibility ?? 'personal',
+      member_limit: input.visibility === 'group' ? input.memberLimit || null : null,
       start_date: input.startDate,
       end_date: input.endDate,
       owner_id: input.ownerId,
@@ -155,6 +165,9 @@ export async function updateTrip(
     name?: string
     description?: string | null
     countryCode?: string | null
+    visibility?: TripVisibility
+    memberLimit?: number | null
+    archivedAt?: string | null
     startDate?: string
     endDate?: string
   },
@@ -163,6 +176,9 @@ export async function updateTrip(
   if (input.name !== undefined) patch.name = input.name
   if (input.description !== undefined) patch.description = input.description || null
   if (input.countryCode !== undefined) patch.country_code = input.countryCode || null
+  if (input.visibility !== undefined) patch.visibility = input.visibility
+  if (input.memberLimit !== undefined) patch.member_limit = input.memberLimit
+  if (input.archivedAt !== undefined) patch.archived_at = input.archivedAt
   if (input.startDate !== undefined) patch.start_date = input.startDate
   if (input.endDate !== undefined) patch.end_date = input.endDate
 

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Plus, MapPin, Trash2, Wand2 } from 'lucide-react'
+import { Plus, MapPin, Trash2, Wand2, Users, UserRound, Archive } from 'lucide-react'
 import { useSession } from '../hooks/useSession'
 import { fetchTrips, createTrip, deleteTrip, fetchItems } from '../api/trips'
 import { TopNav } from '../components/TopNav'
@@ -9,7 +9,7 @@ import { lineColorForIndex } from '../utils/lineColors'
 import { createSampleTrips } from '../utils/sampleTrips'
 import { shouldConfirmBeforeDelete } from '../utils/settings'
 import { countryCodesForTrip } from '../utils/flags'
-import type { Item, Trip } from '../types/trip'
+import type { Item, Trip, TripVisibility } from '../types/trip'
 
 const inputClass =
   'mt-1 w-full rounded-md border border-border bg-ink px-3 py-2 text-sm text-text placeholder:text-text-dim focus:border-paper focus:outline-none'
@@ -24,6 +24,10 @@ export default function Dashboard() {
   const [deleteError, setDeleteError] = useState<string | null>(null)
   const [deletingTripId, setDeletingTripId] = useState<string | null>(null)
   const [addingSamples, setAddingSamples] = useState(false)
+  const activeTrips = trips.filter((trip) => !trip.archivedAt)
+  const personalTrips = activeTrips.filter((trip) => trip.visibility !== 'group')
+  const groupTrips = activeTrips.filter((trip) => trip.visibility === 'group')
+  const archivedTrips = trips.filter((trip) => trip.archivedAt)
 
   useEffect(() => {
     fetchTrips()
@@ -39,6 +43,8 @@ export default function Dashboard() {
     name: string
     description: string
     countryCode: string
+    visibility: TripVisibility
+    memberLimit: number | null
     startDate: string
     endDate: string
   }) {
@@ -138,46 +144,34 @@ export default function Dashboard() {
               No trips yet — build your first itinerary.
             </p>
           ) : (
-            <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              {trips.map((trip, index) => (
-                <li key={trip.id}>
-                  <article className="group relative min-h-[158px] overflow-hidden rounded-xl border border-border bg-surface transition-colors hover:border-border-strong">
-                    <Link to={`/trips/${trip.id}`} className="flex h-full flex-col p-4 pr-12">
-                      <div className="mb-4 flex items-center gap-3">
-                        <span
-                          className="h-8 w-1 shrink-0"
-                          style={{ background: lineColorForIndex(index) }}
-                        />
-                        <span className="truncate text-lg font-extrabold text-text group-hover:text-paper">
-                          {trip.name}
-                        </span>
-                      </div>
-                      {trip.description && (
-                        <p className="mb-4 line-clamp-2 text-xs leading-relaxed text-text-dim">{trip.description}</p>
-                      )}
-                      <div className="mt-auto flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-text-dim">
-                        <MapPin size={11} />
-                        {trip.startDate} &ndash; {trip.endDate}
-                        <CountryFlags
-                          countryCodes={countryCodesForTrip(trip, tripItems[trip.id] ?? [])}
-                          className="h-3 w-auto rounded-[1px]"
-                        />
-                      </div>
-                    </Link>
-                    <button
-                      type="button"
-                      onClick={() => handleDeleteTrip(trip)}
-                      disabled={deletingTripId === trip.id}
-                      className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-md border border-border bg-ink text-text-dim transition-colors hover:border-line-3 hover:text-line-3 disabled:cursor-wait disabled:opacity-50"
-                      aria-label={`Delete ${trip.name}`}
-                      title="Delete trip"
-                    >
-                      <Trash2 size={14} />
-                    </button>
-                  </article>
-                </li>
-              ))}
-            </ul>
+            <div className="space-y-8">
+              <TripSection
+                title="Personal trips"
+                icon={UserRound}
+                trips={personalTrips}
+                tripItems={tripItems}
+                deletingTripId={deletingTripId}
+                onDelete={handleDeleteTrip}
+              />
+              <TripSection
+                title="Group trips"
+                icon={Users}
+                trips={groupTrips}
+                tripItems={tripItems}
+                deletingTripId={deletingTripId}
+                onDelete={handleDeleteTrip}
+              />
+              {archivedTrips.length > 0 && (
+                <TripSection
+                  title="Archived"
+                  icon={Archive}
+                  trips={archivedTrips}
+                  tripItems={tripItems}
+                  deletingTripId={deletingTripId}
+                  onDelete={handleDeleteTrip}
+                />
+              )}
+            </div>
           )}
         </div>
       </div>
@@ -193,6 +187,8 @@ function NewTripForm({
     name: string
     description: string
     countryCode: string
+    visibility: TripVisibility
+    memberLimit: number | null
     startDate: string
     endDate: string
   }) => void
@@ -201,12 +197,22 @@ function NewTripForm({
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
   const [countryCode, setCountryCode] = useState('')
+  const [visibility, setVisibility] = useState<TripVisibility>('personal')
+  const [memberLimit, setMemberLimit] = useState(4)
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
 
   function handleSubmit(event: React.FormEvent) {
     event.preventDefault()
-    onCreate({ name, description, countryCode, startDate, endDate })
+    onCreate({
+      name,
+      description,
+      countryCode,
+      visibility,
+      memberLimit: visibility === 'group' ? memberLimit : null,
+      startDate,
+      endDate,
+    })
   }
 
   return (
@@ -246,6 +252,27 @@ function NewTripForm({
           className={inputClass}
         />
       </div>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_9rem]">
+        <div>
+          <label className="block text-xs font-semibold uppercase tracking-wide text-text-dim">Trip mode</label>
+          <div className="mt-1 grid grid-cols-2 gap-2">
+            <ModeButton active={visibility === 'personal'} icon={UserRound} label="Personal" onClick={() => setVisibility('personal')} />
+            <ModeButton active={visibility === 'group'} icon={Users} label="Group" onClick={() => setVisibility('group')} />
+          </div>
+        </div>
+        <div>
+          <label className="block text-xs font-semibold uppercase tracking-wide text-text-dim">Travelers</label>
+          <input
+            type="number"
+            min={1}
+            max={99}
+            disabled={visibility !== 'group'}
+            value={memberLimit}
+            onChange={(e) => setMemberLimit(Number(e.target.value) || 1)}
+            className={`${inputClass} disabled:opacity-45`}
+          />
+        </div>
+      </div>
       <div className="flex gap-3">
         <div className="flex-1">
           <label className="block text-xs font-semibold uppercase tracking-wide text-text-dim">Start date</label>
@@ -276,5 +303,99 @@ function NewTripForm({
         Create trip
       </button>
     </form>
+  )
+}
+
+function TripSection({
+  title,
+  icon: Icon,
+  trips,
+  tripItems,
+  deletingTripId,
+  onDelete,
+}: {
+  title: string
+  icon: typeof Users
+  trips: Trip[]
+  tripItems: Record<string, Item[]>
+  deletingTripId: string | null
+  onDelete: (trip: Trip) => void
+}) {
+  if (trips.length === 0) return null
+
+  return (
+    <section>
+      <h2 className="mb-3 flex items-center gap-2 text-xs font-extrabold uppercase tracking-[0.2em] text-text-dim">
+        <Icon size={14} /> {title}
+      </h2>
+      <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        {trips.map((trip, index) => (
+          <li key={trip.id}>
+            <article className="group relative min-h-[164px] overflow-hidden rounded-xl border border-border bg-surface transition-colors hover:border-border-strong">
+              <Link to={`/trips/${trip.id}`} className="flex h-full flex-col p-4 pr-12">
+                <div className="mb-4 flex items-center gap-3">
+                  <span className="h-8 w-1 shrink-0" style={{ background: lineColorForIndex(index) }} />
+                  <span className="truncate text-lg font-extrabold text-text group-hover:text-paper">{trip.name}</span>
+                </div>
+                {trip.description && (
+                  <p className="mb-4 line-clamp-2 text-xs leading-relaxed text-text-dim">{trip.description}</p>
+                )}
+                <div className="mb-2 flex flex-wrap items-center gap-2 text-[10.5px] font-bold uppercase tracking-wide">
+                  <span className="inline-flex items-center gap-1 rounded-md bg-ink px-2 py-1 text-text-dim">
+                    {trip.visibility === 'group' ? <Users size={11} /> : <UserRound size={11} />}
+                    {trip.visibility === 'group' ? `Group${trip.memberLimit ? ` / ${trip.memberLimit}` : ''}` : 'Personal'}
+                  </span>
+                </div>
+                <div className="mt-auto flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-text-dim">
+                  <MapPin size={11} />
+                  {trip.startDate} &ndash; {trip.endDate}
+                  <CountryFlags
+                    countryCodes={countryCodesForTrip(trip, tripItems[trip.id] ?? [])}
+                    className="h-3 w-auto rounded-[1px]"
+                  />
+                </div>
+              </Link>
+              <button
+                type="button"
+                onClick={() => onDelete(trip)}
+                disabled={deletingTripId === trip.id}
+                className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-md border border-border bg-ink text-text-dim transition-colors hover:border-line-3 hover:text-line-3 disabled:cursor-wait disabled:opacity-50"
+                aria-label={`Delete ${trip.name}`}
+                title="Delete trip"
+              >
+                <Trash2 size={14} />
+              </button>
+            </article>
+          </li>
+        ))}
+      </ul>
+    </section>
+  )
+}
+
+function ModeButton({
+  active,
+  icon: Icon,
+  label,
+  onClick,
+}: {
+  active: boolean
+  icon: typeof Users
+  label: string
+  onClick: () => void
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex items-center justify-center gap-2 rounded-md border px-3 py-2 text-sm font-bold"
+      style={{
+        borderColor: active ? 'var(--color-green)' : 'var(--color-border)',
+        background: active ? 'rgba(34, 221, 133, 0.14)' : 'var(--color-ink)',
+        color: active ? 'var(--color-green)' : 'var(--color-text-dim)',
+      }}
+    >
+      <Icon size={14} /> {label}
+    </button>
   )
 }

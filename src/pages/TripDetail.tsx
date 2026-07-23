@@ -52,7 +52,7 @@ import { countryCodesForTrip } from '../utils/flags'
 import type { TravelMode } from '../utils/distance'
 import type { AppSettings } from '../utils/settings'
 import type { DayOptionView } from '../utils/mustSee'
-import type { Trip, Day, Item } from '../types/trip'
+import type { Trip, Day, Item, TripVisibility } from '../types/trip'
 
 function formatShortDate(date: string): string {
   return new Date(`${date}T00:00:00`).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
@@ -256,6 +256,8 @@ export default function TripDetail() {
     name: string
     description: string
     countryCode: string
+    visibility: TripVisibility
+    memberLimit: number | null
     startDate: string
     endDate: string
   }) {

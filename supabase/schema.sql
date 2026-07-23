@@ -19,6 +19,9 @@ create table trips (
   description text,
   -- ISO 3166-1 alpha-2, e.g. 'KZ' — drives the flag shown next to the trip dates.
   country_code text,
+  visibility text not null default 'personal' check (visibility in ('personal', 'group')),
+  member_limit integer check (member_limit is null or member_limit between 1 and 99),
+  archived_at timestamptz,
   start_date date not null,
   end_date date not null,
   created_at timestamptz not null default now()
