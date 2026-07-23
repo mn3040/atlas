@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type TouchEvent } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import {
   ChevronLeft,
@@ -87,6 +87,8 @@ export default function TripDetail() {
   const [mobileSheetExpanded, setMobileSheetExpanded] = useState(false)
   const [showRouteTools, setShowRouteTools] = useState(false)
   const mapRef = useRef<TripMapHandle>(null)
+  const sheetRef = useRef<HTMLElement | null>(null)
+  const touchStartRef = useRef<{ y: number; scrollTop: number } | null>(null)
 
   useEffect(() => {
     if (!tripId) return
@@ -285,6 +287,29 @@ export default function TripDetail() {
     await updateDayLabel(activeDay.id, label)
   }
 
+  function handleSheetTouchStart(event: TouchEvent<HTMLElement>) {
+    touchStartRef.current = {
+      y: event.touches[0]?.clientY ?? 0,
+      scrollTop: sheetRef.current?.scrollTop ?? 0,
+    }
+  }
+
+  function handleSheetTouchEnd(event: TouchEvent<HTMLElement>) {
+    const start = touchStartRef.current
+    touchStartRef.current = null
+    if (!start) return
+
+    const endY = event.changedTouches[0]?.clientY ?? start.y
+    const deltaY = endY - start.y
+    if (Math.abs(deltaY) < 44) return
+
+    if (deltaY < 0) {
+      setMobileSheetExpanded(true)
+    } else if (start.scrollTop <= 2) {
+      setMobileSheetExpanded(false)
+    }
+  }
+
   if (loading) {
     return <div className="flex min-h-screen items-center justify-center text-sm text-text-dim">Loading…</div>
   }
@@ -299,7 +324,10 @@ export default function TripDetail() {
 
       <div className="relative flex min-h-0 flex-1 flex-col md:flex-row">
         <aside
-          className={`absolute inset-x-0 bottom-0 z-20 flex min-h-0 w-full shrink-0 touch-pan-y flex-col overflow-hidden overscroll-contain rounded-t-lg border border-border-strong bg-surface shadow-2xl transition-[height] duration-300 md:relative md:inset-auto md:z-auto md:h-auto md:w-[400px] md:flex-none md:rounded-none md:border-y-0 md:border-l-0 md:border-r ${
+          ref={sheetRef}
+          onTouchStart={handleSheetTouchStart}
+          onTouchEnd={handleSheetTouchEnd}
+          className={`itinerary-scroll absolute inset-x-0 bottom-0 z-20 flex min-h-0 w-full shrink-0 touch-pan-y flex-col overflow-y-auto overscroll-contain rounded-t-lg border border-border-strong bg-surface shadow-2xl transition-[height] duration-300 md:relative md:inset-auto md:z-auto md:h-auto md:w-[400px] md:flex-none md:overflow-hidden md:rounded-none md:border-y-0 md:border-l-0 md:border-r ${
             mobileSheetExpanded ? 'h-[86dvh]' : 'h-[48dvh]'
           }`}
         >
@@ -316,7 +344,7 @@ export default function TripDetail() {
                   {mobileSheetExpanded ? <Minimize2 size={13} /> : <Maximize2 size={13} />}
                 </button>
               </div>
-              <div className="itinerary-scroll min-h-0 flex-1 touch-pan-y overflow-y-auto px-4 pb-6 pt-4 sm:px-[22px] sm:pt-[18px]">
+              <div className="px-4 pb-[calc(2.25rem+env(safe-area-inset-bottom))] pt-4 sm:px-[22px] sm:pt-[18px] md:min-h-0 md:flex-1 md:overflow-y-auto md:pb-6">
                 <div className="mb-4 flex items-center justify-between">
                   <Link to="/" className="flex items-center gap-2 text-xs font-semibold text-text-dim hover:text-text">
                     <ChevronLeft size={14} /> Itinerary Detail
