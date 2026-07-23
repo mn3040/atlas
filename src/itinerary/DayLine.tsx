@@ -3,6 +3,7 @@ import type { DragEndEvent } from '@dnd-kit/core'
 import { SortableContext, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable'
 import { Plus } from 'lucide-react'
 import { ItemStation } from './ItemStation'
+import type { TravelMode } from '../utils/distance'
 import type { Day, Item } from '../types/trip'
 
 // Module-level so the object identity is stable across renders -- useSensor
@@ -25,6 +26,7 @@ export function DayLine({
   getBookingUrl,
   mustSeeIds,
   onAddClick,
+  travelMode,
 }: {
   day: Day
   items: Item[]
@@ -40,6 +42,7 @@ export function DayLine({
   getBookingUrl: (item: Item) => string
   mustSeeIds: Set<string>
   onAddClick: (date: string) => void
+  travelMode: TravelMode
 }) {
   const itemIds = items.map((s) => s.id)
 
@@ -64,24 +67,29 @@ export function DayLine({
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
           <SortableContext items={itemIds} strategy={verticalListSortingStrategy}>
             <div>
-              {items.map((item, index) => (
-                <ItemStation
-                  key={item.id}
-                  item={item}
-                  number={index + 1}
-                  color={color}
-                  isLast={index === items.length - 1}
-                  selected={item.id === selectedItemId}
-                  onSelect={onSelectItem}
-                  onAction={onAction}
-                  onEdit={onEdit}
-                  onDelete={onDelete}
-                  onToggleMustSee={onToggleMustSee}
-                  mapsUrl={getMapsUrl(item)}
-                  bookingUrl={getBookingUrl(item)}
-                  mustSee={mustSeeIds.has(item.id)}
-                />
-              ))}
+              {items.map((item, index) => {
+                const nextItem = items[index + 1]
+                return (
+                  <ItemStation
+                    key={item.id}
+                    item={item}
+                    nextItem={nextItem}
+                    travelMode={travelMode}
+                    number={index + 1}
+                    color={color}
+                    isLast={index === items.length - 1}
+                    selected={item.id === selectedItemId}
+                    onSelect={onSelectItem}
+                    onAction={onAction}
+                    onEdit={onEdit}
+                    onDelete={onDelete}
+                    onToggleMustSee={onToggleMustSee}
+                    mapsUrl={getMapsUrl(item)}
+                    bookingUrl={getBookingUrl(item)}
+                    mustSee={mustSeeIds.has(item.id)}
+                  />
+                )
+              })}
             </div>
           </SortableContext>
         </DndContext>

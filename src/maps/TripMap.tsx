@@ -340,7 +340,7 @@ function addAnimatedFlightMarker(
   }
 
   const distance = haversineKm(from, to)
-  const duration = Math.min(11000, Math.max(4200, distance * 12))
+  const duration = Math.min(22000, Math.max(9000, distance * 24))
   const startedAt = performance.now()
   const frameSlot = animationFrames.length
   animationFrames.push(0)

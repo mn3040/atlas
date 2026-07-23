@@ -297,8 +297,8 @@ export default function TripDetail() {
 
       <div className="relative flex min-h-0 flex-1 flex-col md:flex-row">
         <aside
-          className={`absolute inset-x-0 bottom-0 z-20 flex min-h-0 w-full shrink-0 flex-col overflow-hidden rounded-t-lg border border-border-strong bg-surface shadow-2xl transition-[height] duration-300 md:relative md:inset-auto md:z-auto md:h-auto md:w-[400px] md:flex-none md:rounded-none md:border-y-0 md:border-l-0 md:border-r ${
-            mobileSheetExpanded ? 'h-[82dvh]' : 'h-[46dvh]'
+          className={`absolute inset-x-0 bottom-0 z-20 flex min-h-0 w-full shrink-0 touch-pan-y flex-col overflow-hidden overscroll-contain rounded-t-lg border border-border-strong bg-surface shadow-2xl transition-[height] duration-300 md:relative md:inset-auto md:z-auto md:h-auto md:w-[400px] md:flex-none md:rounded-none md:border-y-0 md:border-l-0 md:border-r ${
+            mobileSheetExpanded ? 'h-[86dvh]' : 'h-[48dvh]'
           }`}
         >
           {screen === 'itinerary' ? (
@@ -510,6 +510,7 @@ export default function TripDetail() {
                     getBookingUrl={bookingUrlForItem}
                     mustSeeIds={mustSeeIds}
                     onAddClick={setAddModalDate}
+                    travelMode={travelMode}
                   />
                 ) : (
                   <p className="text-text-dim">No days yet — add your first flight, stay, or activity.</p>
@@ -533,9 +534,7 @@ export default function TripDetail() {
           ) : null}
         </aside>
 
-        <main
-          className="relative min-h-0 flex-1 bg-map-bg"
-        >
+        <main className="relative min-h-0 flex-1 bg-map-bg">
           <TripMap
             ref={mapRef}
             days={days}
