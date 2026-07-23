@@ -29,9 +29,9 @@ export function TopNav() {
   }
 
   return (
-    <div className="flex shrink-0 items-center justify-between border-b border-border bg-ink px-4 py-3 sm:px-7 sm:py-3.5">
+    <div className="atlas-topnav flex shrink-0 items-center justify-between border-b border-border px-4 py-3 sm:px-7 sm:py-3.5">
       <Link to="/" className="flex items-center gap-2.5">
-        <img src="/atlas-mark.svg" alt="Atlas" className="h-8 w-8 rounded-lg" />
+        <img src="/atlas-mark.svg" alt="Atlas" className="atlas-brand-mark h-8 w-8 rounded-lg" />
         <div>
           <span className="block text-[15px] font-extrabold tracking-[0.32em] text-text">ATLAS</span>
           <span className="hidden text-[9px] font-bold uppercase tracking-[0.24em] text-green sm:block">Plan your adventure</span>

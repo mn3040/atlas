@@ -41,11 +41,17 @@
 
 :root {
   color-scheme: dark;
+  --motion-soft: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --motion-snap: cubic-bezier(0.16, 1, 0.3, 1);
+  --shadow-atlas: 0 22px 70px rgba(0, 0, 0, 0.36);
+  --shadow-glow-green: 0 0 34px rgba(34, 221, 133, 0.22);
 }
 
 body {
   margin: 0;
-  background: var(--color-ink);
+  background:
+    linear-gradient(180deg, rgba(8, 55, 64, 0.34), rgba(7, 6, 6, 0.92) 52%),
+    var(--color-ink);
   color: var(--color-text);
   font-family: var(--font-body);
   -webkit-font-smoothing: antialiased;
@@ -53,8 +59,10 @@ body {
 
 .atlas-dashboard {
   background:
-    radial-gradient(circle at 78% 12%, rgba(247, 255, 136, 0.1), transparent 32%),
-    radial-gradient(circle at 12% 82%, rgba(34, 221, 133, 0.08), transparent 32%),
+    linear-gradient(115deg, rgba(8, 55, 64, 0.76), transparent 46%),
+    url('/assets/atlas-orbit.svg') top right / min(920px, 96vw) auto no-repeat,
+    radial-gradient(circle at 78% 12%, rgba(247, 255, 136, 0.15), transparent 32%),
+    radial-gradient(circle at 12% 82%, rgba(34, 221, 133, 0.12), transparent 32%),
     var(--color-ink);
 }
 
@@ -81,6 +89,101 @@ body {
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: contain;
   touch-action: pan-y;
+  box-shadow: var(--shadow-atlas);
+}
+
+.atlas-topnav {
+  background:
+    linear-gradient(90deg, rgba(34, 221, 133, 0.11), transparent 34%),
+    linear-gradient(270deg, rgba(247, 255, 136, 0.07), transparent 34%),
+    var(--color-ink);
+}
+
+.atlas-brand-mark {
+  box-shadow: 0 0 0 1px rgba(34, 221, 133, 0.22), 0 8px 26px rgba(34, 221, 133, 0.18);
+}
+
+.atlas-reveal {
+  animation: atlas-reveal 0.68s var(--motion-snap) both;
+}
+
+.atlas-reveal-delay-1 {
+  animation-delay: 80ms;
+}
+
+.atlas-reveal-delay-2 {
+  animation-delay: 150ms;
+}
+
+.atlas-cinematic-card {
+  position: relative;
+  isolation: isolate;
+  box-shadow: 0 14px 38px rgba(0, 0, 0, 0.22);
+  transition:
+    border-color 220ms var(--motion-soft),
+    transform 220ms var(--motion-soft),
+    box-shadow 220ms var(--motion-soft),
+    background 220ms var(--motion-soft);
+}
+
+.atlas-cinematic-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background:
+    linear-gradient(135deg, rgba(34, 221, 133, 0.16), transparent 36%),
+    linear-gradient(315deg, rgba(247, 255, 136, 0.12), transparent 34%);
+  opacity: 0;
+  transition: opacity 220ms var(--motion-soft);
+}
+
+.atlas-cinematic-card > * {
+  position: relative;
+  z-index: 1;
+}
+
+.atlas-cinematic-card:hover,
+.atlas-cinematic-card:focus-within {
+  transform: translateY(-2px);
+  box-shadow: 0 22px 56px rgba(0, 0, 0, 0.32), var(--shadow-glow-green);
+}
+
+.atlas-cinematic-card:hover::before,
+.atlas-cinematic-card:focus-within::before {
+  opacity: 1;
+}
+
+.atlas-map-stage::after {
+  content: '';
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background:
+    linear-gradient(180deg, rgba(7, 6, 6, 0.42), transparent 18%, transparent 70%, rgba(7, 6, 6, 0.5)),
+    radial-gradient(circle at 52% 46%, transparent 0 38%, rgba(7, 6, 6, 0.16) 72%);
+}
+
+.route-shimmer {
+  background-size: 220% 100%;
+  animation: route-shimmer 2.8s linear infinite;
+}
+
+.atlas-float {
+  animation: atlas-float 5.6s ease-in-out infinite;
+}
+
+.atlas-orbit-spin {
+  animation: atlas-orbit-spin 28s linear infinite;
+}
+
+.atlas-marker-pop {
+  animation: atlas-marker-pop 420ms var(--motion-snap) both;
+}
+
+.atlas-flight-marker {
+  animation: atlas-flight-breathe 2.8s ease-in-out infinite;
 }
 
 @media (pointer: coarse) {
@@ -117,6 +220,69 @@ select {
   }
 }
 
+@keyframes atlas-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.985);
+    filter: blur(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
+
+@keyframes route-shimmer {
+  from {
+    background-position: 0% 50%;
+  }
+  to {
+    background-position: 220% 50%;
+  }
+}
+
+@keyframes atlas-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+@keyframes atlas-orbit-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes atlas-marker-pop {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.72);
+  }
+  72% {
+    opacity: 1;
+    transform: translateY(-2px) scale(1.08);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes atlas-flight-breathe {
+  0%,
+  100% {
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.28);
+  }
+  50% {
+    box-shadow: 0 0 0 5px rgba(247, 255, 136, 0.13), 0 14px 34px rgba(0, 0, 0, 0.34);
+  }
+}
+
 .pulse-ring::after {
   content: '';
   position: absolute;
@@ -124,6 +290,10 @@ select {
   border-radius: 50%;
   background: inherit;
   animation: pulse-ring 1.8s ease-out infinite;
+}
+
+.tt-route-line {
+  animation: route-shimmer 6s linear infinite;
 }
 
 /* TomTom's free light-only map style, inverted to sit on a dark canvas.

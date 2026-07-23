@@ -1,55 +1,123 @@
 # Atlas
 
-Plan trips visually. Organize every day. Discover what travelers actually recommend.
+Atlas is a cinematic itinerary planner for building trips around places, days, routes, and group decisions.
+
+It is designed around one core loop: import or create a trip, shape the day-by-day itinerary, see every stop on the map, vote on what matters, then export a polished trip plan.
+
+## Brand Identity
+
+Atlas uses a dark expedition-control aesthetic:
+
+- Ink: `#070606`
+- Deep map teal: `#083740`
+- Paper highlight: `#F7FF88`
+- Atlas green: `#22DD85`
+- Clean white: `#FEFEFE`
+
+The UI favors cinematic motion over static dashboards: staggered page reveals, glowing route rails, animated map pins, floating brand artwork, mobile bottom-sheet motion, and slow flight movement from departure to arrival.
+
+Brand assets live in:
+
+```text
+public/atlas-mark.svg
+public/assets/atlas-orbit.svg
+public/assets/atlas-route-badge.svg
+```
+
+## Features
+
+- Visual day-by-day itinerary with activities, flights, and stays.
+- Mobile-first trip detail screen with map on top and a draggable itinerary sheet below.
+- TomTom map pins that update when locations are added, edited, removed, or filtered.
+- Animated flight markers from departure to arrival.
+- Real booking/search links for activities, flights, and stays.
+- PDF/DOCX/TXT/Markdown itinerary import with editable review before saving.
+- Mobile Safari PDF import fallback through a Vercel serverless extractor.
+- Multi-country trip support derived from itinerary stop countries.
+- Group trips with invite links, lightweight traveler profiles, and must-see voting.
+- Realtime group vote updates through Supabase Realtime.
+- Decision mode for ranking day options and locking final group picks.
+- Schedule warnings for overlaps, tight transfers, long transfers, and route modes that are not practical.
+- Beautiful themed PDF export for the full trip.
+- Sample trips for validating multi-day, multi-activity itineraries.
 
 ## Stack
 
-React + TypeScript + Vite + Tailwind CSS, TomTom Maps SDK for Web (map + routing), Nominatim/OpenStreetMap
-(place search, free, no key), Supabase (Postgres, Auth, Realtime), deployed on Vercel.
+React + TypeScript + Vite + Tailwind CSS, TomTom Maps SDK for Web, Nominatim/OpenStreetMap place search, Supabase Postgres/Auth/Realtime, and Vercel.
 
-## Local setup
+## Local Setup
 
 ```bash
 npm install
-cp .env.example .env   # fill in Supabase and TomTom credentials
+cp .env.example .env
 npm run dev
 ```
 
-- **TomTom** (trip map + routes between stops): free key at [developer.tomtom.com](https://developer.tomtom.com/)
-  → `VITE_TOMTOM_API_KEY`. Without it, the map pane shows an explanatory empty state instead of failing.
-- **Place search** uses Nominatim (OpenStreetMap) — no key or billing required. "View on Google Maps" links
-  are plain `google.com/maps` deep links built from the picked place name, not raw coordinates.
-- **Booking links** open targeted web searches for real booking paths: official tickets for attractions/nature,
-  reservations for food stops, hotel booking options for stays, and flight booking options for flights.
+Fill `.env` with:
 
-## Supabase setup
+```text
+VITE_SUPABASE_URL=
+VITE_SUPABASE_ANON_KEY=
+VITE_TOMTOM_API_KEY=
+```
 
-1. Create a free project at [supabase.com](https://supabase.com).
-2. Open the SQL editor and run [`supabase/schema.sql`](supabase/schema.sql) — this creates `trips`, `trip_members`, `days`, `items` (flights/stays/activities), their RLS policies, and the trigger that adds a trip's creator as its `owner` member. It starts with `drop table if exists`, so it's safe to re-run.
-3. Copy the project URL and **anon / publishable key** (Project Settings → API Keys) into `.env`. Don't use a personal access token (`sbp_...`) here — that's for the Supabase CLI/Management API, not client apps, and would be exposed publicly since it ships in the browser bundle.
-4. Enable **Authentication → Sign In / Providers → Anonymous Sign-ins**. There's no login screen — the app signs each visitor in anonymously on load so RLS (`auth.uid()`) still applies, without any visible auth step.
+TomTom powers the live map and route fetching. Without `VITE_TOMTOM_API_KEY`, the app shows a friendly map empty state instead of crashing.
+
+Place search uses Nominatim/OpenStreetMap. Google Maps links are generated as location search links, not raw coordinate dumps.
+
+## Supabase Setup
+
+1. Create a Supabase project.
+2. Enable Authentication -> Sign In / Providers -> Anonymous sign-ins.
+3. Run `supabase/schema.sql` in the SQL editor for a fresh setup.
+4. Run every migration in `supabase/migrations/` for current app features:
+   - item country codes
+   - traveler profiles
+   - personal/group trip modes
+   - must-see votes
+   - invite links
+   - locked group decisions
+5. In Supabase Realtime, enable realtime publication for:
+   - `item_votes`
+   - `item_decisions`
+
+Atlas intentionally keeps the collaboration profile minimal: display name, avatar color, anonymous auth id, votes, and locked decisions. It does not collect phone numbers, contacts, demographic data, or background location history.
 
 ## Deploying to Vercel
 
 1. Push this repo to GitHub.
-2. Import it in [Vercel](https://vercel.com/new) — the Vite build is auto-detected (`npm run build`, output `dist/`).
-3. Add `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, and `VITE_TOMTOM_API_KEY` as Environment Variables in the Vercel project settings (same values as your local `.env`).
-4. Keep the included `vercel.json` so direct links like `/trips/:id` route back to the React app.
-5. Every push to the connected branch redeploys automatically.
+2. Import it in Vercel.
+3. Use `npm run build`; output directory is `dist/`.
+4. Add the same environment variables from `.env` to Vercel.
+5. Keep `vercel.json`; it preserves API routes and routes direct trip links back to the React app.
 
-## Project structure
+The mobile PDF import fallback uses:
 
+```text
+api/extract-document.ts
 ```
-src/
-  api/         Supabase client, typed data-access functions, Nominatim place search, TomTom routing
-  components/  Shared UI components (top nav, place search input)
-  pages/       Route-level pages (Dashboard, TripDetail)
-  itinerary/   Timeline (DayLine/ItemStation), day selector, add/edit item modal, booking detail
-  maps/        TomTom trip map (pins, flight paths, mode-aware routes), day pager, travel mode picker, transit card, zoom control
-  calendar/    Month calendar view
-  hooks/       Auth session hook (silent anonymous sign-in)
-  types/       Shared TypeScript types
-  utils/       Category/type icons, day-line color palette, distance/travel-time estimates, item action labels, flag emoji
-supabase/
-  schema.sql   Postgres schema + RLS policies
+
+That serverless function extracts PDF text on Vercel when mobile Safari cannot run browser-side PDF parsing reliably.
+
+## Project Structure
+
+```text
+api/          Vercel serverless functions
+public/       Logo and brand assets
+src/api/      Supabase, place search, routing, votes, decisions
+src/components/
+src/hooks/
+src/itinerary/
+src/maps/
+src/pages/
+src/types/
+src/utils/
+supabase/     Schema and migrations
+```
+
+## Quality Checks
+
+```bash
+npm run build
+npm run lint
 ```

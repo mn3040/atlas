@@ -522,7 +522,7 @@ export default function TripDetail() {
           ref={sheetRef}
           onTouchStart={handleSheetTouchStart}
           onTouchEnd={handleSheetTouchEnd}
-          className={`itinerary-scroll absolute inset-x-0 bottom-0 z-20 flex min-h-0 w-full shrink-0 touch-pan-y flex-col overflow-y-auto overscroll-contain rounded-t-lg border border-border-strong bg-surface shadow-2xl transition-[height] duration-300 md:relative md:inset-auto md:z-auto md:h-auto md:w-[400px] md:flex-none md:overflow-hidden md:rounded-none md:border-y-0 md:border-l-0 md:border-r ${
+          className={`itinerary-scroll atlas-reveal absolute inset-x-0 bottom-0 z-20 flex min-h-0 w-full shrink-0 touch-pan-y flex-col overflow-y-auto overscroll-contain rounded-t-lg border border-border-strong bg-surface/95 shadow-2xl backdrop-blur-sm transition-[height,transform] duration-300 md:relative md:inset-auto md:z-auto md:h-auto md:w-[400px] md:flex-none md:overflow-hidden md:rounded-none md:border-y-0 md:border-l-0 md:border-r ${
             mobileSheetExpanded ? 'h-[86dvh]' : 'h-[48dvh]'
           }`}
         >
@@ -802,7 +802,7 @@ export default function TripDetail() {
           ) : null}
         </aside>
 
-        <main className="relative min-h-0 flex-1 bg-map-bg">
+        <main className="atlas-map-stage relative min-h-0 flex-1 overflow-hidden bg-map-bg">
           <TripMap
             ref={mapRef}
             days={days}

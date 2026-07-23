@@ -116,12 +116,13 @@ export function ItemStation({
           onClick={() => onSelect(item.id)}
           {...(dragEnabled ? attributes : {})}
           {...(dragEnabled ? listeners : {})}
-          className={`itinerary-card relative flex cursor-pointer touch-pan-y gap-3 rounded-xl border p-2.5 transition-colors ${
+          className={`itinerary-card atlas-cinematic-card relative flex cursor-pointer touch-pan-y gap-3 rounded-xl border p-2.5 transition-colors ${
             dragEnabled ? 'active:cursor-grabbing' : ''
           }`}
           style={{
             background: selected ? 'var(--color-surface-2)' : 'var(--color-surface)',
             borderColor: selected ? color : 'var(--color-border)',
+            boxShadow: selected ? `0 0 0 1px ${color}55, 0 18px 48px rgba(0, 0, 0, 0.28)` : undefined,
           }}
         >
           <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-[9px] bg-surface-3 text-xl">

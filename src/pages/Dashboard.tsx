@@ -115,13 +115,30 @@ export default function Dashboard() {
     <div className="atlas-dashboard flex h-screen flex-col bg-ink">
       <TopNav />
 
-      <div className="mx-auto w-full max-w-4xl flex-1 overflow-y-auto px-6 py-12">
-        <div className="flex items-baseline justify-between">
-          <div>
-            <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.24em] text-paper">Atlas archive</p>
-            <h1 className="text-4xl font-extrabold tracking-tight text-text">Your trips</h1>
+      <div className="mx-auto w-full max-w-5xl flex-1 overflow-y-auto px-4 py-8 sm:px-6 sm:py-12">
+        <div className="atlas-reveal relative mb-8 overflow-hidden rounded-lg border border-border-strong bg-surface/82 p-5 shadow-2xl sm:p-7">
+          <div className="absolute inset-y-0 right-0 hidden w-[44%] overflow-hidden sm:block">
+            <img src="/assets/atlas-orbit.svg" alt="" className="h-full w-full object-cover opacity-70" />
+            <div className="absolute inset-0 bg-gradient-to-r from-surface via-surface/45 to-transparent" />
           </div>
-          <div className="flex flex-wrap items-center justify-end gap-2">
+          <div className="relative z-[1] flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
+            <div className="max-w-xl">
+              <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.24em] text-paper">Atlas archive</p>
+              <h1 className="text-4xl font-extrabold tracking-tight text-text sm:text-5xl">Your trips</h1>
+              <p className="mt-3 text-sm leading-relaxed text-text-dim">
+                Build cinematic routes, import rough plans, vote with your group, and lock the day when the route finally feels right.
+              </p>
+            </div>
+            <img src="/assets/atlas-route-badge.svg" alt="" className="atlas-float hidden h-24 w-24 shrink-0 rounded-lg sm:block" />
+          </div>
+        </div>
+
+        <div className="atlas-reveal atlas-reveal-delay-1 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-green">Trip control</p>
+            <h2 className="mt-1 text-xl font-extrabold text-text">Planboard</h2>
+          </div>
+          <div className="flex flex-wrap items-center gap-2 sm:justify-end">
             <button
               onClick={() => setShowImport(true)}
               disabled={!session}
@@ -153,7 +170,7 @@ export default function Dashboard() {
           </p>
         )}
 
-        <div className="mt-8">
+        <div className="atlas-reveal atlas-reveal-delay-2 mt-8">
           {loading ? (
             <p className="py-6 text-sm text-text-dim">Loading…</p>
           ) : trips.length === 0 ? (
@@ -350,10 +367,10 @@ function TripSection({
       <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         {trips.map((trip, index) => (
           <li key={trip.id}>
-            <article className="group relative min-h-[164px] overflow-hidden rounded-xl border border-border bg-surface transition-colors hover:border-border-strong">
+            <article className="atlas-cinematic-card group relative min-h-[164px] overflow-hidden rounded-xl border border-border bg-surface transition-colors hover:border-border-strong">
               <Link to={`/trips/${trip.id}`} className="flex h-full flex-col p-4 pr-12">
                 <div className="mb-4 flex items-center gap-3">
-                  <span className="h-8 w-1 shrink-0" style={{ background: lineColorForIndex(index) }} />
+                  <span className="route-shimmer h-8 w-1 shrink-0" style={{ background: `linear-gradient(180deg, ${lineColorForIndex(index)}, var(--color-paper), ${lineColorForIndex(index)})` }} />
                   <span className="truncate text-lg font-extrabold text-text group-hover:text-paper">{trip.name}</span>
                 </div>
                 {trip.description && (

@@ -266,6 +266,7 @@ function addMarker(
   // real color instead of inverting along with the map tiles.
   wrapper.style.filter = 'invert(1) hue-rotate(180deg)'
   if (selected) wrapper.className = 'pulse-ring'
+  wrapper.classList.add('atlas-marker-pop')
 
   const el = document.createElement('div')
   el.style.position = 'relative'
@@ -276,6 +277,7 @@ function addMarker(
   el.style.background = color
   el.style.border = '2px solid #ffffff'
   el.style.boxShadow = '0 0 0 1px #111111'
+  el.style.transition = 'transform 180ms cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 180ms ease'
   el.style.display = 'flex'
   el.style.alignItems = 'center'
   el.style.justifyContent = 'center'
@@ -286,6 +288,14 @@ function addMarker(
   el.textContent = String(number)
   wrapper.appendChild(el)
   wrapper.addEventListener('click', onClick)
+  wrapper.addEventListener('mouseenter', () => {
+    el.style.transform = 'scale(1.12)'
+    el.style.boxShadow = `0 0 0 1px #111111, 0 0 22px ${color}88`
+  })
+  wrapper.addEventListener('mouseleave', () => {
+    el.style.transform = 'scale(1)'
+    el.style.boxShadow = '0 0 0 1px #111111'
+  })
 
   const marker = new tt.Marker({ element: wrapper }).setLngLat(lngLat).addTo(map)
   registry.push(marker)
@@ -342,6 +352,7 @@ function addAnimatedFlightMarker(
     ? '0 0 0 4px rgba(247, 255, 136, 0.18), 0 12px 28px rgba(0, 0, 0, 0.32)'
     : '0 8px 20px rgba(0, 0, 0, 0.28)'
   el.style.filter = 'invert(1) hue-rotate(180deg)'
+  el.className = 'atlas-flight-marker'
   const bearing = bearingDegrees(from, to)
   el.innerHTML = `
     <svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden="true" style="transform: rotate(${bearing}deg); transform-origin: center;">
