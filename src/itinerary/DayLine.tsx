@@ -5,7 +5,7 @@ import { SortableContext, verticalListSortingStrategy, arrayMove } from '@dnd-ki
 import { Plus } from 'lucide-react'
 import { ItemStation } from './ItemStation'
 import type { TravelMode } from '../utils/distance'
-import type { Day, Item } from '../types/trip'
+import type { Day, Item, ItemVoteSummary } from '../types/trip'
 
 // Module-level so the object identity is stable across renders -- useSensor
 // memoizes internally keyed on this reference, and a fresh object every
@@ -26,6 +26,8 @@ export function DayLine({
   getMapsUrl,
   getBookingUrl,
   mustSeeIds,
+  voteSummary,
+  groupVoting,
   onAddClick,
   travelMode,
   showCommutes,
@@ -43,6 +45,8 @@ export function DayLine({
   getMapsUrl: (item: Item) => string
   getBookingUrl: (item: Item) => string
   mustSeeIds: Set<string>
+  voteSummary?: Record<string, ItemVoteSummary>
+  groupVoting?: boolean
   onAddClick: (date: string) => void
   travelMode: TravelMode
   showCommutes: boolean
@@ -93,6 +97,8 @@ export function DayLine({
                     mapsUrl={getMapsUrl(item)}
                     bookingUrl={getBookingUrl(item)}
                     mustSee={mustSeeIds.has(item.id)}
+                    voteSummary={voteSummary?.[item.id]}
+                    groupVoting={groupVoting}
                   />
                 )
               })}

@@ -8,7 +8,7 @@ import { estimateTravel, routeAvailability, TRAVEL_MODES } from '../utils/distan
 import type { LatLng, TravelMode } from '../utils/distance'
 import { textColorForLine } from '../utils/lineColors'
 import { formatTime } from '../utils/time'
-import type { Item } from '../types/trip'
+import type { Item, ItemVoteSummary } from '../types/trip'
 
 const MODE_ICONS: Record<TravelMode, typeof Car> = {
   walk: PersonStanding,
@@ -35,6 +35,8 @@ export function ItemStation({
   mapsUrl,
   bookingUrl,
   mustSee,
+  voteSummary,
+  groupVoting,
 }: {
   item: Item
   nextItem?: Item
@@ -52,6 +54,8 @@ export function ItemStation({
   mapsUrl: string
   bookingUrl: string
   mustSee: boolean
+  voteSummary?: ItemVoteSummary
+  groupVoting?: boolean
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: item.id,
@@ -67,6 +71,8 @@ export function ItemStation({
   const ItemIcon = iconForItem(item.type, item.category)
   const commute = nextItem ? commuteBetween(item, nextItem, travelMode) : null
   const CommuteIcon = commute?.Icon
+  const voteCount = voteSummary?.voters.length ?? 0
+  const starActive = groupVoting ? Boolean(voteSummary?.viewerVoted) : mustSee
 
   return (
     <div
@@ -162,18 +168,18 @@ export function ItemStation({
               </button>
             )}
           </div>
-          <div className="absolute right-1.5 top-1.5 flex items-center gap-2 opacity-0 group-hover:opacity-100 focus-within:opacity-100">
+          <div className="absolute right-1.5 top-1.5 flex items-center gap-1.5 opacity-100 transition-opacity md:opacity-0 md:group-hover:opacity-100 md:focus-within:opacity-100">
             <button
               type="button"
               onClick={(e) => {
                 e.stopPropagation()
                 onToggleMustSee(item.id)
               }}
-              className="flex h-5 w-5 items-center justify-center rounded-full bg-ink/70 text-text-dim hover:text-paper"
-              aria-label={mustSee ? `Unstar ${item.name}` : `Star ${item.name} as must-see`}
-              title={mustSee ? 'Remove must-see' : 'Mark must-see'}
+              className="flex h-7 w-7 items-center justify-center rounded-full border border-border bg-ink/90 text-text-dim shadow-sm hover:border-paper hover:text-paper md:h-5 md:w-5 md:border-0 md:bg-ink/70"
+              aria-label={starActive ? `Unstar ${item.name}` : `Star ${item.name} as must-see`}
+              title={starActive ? 'Remove must-see' : 'Mark must-see'}
             >
-              <Star size={11} fill={mustSee ? 'var(--color-paper)' : 'none'} />
+              <Star size={11} fill={starActive ? 'var(--color-paper)' : 'none'} />
             </button>
             <button
               type="button"
@@ -181,7 +187,7 @@ export function ItemStation({
                 e.stopPropagation()
                 onEdit(item)
               }}
-              className="flex h-5 w-5 items-center justify-center rounded-full bg-ink/70 text-text-dim hover:text-text"
+              className="flex h-7 w-7 items-center justify-center rounded-full border border-border bg-ink/90 text-text-dim shadow-sm hover:border-text-dim hover:text-text md:h-5 md:w-5 md:border-0 md:bg-ink/70"
               aria-label={`Edit ${item.name}`}
             >
               <Pencil size={11} />
@@ -192,12 +198,31 @@ export function ItemStation({
                 e.stopPropagation()
                 onDelete(item.id)
               }}
-              className="flex h-5 w-5 items-center justify-center rounded-full bg-ink/70 text-text-dim hover:text-line-4"
+              className="flex h-7 w-7 items-center justify-center rounded-full border border-border bg-ink/90 text-text-dim shadow-sm hover:border-line-4 hover:text-line-4 md:h-5 md:w-5 md:border-0 md:bg-ink/70"
               aria-label={`Remove ${item.name}`}
             >
               <X size={12} />
             </button>
           </div>
+          {groupVoting && voteCount > 0 && (
+            <div className="absolute bottom-2 right-2 flex items-center gap-1">
+              <div className="flex -space-x-1.5">
+                {voteSummary!.voters.slice(0, 3).map((voter) => (
+                  <span
+                    key={voter.userId}
+                    className="flex h-5 w-5 items-center justify-center rounded-full border border-surface bg-green text-[8px] font-extrabold uppercase text-ink"
+                    style={{ background: voter.avatarColor }}
+                    title={voter.displayName}
+                  >
+                    {initials(voter.displayName)}
+                  </span>
+                ))}
+              </div>
+              <span className="rounded-full bg-ink/80 px-1.5 py-0.5 text-[9px] font-bold text-text-dim">
+                {voteCount}
+              </span>
+            </div>
+          )}
         </div>
         {commute && (
           <button
@@ -221,6 +246,16 @@ export function ItemStation({
       </div>
     </div>
   )
+}
+
+function initials(name: string): string {
+  return name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join('')
+    .toUpperCase()
 }
 
 function commuteBetween(from: Item, to: Item, mode: TravelMode) {

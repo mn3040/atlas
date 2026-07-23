@@ -1,6 +1,6 @@
 import { Star } from 'lucide-react'
 import type { DayOptionView } from '../utils/mustSee'
-import type { Item } from '../types/trip'
+import type { Item, ItemVoteSummary } from '../types/trip'
 
 const OPTIONS: Array<{ id: DayOptionView; label: string; description: string }> = [
   { id: 'all', label: 'All stops', description: 'Full day plan' },
@@ -11,16 +11,21 @@ const OPTIONS: Array<{ id: DayOptionView; label: string; description: string }> 
 export function DayOptionsPanel({
   items,
   mustSeeIds,
+  voteSummary,
+  groupVoting,
   view,
   onViewChange,
 }: {
   items: Item[]
   mustSeeIds: Set<string>
+  voteSummary?: Record<string, ItemVoteSummary>
+  groupVoting?: boolean
   view: DayOptionView
   onViewChange: (view: DayOptionView) => void
 }) {
   const mustSeeCount = items.filter((item) => mustSeeIds.has(item.id)).length
   const flexibleCount = items.length - mustSeeCount
+  const groupPickCount = items.filter((item) => (voteSummary?.[item.id]?.voters.length ?? 0) > 0).length
   const counts: Record<DayOptionView, number> = {
     all: items.length,
     'must-see': mustSeeCount,
@@ -32,7 +37,9 @@ export function DayOptionsPanel({
       <div className="mb-3 flex items-center justify-between gap-3">
         <div>
           <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-paper">Day options</p>
-          <p className="mt-1 text-[11px] leading-snug text-text-dim">Toggle branches for this day.</p>
+          <p className="mt-1 text-[11px] leading-snug text-text-dim">
+            {groupVoting ? `${groupPickCount} stops have group interest.` : 'Toggle branches for this day.'}
+          </p>
         </div>
         <div className="flex h-8 w-8 items-center justify-center rounded-md bg-surface-3 text-paper">
           <Star size={15} />

@@ -3,6 +3,7 @@
 -- production data depends on the old tables yet.
 
 drop table if exists items cascade;
+drop table if exists item_votes cascade;
 drop table if exists stops cascade;
 drop table if exists days cascade;
 drop table if exists trip_members cascade;
@@ -105,6 +106,17 @@ create table items (
   position integer not null default 0
 );
 
+create table item_votes (
+  trip_id uuid not null references trips(id) on delete cascade,
+  item_id uuid not null references items(id) on delete cascade,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  vote text not null default 'must_see' check (vote in ('must_see')),
+  created_at timestamptz not null default now(),
+  primary key (item_id, user_id)
+);
+
+create index item_votes_trip_id_idx on item_votes (trip_id);
+
 -- Helper functions used by RLS policies below.
 --
 -- These run as SECURITY DEFINER so their internal queries against
@@ -143,6 +155,7 @@ alter table trip_members enable row level security;
 alter table profiles enable row level security;
 alter table days enable row level security;
 alter table items enable row level security;
+alter table item_votes enable row level security;
 
 create policy "members can view their trips"
   on trips for select
@@ -168,6 +181,19 @@ create policy "users can view their own profile"
   on profiles for select
   using (user_id = auth.uid());
 
+create policy "members can view profiles for shared trips"
+  on profiles for select
+  using (
+    user_id = auth.uid()
+    or exists (
+      select 1
+      from trip_members viewer
+      join trip_members subject on subject.trip_id = viewer.trip_id
+      where viewer.user_id = auth.uid()
+        and subject.user_id = profiles.user_id
+    )
+  );
+
 create policy "users can create their own profile"
   on profiles for insert
   with check (user_id = auth.uid());
@@ -192,6 +218,39 @@ create policy "members can view items"
 create policy "editors and owners can modify items"
   on items for all
   using (trip_role(trip_id) in ('owner', 'editor'));
+
+create policy "members can view item votes"
+  on item_votes for select
+  using (is_trip_member(trip_id));
+
+create policy "members can create their own item votes"
+  on item_votes for insert
+  with check (
+    user_id = auth.uid()
+    and is_trip_member(trip_id)
+    and exists (
+      select 1 from items
+      where items.id = item_votes.item_id
+        and items.trip_id = item_votes.trip_id
+    )
+  );
+
+create policy "members can update their own item votes"
+  on item_votes for update
+  using (user_id = auth.uid() and is_trip_member(trip_id))
+  with check (
+    user_id = auth.uid()
+    and is_trip_member(trip_id)
+    and exists (
+      select 1 from items
+      where items.id = item_votes.item_id
+        and items.trip_id = item_votes.trip_id
+    )
+  );
+
+create policy "members can delete their own item votes"
+  on item_votes for delete
+  using (user_id = auth.uid() and is_trip_member(trip_id));
 
 -- Automatically add the creator as an 'owner' member when a trip is created.
 

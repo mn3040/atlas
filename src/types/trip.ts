@@ -30,6 +30,18 @@ export interface TripMember {
   role: 'owner' | 'editor' | 'viewer'
 }
 
+export interface VoteProfile {
+  userId: string
+  displayName: string
+  avatarColor: string
+}
+
+export interface ItemVoteSummary {
+  itemId: string
+  voters: VoteProfile[]
+  viewerVoted: boolean
+}
+
 export interface Profile {
   userId: string
   displayName: string

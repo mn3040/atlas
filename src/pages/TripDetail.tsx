@@ -26,7 +26,10 @@ import {
   deleteTrip,
   deleteItem,
 } from '../api/trips'
+import { fetchItemVoteSummary, setItemMustSeeVote } from '../api/votes'
 import { TopNav } from '../components/TopNav'
+import { useSession } from '../hooks/useSession'
+import { useProfile } from '../hooks/useProfile'
 import { CountryFlags } from '../components/CountryFlag'
 import { DaySelect } from '../itinerary/DaySelect'
 import { DayLine } from '../itinerary/DayLine'
@@ -52,15 +55,43 @@ import { countryCodesForTrip } from '../utils/flags'
 import type { TravelMode } from '../utils/distance'
 import type { AppSettings } from '../utils/settings'
 import type { DayOptionView } from '../utils/mustSee'
-import type { Trip, Day, Item, TripVisibility } from '../types/trip'
+import type { Trip, Day, Item, TripVisibility, ItemVoteSummary, Profile } from '../types/trip'
 
 function formatShortDate(date: string): string {
   return new Date(`${date}T00:00:00`).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
 }
 
+function updateOptimisticVote(
+  current: Record<string, ItemVoteSummary>,
+  itemId: string,
+  active: boolean,
+  userId: string,
+  profile: Profile | null,
+): Record<string, ItemVoteSummary> {
+  const summary = current[itemId] ?? { itemId, voters: [], viewerVoted: false }
+  const voters = summary.voters.filter((voter) => voter.userId !== userId)
+  if (active) {
+    voters.push({
+      userId,
+      displayName: profile?.displayName ?? 'You',
+      avatarColor: profile?.avatarColor ?? '#22dd85',
+    })
+  }
+  return {
+    ...current,
+    [itemId]: {
+      itemId,
+      voters,
+      viewerVoted: active,
+    },
+  }
+}
+
 export default function TripDetail() {
   const { tripId } = useParams<{ tripId: string }>()
   const navigate = useNavigate()
+  const { session } = useSession()
+  const { profile } = useProfile(session)
   const [trip, setTrip] = useState<Trip | null>(null)
   const [days, setDays] = useState<Day[]>([])
   const [items, setItems] = useState<Item[]>([])
@@ -76,6 +107,8 @@ export default function TripDetail() {
   const [showEditTrip, setShowEditTrip] = useState(false)
   const [dayOptionView, setDayOptionView] = useState<DayOptionView>('all')
   const [mustSeeIds, setMustSeeIds] = useState<Set<string>>(() => new Set())
+  const [voteSummary, setVoteSummary] = useState<Record<string, ItemVoteSummary>>({})
+  const [voteError, setVoteError] = useState<string | null>(null)
   const [screen, setScreen] = useState<'itinerary' | 'booking' | 'flight'>('itinerary')
   const [bookingItemId, setBookingItemId] = useState<string | null>(null)
   const [flightItemId, setFlightItemId] = useState<string | null>(null)
@@ -112,6 +145,27 @@ export default function TripDetail() {
   }, [tripId])
 
   useEffect(() => {
+    if (!tripId || !session?.user.id || trip?.visibility !== 'group') {
+      setVoteSummary({})
+      return
+    }
+
+    let cancelled = false
+    setVoteError(null)
+    fetchItemVoteSummary(tripId, session.user.id)
+      .then((summary) => {
+        if (!cancelled) setVoteSummary(summary)
+      })
+      .catch((err) => {
+        if (!cancelled) setVoteError(err instanceof Error ? err.message : 'Could not load group votes.')
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [tripId, session?.user.id, trip?.visibility])
+
+  useEffect(() => {
     function handleSettings(event: Event) {
       const settings = (event as CustomEvent<AppSettings>).detail
       setTravelMode(settings.defaultTravelMode)
@@ -123,6 +177,7 @@ export default function TripDetail() {
   const activeDayIndex = days.findIndex((d) => d.id === activeDayId)
   const activeColor = activeDayIndex >= 0 ? lineColorForIndex(activeDayIndex) : lineColorForIndex(0)
   const activeDay = days.find((d) => d.id === activeDayId) ?? null
+  const groupVoting = trip?.visibility === 'group'
 
   // Stays get their own "Where you're staying" section, separate from the
   // day-by-day activity/flight timeline, since a stay spans multiple days
@@ -134,7 +189,10 @@ export default function TripDetail() {
   const activeItems = items
     .filter((item) => item.dayId === activeDayId && item.type !== 'stay')
     .sort((a, b) => a.position - b.position)
-  const displayedActiveItems = filterItemsForView(activeItems, mustSeeIds, dayOptionView)
+  const currentMustSeeIds = groupVoting
+    ? new Set(Object.values(voteSummary).filter((summary) => summary.viewerVoted).map((summary) => summary.itemId))
+    : mustSeeIds
+  const displayedActiveItems = filterItemsForView(activeItems, currentMustSeeIds, dayOptionView)
   const displayedActiveIds = new Set(displayedActiveItems.map((item) => item.id))
   const mapItems =
     dayOptionView === 'all'
@@ -146,7 +204,7 @@ export default function TripDetail() {
       setSelectedItemId(displayedActiveItems[0]?.id ?? null)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeDayId, items, dayOptionView, mustSeeIds])
+  }, [activeDayId, items, dayOptionView, mustSeeIds, voteSummary])
 
   // Auto-tour: step through the day's stops on a timer, reusing the same
   // selection -> flyTo/highlight path a manual click already triggers. The
@@ -210,7 +268,27 @@ export default function TripDetail() {
     await deleteItem(id)
   }
 
-  function handleToggleMustSee(id: string) {
+  async function handleToggleMustSee(id: string) {
+    if (groupVoting) {
+      if (!trip || !session?.user.id) return
+      const nextActive = !voteSummary[id]?.viewerVoted
+      setVoteError(null)
+      setVoteSummary((current) => updateOptimisticVote(current, id, nextActive, session.user.id, profile))
+      try {
+        await setItemMustSeeVote({
+          tripId: trip.id,
+          itemId: id,
+          userId: session.user.id,
+          active: nextActive,
+        })
+        setVoteSummary(await fetchItemVoteSummary(trip.id, session.user.id))
+      } catch (err) {
+        setVoteError(err instanceof Error ? err.message : 'Could not save this vote.')
+        setVoteSummary(await fetchItemVoteSummary(trip.id, session.user.id).catch(() => ({})))
+      }
+      return
+    }
+
     if (!tripId) return
     setMustSeeIds((current) => {
       const next = new Set(current)
@@ -361,7 +439,7 @@ export default function TripDetail() {
                       <Plus size={15} />
                     </button>
                     <button
-                      onClick={() => downloadItinerary(trip, days, items, mustSeeIds)}
+                      onClick={() => downloadItinerary(trip, days, items, currentMustSeeIds)}
                       aria-label="Export itinerary"
                       title="Export itinerary"
                       className="hover:text-text"
@@ -518,10 +596,17 @@ export default function TripDetail() {
                   {activeItems.length > 0 && (
                     <DayOptionsPanel
                       items={activeItems}
-                      mustSeeIds={mustSeeIds}
+                      mustSeeIds={currentMustSeeIds}
+                      voteSummary={voteSummary}
+                      groupVoting={groupVoting}
                       view={dayOptionView}
                       onViewChange={setDayOptionView}
                     />
+                  )}
+                  {voteError && (
+                    <p className="mb-3 rounded-md border border-line-4/40 bg-line-4/10 px-3 py-2 text-xs font-semibold text-line-4">
+                      {voteError}
+                    </p>
                   )}
                   {activeDay ? (
                     <DayLine
@@ -540,7 +625,9 @@ export default function TripDetail() {
                       onToggleMustSee={handleToggleMustSee}
                       getMapsUrl={mapsUrlForItem}
                       getBookingUrl={bookingUrlForItem}
-                      mustSeeIds={mustSeeIds}
+                      mustSeeIds={currentMustSeeIds}
+                      voteSummary={voteSummary}
+                      groupVoting={groupVoting}
                       onAddClick={setAddModalDate}
                       travelMode={travelMode}
                       showCommutes={showRouteTools}
