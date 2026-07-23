@@ -79,13 +79,15 @@ export function ImportItineraryModal({
       const createdItems: Item[] = []
       const mustSeeCreatedIds: string[] = []
       const schedules = new Map<string, DayImportSchedule>()
+      const warnings: string[] = []
 
       for (const [index, suggestion] of selected.entries()) {
         const dayId = await ensureDayFor(suggestion.startDate, trip.id, knownDays, onDayCreated)
-        const primary = await resolveLocation(suggestion.locationLabel || suggestion.name)
+        setStatus(`Importing ${index + 1} of ${selected.length}: ${suggestion.name}`)
+        const primary = await resolveLocation(suggestion.locationLabel || suggestion.name, trip, warnings)
         const secondary =
           suggestion.type === 'flight' && suggestion.location2Label
-            ? await resolveLocation(suggestion.location2Label)
+            ? await resolveLocation(suggestion.location2Label, trip, warnings)
             : null
         const scheduled = scheduleSuggestion(schedules, suggestion, primary)
 
@@ -122,9 +124,12 @@ export function ImportItineraryModal({
 
       onItemsCreated(createdItems)
       onMustSeeCreated(mustSeeCreatedIds)
+      if (warnings.length > 0) {
+        console.warn('Atlas import completed with unresolved locations', warnings)
+      }
       onClose()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Import failed.')
+      setError(importErrorMessage(err))
     } finally {
       setBusy(false)
       setStatus('')
@@ -402,10 +407,53 @@ function timeFromMinutes(value: number): string {
   return `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`
 }
 
-async function resolveLocation(query: string): Promise<ResolvedLocation> {
+async function resolveLocation(query: string, trip: Trip, warnings: string[]): Promise<ResolvedLocation> {
   const fallback = query.trim() || 'Location'
-  const results = await searchPlaces(fallback)
-  const match = results[0]
-  if (match) return { label: match.label, lat: match.lat, lng: match.lng, countryCode: match.countryCode }
-  return { label: fallback, lat: 0, lng: 0, countryCode: null }
+  try {
+    const results = await searchPlaces(fallback)
+    const match = results[0]
+    if (match) return { label: match.label, lat: match.lat, lng: match.lng, countryCode: match.countryCode }
+  } catch (error) {
+    if ((error as Error).name === 'AbortError') throw error
+    warnings.push(fallback)
+  }
+
+  const countryFallback = fallbackLocationFor(fallback, trip.countryCode)
+  warnings.push(fallback)
+  return { label: fallback, ...countryFallback }
+}
+
+function fallbackLocationFor(query: string, countryCode: string | null): Pick<ResolvedLocation, 'lat' | 'lng' | 'countryCode'> {
+  const normalizedQuery = query.toLowerCase()
+  const inferredCode =
+    countryCodeFromText(normalizedQuery) ?? (countryCode && countryCode.length === 2 ? countryCode.toUpperCase() : null)
+  const center = inferredCode ? COUNTRY_CENTERS[inferredCode] : null
+  return center ? { lat: center.lat, lng: center.lng, countryCode: inferredCode } : { lat: 0, lng: 0, countryCode: null }
+}
+
+function countryCodeFromText(text: string): string | null {
+  if (/\bkyrgyz|bishkek|osh|karakol|issyk|naryn|song kol|kel suu|ala-kul|altyn arashan\b/.test(text)) return 'KG'
+  if (/\bkazakh|astana|almaty\b/.test(text)) return 'KZ'
+  if (/\bturkey|istanbul|ankara|cappadocia\b/.test(text)) return 'TR'
+  if (/\btajik|dushanbe|karakul|ak baital\b/.test(text)) return 'TJ'
+  return null
+}
+
+const COUNTRY_CENTERS: Record<string, { lat: number; lng: number }> = {
+  KG: { lat: 41.2044, lng: 74.7661 },
+  KZ: { lat: 48.0196, lng: 66.9237 },
+  TR: { lat: 38.9637, lng: 35.2433 },
+  TJ: { lat: 38.861, lng: 71.2761 },
+  US: { lat: 39.8283, lng: -98.5795 },
+}
+
+function importErrorMessage(error: unknown): string {
+  const message = error instanceof Error ? error.message : 'Import failed.'
+  if (/failed to fetch/i.test(message)) {
+    return 'Import could not reach one of its services. Check the Vercel environment variables for Supabase and TomTom, then try again.'
+  }
+  if (/country_code/i.test(message)) {
+    return 'Your Supabase database is missing the items.country_code column. Run the latest migration, then retry the import.'
+  }
+  return message
 }

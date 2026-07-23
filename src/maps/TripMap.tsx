@@ -40,6 +40,7 @@ export const TripMap = forwardRef<
   const prevDaySignatureRef = useRef(daySignature(items, activeDayId))
   const travelModeRef = useRef(travelMode)
   const routeRequestRef = useRef(0)
+  const flightAnimationFramesRef = useRef<number[]>([])
   travelModeRef.current = travelMode
 
   // render() below is created once (mount-only effect) but must always see the
@@ -59,6 +60,7 @@ export const TripMap = forwardRef<
   useEffect(() => {
     if (!TOMTOM_API_KEY || !containerRef.current) return
 
+    const flightAnimationFrames = flightAnimationFramesRef.current
     const map = tt.map({
       key: TOMTOM_API_KEY,
       container: containerRef.current,
@@ -91,6 +93,7 @@ export const TripMap = forwardRef<
     function render(fit: boolean) {
       if (!readyRef.current) return
       const { days, items, activeDayId, selectedItemId, onSelectItem } = latestRef.current
+      clearFlightAnimations(flightAnimationFrames)
       markersRef.current.forEach((m) => m.remove())
       markersRef.current = []
 
@@ -125,6 +128,16 @@ export const TripMap = forwardRef<
             geometry: { type: 'LineString', coordinates: [entry, exit] },
           })
           addMutedMarker(map, markersRef.current, exit)
+          addAnimatedFlightMarker(
+            map,
+            markersRef.current,
+            flightAnimationFrames,
+            entry,
+            exit,
+            color,
+            item.id === selectedItemId,
+            () => onSelectItem(item.id),
+          )
           bounds.extend(exit)
         }
       })
@@ -164,6 +177,7 @@ export const TripMap = forwardRef<
     ;(map as unknown as { __render?: (fit: boolean) => void }).__render = render
 
     return () => {
+      clearFlightAnimations(flightAnimationFrames)
       markersRef.current.forEach((m) => m.remove())
       markersRef.current = []
       map.remove()
@@ -279,4 +293,101 @@ function addMutedMarker(map: tt.Map, registry: tt.Marker[], lngLat: [number, num
 
   const marker = new tt.Marker({ element: el }).setLngLat(lngLat).addTo(map)
   registry.push(marker)
+}
+
+function addAnimatedFlightMarker(
+  map: tt.Map,
+  registry: tt.Marker[],
+  animationFrames: number[],
+  from: [number, number],
+  to: [number, number],
+  color: string,
+  selected: boolean,
+  onClick: () => void,
+) {
+  const el = document.createElement('button')
+  el.type = 'button'
+  el.setAttribute('aria-label', 'Select flight')
+  el.style.width = selected ? '34px' : '28px'
+  el.style.height = selected ? '34px' : '28px'
+  el.style.border = selected ? '2px solid #f7ff88' : '1px solid rgba(255, 255, 255, 0.85)'
+  el.style.borderRadius = '999px'
+  el.style.background = '#070606'
+  el.style.color = color
+  el.style.display = 'flex'
+  el.style.alignItems = 'center'
+  el.style.justifyContent = 'center'
+  el.style.padding = '0'
+  el.style.cursor = 'pointer'
+  el.style.boxShadow = selected
+    ? '0 0 0 4px rgba(247, 255, 136, 0.18), 0 12px 28px rgba(0, 0, 0, 0.32)'
+    : '0 8px 20px rgba(0, 0, 0, 0.28)'
+  el.style.filter = 'invert(1) hue-rotate(180deg)'
+  const bearing = bearingDegrees(from, to)
+  el.innerHTML = `
+    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden="true" style="transform: rotate(${bearing}deg); transform-origin: center;">
+      <path d="M21 16v-2l-8-5V3.5c0-.83-.67-1.5-1.5-1.5S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5Z" fill="currentColor"/>
+    </svg>
+  `
+  el.addEventListener('click', onClick)
+
+  const marker = new tt.Marker({ element: el }).setLngLat(from).addTo(map)
+  registry.push(marker)
+
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    marker.setLngLat(interpolateLngLat(from, to, 0.55))
+    return
+  }
+
+  const distance = haversineKm(from, to)
+  const duration = Math.min(11000, Math.max(4200, distance * 12))
+  const startedAt = performance.now()
+  const frameSlot = animationFrames.length
+  animationFrames.push(0)
+
+  const tick = (time: number) => {
+    const rawProgress = ((time - startedAt) % duration) / duration
+    const easedProgress = rawProgress < 0.5 ? 2 * rawProgress * rawProgress : 1 - (-2 * rawProgress + 2) ** 2 / 2
+    marker.setLngLat(interpolateLngLat(from, to, easedProgress))
+    animationFrames[frameSlot] = requestAnimationFrame(tick)
+  }
+
+  animationFrames[frameSlot] = requestAnimationFrame(tick)
+}
+
+function clearFlightAnimations(animationFrames: number[]) {
+  animationFrames.forEach((frame) => cancelAnimationFrame(frame))
+  animationFrames.length = 0
+}
+
+function interpolateLngLat(from: [number, number], to: [number, number], progress: number): [number, number] {
+  return [from[0] + (to[0] - from[0]) * progress, from[1] + (to[1] - from[1]) * progress]
+}
+
+function bearingDegrees(from: [number, number], to: [number, number]): number {
+  const fromLat = toRadians(from[1])
+  const toLat = toRadians(to[1])
+  const lngDelta = toRadians(to[0] - from[0])
+  const y = Math.sin(lngDelta) * Math.cos(toLat)
+  const x = Math.cos(fromLat) * Math.sin(toLat) - Math.sin(fromLat) * Math.cos(toLat) * Math.cos(lngDelta)
+  return (toDegrees(Math.atan2(y, x)) + 360) % 360
+}
+
+function haversineKm(from: [number, number], to: [number, number]): number {
+  const radiusKm = 6371
+  const latDelta = toRadians(to[1] - from[1])
+  const lngDelta = toRadians(to[0] - from[0])
+  const fromLat = toRadians(from[1])
+  const toLat = toRadians(to[1])
+  const a =
+    Math.sin(latDelta / 2) ** 2 + Math.cos(fromLat) * Math.cos(toLat) * Math.sin(lngDelta / 2) ** 2
+  return radiusKm * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+}
+
+function toRadians(value: number): number {
+  return (value * Math.PI) / 180
+}
+
+function toDegrees(value: number): number {
+  return (value * 180) / Math.PI
 }
