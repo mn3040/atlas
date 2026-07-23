@@ -1,5 +1,19 @@
-import { useState } from 'react'
-import { Plane, BedDouble, MapPin } from 'lucide-react'
+import { useState, type FormEvent, type ReactNode } from 'react'
+import {
+  ArrowRight,
+  BedDouble,
+  CalendarDays,
+  Clock3,
+  DollarSign,
+  Hash,
+  Image,
+  MapPin,
+  Plane,
+  Star,
+  Tag,
+  Users,
+  X,
+} from 'lucide-react'
 import { PlaceSearchInput } from '../components/PlaceSearchInput'
 import { googleMapsSearchUrl } from '../api/geocoding'
 import type { PlaceResult } from '../api/geocoding'
@@ -7,23 +21,18 @@ import { createDay, createItem, updateItem } from '../api/trips'
 import type { NewItemInput } from '../api/trips'
 import type { Day, Item, ItemType, ActivityCategory, Trip } from '../types/trip'
 
-const CATEGORY_OPTIONS: ActivityCategory[] = [
-  'attraction',
-  'food',
-  'transport',
-  'shopping',
-  'nature',
-  'other',
-]
+const CATEGORY_OPTIONS: ActivityCategory[] = ['attraction', 'food', 'transport', 'shopping', 'nature', 'other']
 
-const TYPE_TABS: { type: ItemType; label: string; icon: typeof MapPin }[] = [
-  { type: 'activity', label: 'Activity', icon: MapPin },
-  { type: 'flight', label: 'Flight', icon: Plane },
-  { type: 'stay', label: 'Stay', icon: BedDouble },
+const TYPE_TABS: { type: ItemType; label: string; description: string; icon: typeof MapPin }[] = [
+  { type: 'activity', label: 'Activity', description: 'Places, food, hikes, tours', icon: MapPin },
+  { type: 'flight', label: 'Flight', description: 'Departure and arrival', icon: Plane },
+  { type: 'stay', label: 'Stay', description: 'Hotels, yurts, rentals', icon: BedDouble },
 ]
 
 const inputClass =
-  'w-full rounded-md border border-border bg-ink px-3 py-2 text-sm text-text placeholder:text-text-dim focus:border-paper focus:outline-none'
+  'h-11 w-full rounded-md border border-border bg-ink/85 px-3 text-sm font-semibold text-text placeholder:text-text-dim transition-colors focus:border-green focus:bg-ink focus:outline-none'
+const placeInputClass =
+  'h-11 border-border bg-ink/85 font-semibold transition-colors focus:border-green focus:bg-ink'
 
 function placeFromItem(label: string | null, lat: number, lng: number): PlaceResult {
   const fallback = `${lat},${lng}`
@@ -86,6 +95,8 @@ export function AddItemModal({
   const [error, setError] = useState('')
 
   const isEdit = Boolean(editItem)
+  const selectedType = TYPE_TABS.find((tab) => tab.type === type) ?? TYPE_TABS[0]
+  const SelectedIcon = selectedType.icon
 
   function selectPrimaryPlace(p: PlaceResult) {
     setPlace(p)
@@ -100,7 +111,7 @@ export function AddItemModal({
     return day.id
   }
 
-  async function handleSubmit(event: React.FormEvent) {
+  async function handleSubmit(event: FormEvent) {
     event.preventDefault()
     setError('')
 
@@ -113,7 +124,7 @@ export function AddItemModal({
       return
     }
     if (type === 'stay' && !place) {
-      setError('Search for the place you’re staying and pick one from the list.')
+      setError("Search for the place you're staying and pick one from the list.")
       return
     }
 
@@ -124,8 +135,6 @@ export function AddItemModal({
       }
 
       if (isEdit && editItem) {
-        // Stays are anchored to their check-in day so they actually show up
-        // in the itinerary -- re-derive it in case startDate changed.
         const dayId = await ensureDayFor(startDate)
         const updated = await updateItem(editItem.id, {
           dayId,
@@ -161,8 +170,6 @@ export function AddItemModal({
         return
       }
 
-      // Stays are anchored to their check-in day so they actually show up
-      // in the itinerary, same as activities and flights.
       const dayId = await ensureDayFor(startDate)
 
       const input: NewItemInput = {
@@ -210,143 +217,101 @@ export function AddItemModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/60 px-3 py-4 sm:px-4 sm:py-10">
-      <div className="max-h-[calc(100dvh-2rem)] w-full max-w-lg overflow-y-auto rounded-lg border border-border bg-surface p-4 sm:p-6">
-        {isEdit ? (
-          <div className="flex items-center gap-2 text-sm font-semibold text-text">
-            {(() => {
-              const Icon = TYPE_TABS.find((t) => t.type === type)?.icon ?? MapPin
-              return <Icon size={16} />
-            })()}
-            Edit {type}
+    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/70 px-3 py-4 backdrop-blur-sm sm:px-4 sm:py-8">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={`${isEdit ? 'Edit' : 'Add'} ${selectedType.label}`}
+        className="max-h-[calc(100dvh-2rem)] w-full max-w-2xl overflow-y-auto rounded-lg border border-border-strong bg-surface shadow-2xl"
+      >
+        <div className="border-b border-border bg-[linear-gradient(135deg,rgba(34,221,133,0.14),rgba(247,255,136,0.08)_42%,rgba(7,6,6,0)_72%)] px-4 py-4 sm:px-5">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex min-w-0 items-center gap-3">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md bg-paper text-ink">
+                <SelectedIcon size={20} />
+              </div>
+              <div className="min-w-0">
+                <p className="text-[10px] font-extrabold uppercase tracking-[0.24em] text-green">
+                  {isEdit ? 'Edit itinerary stop' : 'Add itinerary stop'}
+                </p>
+                <h2 className="mt-1 truncate text-xl font-extrabold leading-tight text-text">{selectedType.label}</h2>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Close"
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-border bg-ink/70 text-text-dim hover:border-paper hover:text-paper"
+            >
+              <X size={16} />
+            </button>
           </div>
-        ) : (
-          <div className="grid grid-cols-3 gap-1 rounded-md bg-ink p-1">
-            {TYPE_TABS.map(({ type: t, label, icon: Icon }) => (
-              <button
-                key={t}
-                type="button"
-                onClick={() => setType(t)}
-                className={`flex flex-1 items-center justify-center gap-1.5 rounded px-3 py-2 text-sm font-medium transition-colors ${
-                  type === t ? 'bg-paper text-ink' : 'text-text-dim hover:text-text'
-                }`}
-              >
-                <Icon size={15} />
-                {label}
-              </button>
-            ))}
-          </div>
-        )}
 
-        <form onSubmit={handleSubmit} className="mt-5 space-y-3">
+          {!isEdit && (
+            <div className="mt-4 grid gap-2 sm:grid-cols-3">
+              {TYPE_TABS.map(({ type: t, label, description, icon: Icon }) => (
+                <button
+                  key={t}
+                  type="button"
+                  onClick={() => setType(t)}
+                  className={`group flex min-h-[68px] items-center gap-3 rounded-md border px-3 py-3 text-left transition-colors ${
+                    type === t
+                      ? 'border-paper bg-paper text-ink'
+                      : 'border-border bg-ink/60 text-text-dim hover:border-border-strong hover:bg-surface-3 hover:text-text'
+                  }`}
+                >
+                  <span
+                    className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-md ${
+                      type === t ? 'bg-ink text-paper' : 'bg-surface text-text-dim group-hover:text-text'
+                    }`}
+                  >
+                    <Icon size={16} />
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block text-sm font-extrabold">{label}</span>
+                    <span className="mt-0.5 block text-[10px] leading-tight opacity-70">{description}</span>
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-4 px-4 py-4 sm:px-5">
           {type === 'activity' && (
             <>
-              <PlaceSearchInput
-                placeholder="Search for a place… (pick a new one to swap it)"
-                defaultValue={editItem?.locationLabel ?? ''}
-                onSelect={selectPrimaryPlace}
-              />
-              <input
-                required
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Name"
-                className={inputClass}
-              />
-              <div className="grid gap-2 sm:grid-cols-3">
-                <select
-                  value={category}
-                  onChange={(e) => setCategory(e.target.value as ActivityCategory)}
-                  className={inputClass}
-                >
-                  {CATEGORY_OPTIONS.map((c) => (
-                    <option key={c} value={c}>
-                      {c}
-                    </option>
-                  ))}
-                </select>
+              <Field label="Location" icon={MapPin}>
+                <PlaceSearchInput
+                  placeholder="Search for a place"
+                  defaultValue={editItem?.locationLabel ?? ''}
+                  onSelect={selectPrimaryPlace}
+                  className={placeInputClass}
+                />
+              </Field>
+              <Field label="Display name" icon={Tag}>
                 <input
-                  type="date"
                   required
-                  min={trip.startDate}
-                  max={trip.endDate}
-                  value={startDate}
-                  onChange={(e) => setStartDate(e.target.value)}
-                  className={`flex-1 ${inputClass}`}
-                />
-                <input
-                  type="time"
-                  value={startTime}
-                  onChange={(e) => setStartTime(e.target.value)}
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Name"
                   className={inputClass}
                 />
-              </div>
-            </>
-          )}
-
-          {type === 'flight' && (
-            <>
-              <input
-                value={flightNumber}
-                onChange={(e) => setFlightNumber(e.target.value)}
-                placeholder="Airline + flight number (e.g. JAL 61)"
-                className={inputClass}
-              />
-              <PlaceSearchInput
-                placeholder="From (departure airport)…"
-                defaultValue={editItem?.locationLabel ?? ''}
-                onSelect={selectPrimaryPlace}
-              />
-              <PlaceSearchInput
-                placeholder="To (arrival airport)…"
-                defaultValue={editItem?.location2Label ?? ''}
-                onSelect={setPlace2}
-              />
+              </Field>
               <div className="grid gap-2 sm:grid-cols-3">
-                <input
-                  type="date"
-                  required
-                  min={trip.startDate}
-                  max={trip.endDate}
-                  value={startDate}
-                  onChange={(e) => setStartDate(e.target.value)}
-                  className={`flex-1 ${inputClass}`}
-                />
-                <input
-                  type="time"
-                  value={startTime}
-                  onChange={(e) => setStartTime(e.target.value)}
-                  placeholder="Departs"
-                  className={inputClass}
-                />
-                <input
-                  type="time"
-                  value={endTime}
-                  onChange={(e) => setEndTime(e.target.value)}
-                  placeholder="Arrives"
-                  className={inputClass}
-                />
-              </div>
-            </>
-          )}
-
-          {type === 'stay' && (
-            <>
-              <PlaceSearchInput
-                placeholder="Search for a hotel or address… (pick a new one to swap it)"
-                defaultValue={editItem?.locationLabel ?? ''}
-                onSelect={selectPrimaryPlace}
-              />
-              <input
-                required
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Name"
-                className={inputClass}
-              />
-              <div className="grid gap-2 sm:grid-cols-2">
-                <div className="flex-1">
-                  <label className="block font-mono text-xs uppercase tracking-wide text-text-dim">Check in</label>
+                <Field label="Category" icon={MapPin}>
+                  <select
+                    value={category}
+                    onChange={(e) => setCategory(e.target.value as ActivityCategory)}
+                    className={inputClass}
+                  >
+                    {CATEGORY_OPTIONS.map((c) => (
+                      <option key={c} value={c}>
+                        {c}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+                <Field label="Date" icon={CalendarDays}>
                   <input
                     type="date"
                     required
@@ -354,11 +319,118 @@ export function AddItemModal({
                     max={trip.endDate}
                     value={startDate}
                     onChange={(e) => setStartDate(e.target.value)}
-                    className={`mt-1 ${inputClass}`}
+                    className={inputClass}
                   />
+                </Field>
+                <Field label="Time" icon={Clock3}>
+                  <input
+                    type="time"
+                    value={startTime}
+                    onChange={(e) => setStartTime(e.target.value)}
+                    className={inputClass}
+                  />
+                </Field>
+              </div>
+            </>
+          )}
+
+          {type === 'flight' && (
+            <>
+              <Field label="Flight" icon={Plane}>
+                <input
+                  value={flightNumber}
+                  onChange={(e) => setFlightNumber(e.target.value)}
+                  placeholder="Airline + flight number"
+                  className={inputClass}
+                />
+              </Field>
+              <div className="grid gap-2 sm:grid-cols-[1fr_auto_1fr]">
+                <Field label="From" icon={MapPin}>
+                  <PlaceSearchInput
+                    placeholder="Departure airport"
+                    defaultValue={editItem?.locationLabel ?? ''}
+                    onSelect={selectPrimaryPlace}
+                    className={placeInputClass}
+                  />
+                </Field>
+                <div className="hidden items-end pb-0 sm:flex">
+                  <div className="flex h-11 w-11 items-center justify-center rounded-md border border-border bg-ink text-text-dim">
+                    <ArrowRight size={16} />
+                  </div>
                 </div>
-                <div className="flex-1">
-                  <label className="block font-mono text-xs uppercase tracking-wide text-text-dim">Check out</label>
+                <Field label="To" icon={MapPin}>
+                  <PlaceSearchInput
+                    placeholder="Arrival airport"
+                    defaultValue={editItem?.location2Label ?? ''}
+                    onSelect={setPlace2}
+                    className={placeInputClass}
+                  />
+                </Field>
+              </div>
+              <div className="grid gap-2 sm:grid-cols-3">
+                <Field label="Date" icon={CalendarDays}>
+                  <input
+                    type="date"
+                    required
+                    min={trip.startDate}
+                    max={trip.endDate}
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
+                    className={inputClass}
+                  />
+                </Field>
+                <Field label="Departs" icon={Clock3}>
+                  <input
+                    type="time"
+                    value={startTime}
+                    onChange={(e) => setStartTime(e.target.value)}
+                    className={inputClass}
+                  />
+                </Field>
+                <Field label="Arrives" icon={Clock3}>
+                  <input
+                    type="time"
+                    value={endTime}
+                    onChange={(e) => setEndTime(e.target.value)}
+                    className={inputClass}
+                  />
+                </Field>
+              </div>
+            </>
+          )}
+
+          {type === 'stay' && (
+            <>
+              <Field label="Stay location" icon={BedDouble}>
+                <PlaceSearchInput
+                  placeholder="Search for a hotel or address"
+                  defaultValue={editItem?.locationLabel ?? ''}
+                  onSelect={selectPrimaryPlace}
+                  className={placeInputClass}
+                />
+              </Field>
+              <Field label="Stay name" icon={Tag}>
+                <input
+                  required
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Name"
+                  className={inputClass}
+                />
+              </Field>
+              <div className="grid gap-2 sm:grid-cols-2">
+                <Field label="Check in" icon={CalendarDays}>
+                  <input
+                    type="date"
+                    required
+                    min={trip.startDate}
+                    max={trip.endDate}
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
+                    className={inputClass}
+                  />
+                </Field>
+                <Field label="Check out" icon={CalendarDays}>
                   <input
                     type="date"
                     required
@@ -366,80 +438,93 @@ export function AddItemModal({
                     max={trip.endDate}
                     value={endDate}
                     onChange={(e) => setEndDate(e.target.value)}
-                    className={`mt-1 ${inputClass}`}
+                    className={inputClass}
                   />
-                </div>
+                </Field>
               </div>
-              <input
-                value={roomType}
-                onChange={(e) => setRoomType(e.target.value)}
-                placeholder="Room type (e.g. Deluxe City View Room)"
-                className={inputClass}
-              />
+              <Field label="Room" icon={BedDouble}>
+                <input
+                  value={roomType}
+                  onChange={(e) => setRoomType(e.target.value)}
+                  placeholder="Room type"
+                  className={inputClass}
+                />
+              </Field>
               <div className="grid gap-2 sm:grid-cols-3">
-                <input
-                  type="number"
-                  min={1}
-                  value={guests}
-                  onChange={(e) => setGuests(e.target.value)}
-                  placeholder="Guests"
-                  className={inputClass}
-                />
-                <input
-                  type="number"
-                  min={0}
-                  step="0.01"
-                  value={nightlyRate}
-                  onChange={(e) => setNightlyRate(e.target.value)}
-                  placeholder="Rate / night ($)"
-                  className={inputClass}
-                />
-                <input
-                  type="number"
-                  min={0}
-                  step="0.01"
-                  value={taxesFees}
-                  onChange={(e) => setTaxesFees(e.target.value)}
-                  placeholder="Taxes & fees ($)"
-                  className={inputClass}
-                />
+                <Field label="Guests" icon={Users}>
+                  <input
+                    type="number"
+                    min={1}
+                    value={guests}
+                    onChange={(e) => setGuests(e.target.value)}
+                    placeholder="Guests"
+                    className={inputClass}
+                  />
+                </Field>
+                <Field label="Rate / night" icon={DollarSign}>
+                  <input
+                    type="number"
+                    min={0}
+                    step="0.01"
+                    value={nightlyRate}
+                    onChange={(e) => setNightlyRate(e.target.value)}
+                    placeholder="0.00"
+                    className={inputClass}
+                  />
+                </Field>
+                <Field label="Taxes & fees" icon={DollarSign}>
+                  <input
+                    type="number"
+                    min={0}
+                    step="0.01"
+                    value={taxesFees}
+                    onChange={(e) => setTaxesFees(e.target.value)}
+                    placeholder="0.00"
+                    className={inputClass}
+                  />
+                </Field>
               </div>
               <div className="grid gap-2 sm:grid-cols-[1fr_8rem]">
-                <input
-                  value={confirmationNumber}
-                  onChange={(e) => setConfirmationNumber(e.target.value)}
-                  placeholder="Confirmation number"
-                  className={inputClass}
-                />
-                <select
-                  value={rating}
-                  onChange={(e) => setRating(e.target.value)}
-                  className={`w-32 ${inputClass}`}
-                >
-                  {[1, 2, 3, 4, 5].map((r) => (
-                    <option key={r} value={r}>
-                      {r} star{r > 1 ? 's' : ''}
-                    </option>
-                  ))}
-                </select>
+                <Field label="Confirmation" icon={Hash}>
+                  <input
+                    value={confirmationNumber}
+                    onChange={(e) => setConfirmationNumber(e.target.value)}
+                    placeholder="Confirmation number"
+                    className={inputClass}
+                  />
+                </Field>
+                <Field label="Rating" icon={Star}>
+                  <select value={rating} onChange={(e) => setRating(e.target.value)} className={inputClass}>
+                    {[1, 2, 3, 4, 5].map((r) => (
+                      <option key={r} value={r}>
+                        {r} star{r > 1 ? 's' : ''}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
               </div>
             </>
           )}
 
           {type !== 'stay' && (
+            <Field label="Price" icon={DollarSign}>
+              <input
+                value={priceLabel}
+                onChange={(e) => setPriceLabel(e.target.value)}
+                placeholder="Avg $18.00 per person, Free entry"
+                className={inputClass}
+              />
+            </Field>
+          )}
+          <Field label="Photo" icon={Image}>
             <input
-              value={priceLabel}
-              onChange={(e) => setPriceLabel(e.target.value)}
-              placeholder="Price label (e.g. Avg $18.00 per person, Free entry)"
+              value={photoUrl}
+              onChange={(e) => setPhotoUrl(e.target.value)}
+              placeholder="Photo URL"
               className={inputClass}
             />
-          )}
-          <input
-            value={photoUrl}
-            onChange={(e) => setPhotoUrl(e.target.value)}
-            placeholder="Photo URL (optional)"
-            className={inputClass}
-          />
+          </Field>
+
           {place?.mapsUrl && (
             <a
               href={place.mapsUrl}
@@ -451,26 +536,37 @@ export function AddItemModal({
             </a>
           )}
 
-          {error && <p className="text-sm text-line-4">{error}</p>}
+          {error && <p className="border-l-4 border-line-4 bg-ink px-3 py-2 text-sm font-semibold text-text">{error}</p>}
 
-          <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end">
+          <div className="sticky bottom-0 -mx-4 -mb-4 mt-2 flex flex-col-reverse gap-2 border-t border-border bg-surface/95 px-4 py-4 backdrop-blur sm:-mx-5 sm:flex-row sm:justify-end sm:px-5">
             <button
               type="button"
               onClick={onClose}
-              className="rounded-md px-4 py-2 text-sm text-text-dim hover:text-text"
+              className="h-11 rounded-md border border-transparent px-4 text-sm font-bold text-text-dim hover:border-border hover:text-text"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={submitting}
-              className="rounded-md bg-paper px-4 py-2 text-sm font-medium text-ink hover:bg-paper-dim disabled:opacity-60"
+              className="h-11 rounded-md bg-paper px-5 text-sm font-extrabold text-ink shadow-[0_0_0_1px_rgba(247,255,136,0.25),0_10px_24px_rgba(247,255,136,0.12)] hover:bg-paper-dim disabled:opacity-60"
             >
-              {submitting ? 'Saving…' : isEdit ? 'Save changes' : 'Add to trip'}
+              {submitting ? 'Saving...' : isEdit ? 'Save changes' : 'Add to trip'}
             </button>
           </div>
         </form>
       </div>
     </div>
+  )
+}
+
+function Field({ label, icon: Icon, children }: { label: string; icon: typeof MapPin; children: ReactNode }) {
+  return (
+    <label className="block">
+      <span className="mb-1.5 flex items-center gap-1.5 text-[10px] font-extrabold uppercase tracking-[0.18em] text-text-dimmer">
+        <Icon size={12} /> {label}
+      </span>
+      {children}
+    </label>
   )
 }

@@ -6,10 +6,12 @@ export function PlaceSearchInput({
   placeholder,
   defaultValue,
   onSelect,
+  className = '',
 }: {
   placeholder: string
   defaultValue?: string
   onSelect: (place: PlaceResult) => void
+  className?: string
 }) {
   const [query, setQuery] = useState(defaultValue ?? '')
   const [suggestions, setSuggestions] = useState<PlaceResult[]>([])
@@ -50,7 +52,7 @@ export function PlaceSearchInput({
         onFocus={() => suggestions.length > 0 && setOpen(true)}
         onBlur={() => setTimeout(() => setOpen(false), 150)}
         placeholder={placeholder}
-        className="w-full rounded-md border border-border bg-ink px-3 py-2 text-sm text-text placeholder:text-text-dim focus:border-paper focus:outline-none"
+        className={`w-full rounded-md border border-border bg-ink px-3 py-2 text-sm text-text placeholder:text-text-dim focus:border-paper focus:outline-none ${className}`}
       />
       {loading && <span className="absolute right-3 top-2.5 text-xs text-text-dim">…</span>}
       {open && suggestions.length > 0 && (
