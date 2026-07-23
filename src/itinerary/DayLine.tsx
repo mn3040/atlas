@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors } from '@dnd-kit/core'
 import type { DragEndEvent } from '@dnd-kit/core'
 import { SortableContext, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable'
@@ -27,6 +28,7 @@ export function DayLine({
   mustSeeIds,
   onAddClick,
   travelMode,
+  showCommutes,
 }: {
   day: Day
   items: Item[]
@@ -43,8 +45,11 @@ export function DayLine({
   mustSeeIds: Set<string>
   onAddClick: (date: string) => void
   travelMode: TravelMode
+  showCommutes: boolean
 }) {
   const itemIds = items.map((s) => s.id)
+  const coarsePointer = useCoarsePointer()
+  const dragEnabled = !coarsePointer
 
   // Without an activation distance, dnd-kit's PointerSensor treats every
   // click as a zero-distance drag and the co-located onClick on each card
@@ -73,8 +78,9 @@ export function DayLine({
                   <ItemStation
                     key={item.id}
                     item={item}
-                    nextItem={nextItem}
+                    nextItem={showCommutes ? nextItem : undefined}
                     travelMode={travelMode}
+                    dragEnabled={dragEnabled}
                     number={index + 1}
                     color={color}
                     isLast={index === items.length - 1}
@@ -103,4 +109,20 @@ export function DayLine({
       </button>
     </div>
   )
+}
+
+function useCoarsePointer(): boolean {
+  const [coarse, setCoarse] = useState(() =>
+    typeof window !== 'undefined' ? window.matchMedia('(pointer: coarse)').matches : false,
+  )
+
+  useEffect(() => {
+    const query = window.matchMedia('(pointer: coarse)')
+    const update = () => setCoarse(query.matches)
+    update()
+    query.addEventListener('change', update)
+    return () => query.removeEventListener('change', update)
+  }, [])
+
+  return coarse
 }

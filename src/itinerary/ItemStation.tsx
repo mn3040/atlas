@@ -22,6 +22,7 @@ export function ItemStation({
   item,
   nextItem,
   travelMode,
+  dragEnabled,
   number,
   color,
   isLast,
@@ -38,6 +39,7 @@ export function ItemStation({
   item: Item
   nextItem?: Item
   travelMode: TravelMode
+  dragEnabled: boolean
   number: number
   color: string
   isLast: boolean
@@ -72,7 +74,7 @@ export function ItemStation({
         stationRef.current = node
         setNodeRef(node)
       }}
-      style={{ transform: CSS.Transform.toString(transform), transition }}
+      style={{ transform: dragEnabled ? CSS.Transform.toString(transform) : undefined, transition }}
       className={`group relative flex gap-3 ${isDragging ? 'opacity-50' : ''}`}
     >
       <div className="flex flex-none flex-col items-center pt-0.5">
@@ -106,9 +108,11 @@ export function ItemStation({
         )}
         <div
           onClick={() => onSelect(item.id)}
-          {...attributes}
-          {...listeners}
-          className="itinerary-card relative flex cursor-pointer gap-3 rounded-xl border p-2.5 transition-colors active:cursor-grabbing"
+          {...(dragEnabled ? attributes : {})}
+          {...(dragEnabled ? listeners : {})}
+          className={`itinerary-card relative flex cursor-pointer touch-pan-y gap-3 rounded-xl border p-2.5 transition-colors ${
+            dragEnabled ? 'active:cursor-grabbing' : ''
+          }`}
           style={{
             background: selected ? 'var(--color-surface-2)' : 'var(--color-surface)',
             borderColor: selected ? color : 'var(--color-border)',

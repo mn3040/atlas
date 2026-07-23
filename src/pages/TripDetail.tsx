@@ -15,6 +15,7 @@ import {
   GripHorizontal,
   Maximize2,
   Minimize2,
+  Route,
 } from 'lucide-react'
 import {
   fetchTrip,
@@ -84,6 +85,7 @@ export default function TripDetail() {
   const [dayLabelDraft, setDayLabelDraft] = useState('')
   const [isTouring, setIsTouring] = useState(false)
   const [mobileSheetExpanded, setMobileSheetExpanded] = useState(false)
+  const [showRouteTools, setShowRouteTools] = useState(false)
   const mapRef = useRef<TripMapHandle>(null)
 
   useEffect(() => {
@@ -482,7 +484,7 @@ export default function TripDetail() {
                 )}
               </div>
 
-              <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-6 pt-0.5 sm:px-[22px]">
+              <div className="itinerary-scroll min-h-0 flex-1 touch-pan-y overflow-y-auto px-4 pb-6 pt-0.5 sm:px-[22px]">
                 {activeItems.length > 0 && (
                   <DayOptionsPanel
                     items={activeItems}
@@ -511,6 +513,7 @@ export default function TripDetail() {
                     mustSeeIds={mustSeeIds}
                     onAddClick={setAddModalDate}
                     travelMode={travelMode}
+                    showCommutes={showRouteTools}
                   />
                 ) : (
                   <p className="text-text-dim">No days yet — add your first flight, stay, or activity.</p>
@@ -568,9 +571,22 @@ export default function TripDetail() {
             </button>
           )}
 
-          <TravelModePicker mode={travelMode} onChange={setTravelMode} color={activeColor} />
+          <button
+            type="button"
+            onClick={() => setShowRouteTools((value) => !value)}
+            aria-label={showRouteTools ? 'Hide route tools' : 'Show route tools'}
+            className="absolute right-3 top-24 z-10 flex h-[38px] w-[38px] items-center justify-center rounded-[9px] border border-border-strong shadow-lg transition-colors md:right-4 md:top-4"
+            style={{
+              background: showRouteTools ? activeColor : 'var(--color-surface)',
+              color: showRouteTools ? '#070606' : 'var(--color-text-dim)',
+            }}
+          >
+            <Route size={16} />
+          </button>
 
-          {selectedItem && nextItem && (
+          {showRouteTools && <TravelModePicker mode={travelMode} onChange={setTravelMode} color={activeColor} />}
+
+          {showRouteTools && selectedItem && nextItem && (
             <TransitCard from={selectedItem} to={nextItem} mode={travelMode} color={activeColor} />
           )}
 
