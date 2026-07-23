@@ -161,11 +161,12 @@ export function extractItineraryItems(text: string, trip: Trip): ExtractedItiner
 }
 
 async function extractPdfText(file: File): Promise<string> {
-  if (isLikelyMobileSafari()) {
+  if (shouldUseServerPdfExtraction()) {
     try {
       return await extractPdfTextOnServer(file)
     } catch (error) {
-      console.warn('Atlas server PDF extraction failed; falling back to browser extraction.', error)
+      console.warn('Atlas server PDF extraction failed.', error)
+      throw new Error(serverPdfExtractionMessage(error))
     }
   }
 
@@ -208,9 +209,26 @@ async function extractPdfTextOnServer(file: File): Promise<string> {
   })
   const payload = (await response.json().catch(() => null)) as { text?: string; error?: string } | null
   if (!response.ok || !payload?.text) {
+    const contentType = response.headers.get('content-type') ?? ''
+    if (contentType.includes('text/html')) {
+      throw new Error('Atlas received the app page instead of the PDF extractor API.')
+    }
     throw new Error(payload?.error ?? 'Could not read that PDF on this device.')
   }
   return payload.text
+}
+
+function shouldUseServerPdfExtraction(): boolean {
+  if (typeof window === 'undefined') return false
+  return isLikelyMobileSafari() || window.location.hostname.endsWith('vercel.app')
+}
+
+function serverPdfExtractionMessage(error: unknown): string {
+  const message = error instanceof Error ? error.message : String(error ?? '')
+  if (/text\/html|javascript mime type|module script|pdf extractor api|app page/i.test(message)) {
+    return 'Mobile PDF import is reaching the app page instead of the PDF extractor. Redeploy Vercel with the latest /api/extract-document route, then retry.'
+  }
+  return message || 'Could not read that PDF on this device.'
 }
 
 function pdfTextContentToLines(items: unknown[]): string {

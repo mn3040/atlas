@@ -1,11 +1,12 @@
 /* eslint-disable react-refresh/only-export-components */
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { FileUp, Loader2, Star, Trash2 } from 'lucide-react'
 import { createDay, createItem } from '../api/trips'
 import type { NewItemInput } from '../api/trips'
 import { googleMapsSearchUrl, searchPlaces } from '../api/geocoding'
 import type { PlaceSearchOptions } from '../api/geocoding'
 import { estimateTravel } from '../utils/distance'
+import { confidenceForImportItem, summarizeImportConfidence } from '../utils/importConfidence'
 import type { Day, Item, Trip, ActivityCategory, ItemType } from '../types/trip'
 import { extractItineraryItems, extractTextFromFile } from '../utils/importItinerary'
 import type { ExtractedItineraryItem } from '../utils/importItinerary'
@@ -38,6 +39,7 @@ export function ImportItineraryModal({
   const [status, setStatus] = useState('')
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
+  const confidence = useMemo(() => summarizeImportConfidence(suggestions), [suggestions])
 
   async function handleFile(file: File) {
     setBusy(true)
@@ -135,6 +137,13 @@ export function ImportItineraryModal({
         {error && <p className="mb-3 border-l-4 border-line-3 bg-surface-2 px-3 py-2 text-sm font-semibold text-text">{error}</p>}
 
         {suggestions.length > 0 && (
+          <>
+          <div className="mb-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+            <ConfidenceMetric label="Import confidence" value={`${confidence.average}%`} tone="green" />
+            <ConfidenceMetric label="Ready" value={confidence.ready} tone="green" />
+            <ConfidenceMetric label="Review" value={confidence.review} tone="paper" />
+            <ConfidenceMetric label="Needs fix" value={confidence.needsFix} tone="line-4" />
+          </div>
           <div className="max-h-[52vh] overflow-y-auto rounded-lg border border-border">
             <div className="space-y-3 p-3 md:hidden">
               {suggestions.map((item) => (
@@ -151,6 +160,7 @@ export function ImportItineraryModal({
               <thead className="sticky top-0 bg-surface-2 text-text-dim">
                 <tr>
                   <th className="w-10 border-b border-border p-2">Use</th>
+                  <th className="border-b border-border p-2">Confidence</th>
                   <th className="border-b border-border p-2">Type</th>
                   <th className="border-b border-border p-2">Name</th>
                   <th className="border-b border-border p-2">Date</th>
@@ -170,6 +180,9 @@ export function ImportItineraryModal({
                         checked={item.selected}
                         onChange={(event) => updateSuggestion(item.id, { selected: event.target.checked })}
                       />
+                    </td>
+                    <td className="p-2">
+                      <ImportConfidenceBadge item={item} />
                     </td>
                     <td className="p-2">
                       <select
@@ -288,6 +301,7 @@ export function ImportItineraryModal({
               </tbody>
             </table>
           </div>
+          </>
         )}
 
         <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
@@ -317,6 +331,7 @@ function ImportReviewCard({
   updateSuggestion: (id: string, patch: Partial<ExtractedItineraryItem>) => void
   removeSuggestion: (id: string) => void
 }) {
+  const confidence = confidenceForImportItem(item)
   return (
     <article className="rounded-lg border border-border bg-ink p-3">
       <div className="mb-3 flex items-start gap-3">
@@ -336,6 +351,12 @@ function ImportReviewCard({
           <p className="mt-1 text-[10px] font-bold uppercase tracking-wide text-text-dim">
             {item.type} / {item.startDate || 'Needs date'}
           </p>
+          <div className="mt-2">
+            <ImportConfidenceBadge item={item} />
+          </div>
+          {confidence.reasons.length > 0 && (
+            <p className="mt-1 text-[10.5px] leading-snug text-text-dim">Check {confidence.reasons.join(', ')} before importing.</p>
+          )}
         </div>
         <button
           type="button"
@@ -440,6 +461,34 @@ function ImportReviewCard({
         </button>
       </div>
     </article>
+  )
+}
+
+function ConfidenceMetric({ label, value, tone }: { label: string; value: string | number; tone: 'green' | 'paper' | 'line-4' }) {
+  const color = tone === 'green' ? 'var(--color-green)' : tone === 'paper' ? 'var(--color-paper)' : 'var(--color-line-4)'
+  return (
+    <div className="rounded-lg border border-border bg-ink px-3 py-2">
+      <p className="text-lg font-extrabold" style={{ color }}>
+        {value}
+      </p>
+      <p className="text-[9px] font-bold uppercase tracking-wide text-text-dim">{label}</p>
+    </div>
+  )
+}
+
+function ImportConfidenceBadge({ item }: { item: ExtractedItineraryItem }) {
+  const confidence = confidenceForImportItem(item)
+  const color =
+    confidence.tone === 'green'
+      ? 'border-green/35 bg-green/10 text-green'
+      : confidence.tone === 'paper'
+        ? 'border-paper/35 bg-paper/10 text-paper'
+        : 'border-line-4/35 bg-line-4/10 text-line-4'
+  return (
+    <span className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-1 text-[10px] font-extrabold uppercase tracking-wide ${color}`}>
+      {confidence.label}
+      <span className="text-text-dim">{confidence.score}%</span>
+    </span>
   )
 }
 

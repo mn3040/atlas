@@ -4,6 +4,7 @@ import { FileUp, Loader2, Trash2, X } from 'lucide-react'
 import { createDay, createTrip } from '../api/trips'
 import { setItemMustSeeVote } from '../api/votes'
 import { importSuggestionsToTrip } from '../itinerary/ImportItineraryModal'
+import { confidenceForImportItem, summarizeImportConfidence } from '../utils/importConfidence'
 import { extractItineraryItems, extractTextFromFile } from '../utils/importItinerary'
 import { saveMustSeeIds } from '../utils/mustSee'
 import type { ExtractedItineraryItem } from '../utils/importItinerary'
@@ -33,7 +34,7 @@ export function DashboardImportModal({
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const selectedCount = suggestions.filter((item) => item.selected).length
-  const importHealth = useMemo(() => summarizeImportHealth(suggestions), [suggestions])
+  const importConfidence = useMemo(() => summarizeImportConfidence(suggestions), [suggestions])
   const dayCount = useMemo(() => (startDate && endDate ? daysBetween(startDate, endDate).length : 0), [endDate, startDate])
 
   async function handleFile(file: File) {
@@ -222,9 +223,9 @@ export function DashboardImportModal({
             </div>
 
             <div className="mb-3 grid grid-cols-3 gap-2">
-              <ImportMetric label="Ready" value={importHealth.ready} tone="green" />
-              <ImportMetric label="Needs location" value={importHealth.missingLocation} tone="paper" />
-              <ImportMetric label="Needs date" value={importHealth.missingDate} tone="line-4" />
+              <ImportMetric label="Confidence" value={`${importConfidence.average}%`} tone="green" />
+              <ImportMetric label="Ready" value={importConfidence.ready} tone="green" />
+              <ImportMetric label="Review" value={importConfidence.review + importConfidence.needsFix} tone="paper" />
             </div>
 
             <div className="max-h-[42vh] overflow-y-auto rounded-lg border border-border">
@@ -247,6 +248,7 @@ export function DashboardImportModal({
                       {item.type ?? 'activity'} / {item.startDate || 'Needs date'}
                       {item.startTime ? ` / ${item.startTime}` : ''}
                     </p>
+                    <ImportConfidencePill item={item} />
                     <input
                       value={item.locationLabel ?? ''}
                       onChange={(event) => updateSuggestion(item.id, { locationLabel: event.target.value })}
@@ -407,22 +409,7 @@ function errorMessage(error: unknown): string {
   return 'Import failed.'
 }
 
-function summarizeImportHealth(suggestions: ExtractedItineraryItem[]) {
-  return suggestions.reduce(
-    (summary, item) => {
-      const missingName = !item.name?.trim()
-      const missingDate = !item.startDate?.trim()
-      const missingLocation = item.type !== 'flight' && !item.locationLabel?.trim()
-      if (missingDate) summary.missingDate += 1
-      if (missingLocation) summary.missingLocation += 1
-      if (!missingName && !missingDate && !missingLocation) summary.ready += 1
-      return summary
-    },
-    { ready: 0, missingLocation: 0, missingDate: 0 },
-  )
-}
-
-function ImportMetric({ label, value, tone }: { label: string; value: number; tone: 'green' | 'paper' | 'line-4' }) {
+function ImportMetric({ label, value, tone }: { label: string; value: string | number; tone: 'green' | 'paper' | 'line-4' }) {
   const color = tone === 'green' ? 'var(--color-green)' : tone === 'paper' ? 'var(--color-paper)' : 'var(--color-line-4)'
   return (
     <div className="rounded-md border border-border bg-ink px-3 py-2">
@@ -431,5 +418,20 @@ function ImportMetric({ label, value, tone }: { label: string; value: number; to
       </p>
       <p className="text-[9px] font-bold uppercase tracking-wide text-text-dim">{label}</p>
     </div>
+  )
+}
+
+function ImportConfidencePill({ item }: { item: ExtractedItineraryItem }) {
+  const confidence = confidenceForImportItem(item)
+  const color =
+    confidence.tone === 'green'
+      ? 'border-green/35 bg-green/10 text-green'
+      : confidence.tone === 'paper'
+        ? 'border-paper/35 bg-paper/10 text-paper'
+        : 'border-line-4/35 bg-line-4/10 text-line-4'
+  return (
+    <span className={`mt-2 inline-flex rounded-full border px-2 py-1 text-[10px] font-extrabold uppercase tracking-wide ${color}`}>
+      {confidence.label} / {confidence.score}%
+    </span>
   )
 }

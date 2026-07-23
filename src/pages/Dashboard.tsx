@@ -116,49 +116,47 @@ export default function Dashboard() {
       <TopNav />
 
       <div className="mx-auto w-full max-w-5xl flex-1 overflow-y-auto px-4 py-8 sm:px-6 sm:py-12">
-        <div className="atlas-reveal relative mb-8 overflow-hidden rounded-lg border border-border-strong bg-surface/82 p-5 shadow-2xl sm:p-7">
-          <div className="absolute inset-y-0 right-0 hidden w-[44%] overflow-hidden sm:block">
-            <img src="/assets/atlas-orbit.svg" alt="" className="h-full w-full object-cover opacity-70" />
-            <div className="absolute inset-0 bg-gradient-to-r from-surface via-surface/45 to-transparent" />
+        <div className="atlas-reveal relative mb-6 overflow-hidden rounded-lg border border-border-strong bg-surface/82 p-5 shadow-2xl sm:p-7">
+          <div className="pointer-events-none absolute inset-y-0 right-0 hidden w-[36%] overflow-hidden sm:block">
+            <img src="/assets/atlas-orbit.svg" alt="" className="h-full w-full object-cover opacity-35 saturate-[0.85]" />
+            <div className="absolute inset-0 bg-gradient-to-r from-surface via-surface/75 to-surface/10" />
           </div>
-          <div className="relative z-[1] flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
+          <div className="relative z-[1] flex flex-col gap-5">
             <div className="max-w-xl">
-              <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.24em] text-paper">Atlas archive</p>
+              <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.24em] text-paper">Atlas planboard</p>
               <h1 className="text-4xl font-extrabold tracking-tight text-text sm:text-5xl">Your trips</h1>
               <p className="mt-3 text-sm leading-relaxed text-text-dim">
                 Build cinematic routes, import rough plans, vote with your group, and lock the day when the route finally feels right.
               </p>
             </div>
-            <img src="/assets/atlas-route-badge.svg" alt="" className="atlas-float hidden h-24 w-24 shrink-0 rounded-lg sm:block" />
-          </div>
-        </div>
-
-        <div className="atlas-reveal atlas-reveal-delay-1 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-green">Trip control</p>
-            <h2 className="mt-1 text-xl font-extrabold text-text">Planboard</h2>
-          </div>
-          <div className="flex flex-wrap items-center gap-2 sm:justify-end">
-            <button
-              onClick={() => setShowImport(true)}
-              disabled={!session}
-              className="flex items-center gap-1.5 rounded-md border border-border bg-surface px-4 py-2 text-sm font-bold text-text hover:border-paper hover:text-paper disabled:opacity-50"
-            >
-              <FileUp size={15} /> Import trip
-            </button>
-            <button
-              onClick={handleAddSamples}
-              disabled={!session || addingSamples}
-              className="flex items-center gap-1.5 rounded-md border border-border bg-surface px-4 py-2 text-sm font-bold text-text hover:border-green hover:text-green disabled:cursor-wait disabled:opacity-50"
-            >
-              <Wand2 size={15} /> {addingSamples ? 'Adding...' : 'Add sample trips'}
-            </button>
-            <button
-              onClick={() => setShowForm((v) => !v)}
-              className="flex items-center gap-1.5 rounded-md bg-paper px-4 py-2 text-sm font-bold text-ink hover:bg-paper-dim"
-            >
-              <Plus size={15} /> {showForm ? 'Cancel' : 'New trip'}
-            </button>
+            <div className="flex flex-col gap-2 border-t border-border pt-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex gap-2 text-[10px] font-bold uppercase tracking-wide text-text-dim">
+                <span className="rounded-full bg-ink/70 px-2.5 py-1">{activeTrips.length} active</span>
+                <span className="rounded-full bg-ink/70 px-2.5 py-1">{groupTrips.length} group</span>
+              </div>
+              <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+                <button
+                  onClick={() => setShowImport(true)}
+                  disabled={!session}
+                  className="flex items-center gap-1.5 rounded-md border border-border bg-ink/70 px-4 py-2 text-sm font-bold text-text hover:border-paper hover:text-paper disabled:opacity-50"
+                >
+                  <FileUp size={15} /> Import
+                </button>
+                <button
+                  onClick={handleAddSamples}
+                  disabled={!session || addingSamples}
+                  className="flex items-center gap-1.5 rounded-md border border-border bg-ink/70 px-4 py-2 text-sm font-bold text-text hover:border-green hover:text-green disabled:cursor-wait disabled:opacity-50"
+                >
+                  <Wand2 size={15} /> {addingSamples ? 'Adding...' : 'Samples'}
+                </button>
+                <button
+                  onClick={() => setShowForm((v) => !v)}
+                  className="flex items-center gap-1.5 rounded-md bg-paper px-4 py-2 text-sm font-bold text-ink hover:bg-paper-dim"
+                >
+                  <Plus size={15} /> {showForm ? 'Cancel' : 'New trip'}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
 

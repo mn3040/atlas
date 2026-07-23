@@ -18,6 +18,7 @@ import {
   Users,
   Trophy,
   ClipboardCheck,
+  CloudSun,
 } from 'lucide-react'
 import {
   fetchTrip,
@@ -47,12 +48,14 @@ import { EditTripModal } from '../itinerary/EditTripModal'
 import { GroupTripModal } from '../itinerary/GroupTripModal'
 import { GroupPicksModal } from '../itinerary/GroupPicksModal'
 import { TripBriefModal } from '../itinerary/TripBriefModal'
+import { DailyBriefingModal } from '../itinerary/DailyBriefingModal'
 import { TripMap } from '../maps/TripMap'
 import type { TripMapHandle } from '../maps/TripMap'
 import { TravelModePicker } from '../maps/TravelModePicker'
 import { TransitCard } from '../maps/TransitCard'
 import { DayPager } from '../maps/DayPager'
 import { ZoomControl } from '../maps/ZoomControl'
+import { WeatherChip } from '../maps/WeatherChip'
 import { TripCalendar } from '../calendar/TripCalendar'
 import { lineColorForIndex } from '../utils/lineColors'
 import { actionForItem, bookingUrlForItem, mapsUrlForItem } from '../utils/itemActions'
@@ -116,6 +119,7 @@ export default function TripDetail() {
   const [showGroupTrip, setShowGroupTrip] = useState(false)
   const [showGroupPicks, setShowGroupPicks] = useState(false)
   const [showTripBrief, setShowTripBrief] = useState(false)
+  const [showDailyBriefing, setShowDailyBriefing] = useState(false)
   const [dayOptionView, setDayOptionView] = useState<DayOptionView>('all')
   const [mustSeeIds, setMustSeeIds] = useState<Set<string>>(() => new Set())
   const [voteSummary, setVoteSummary] = useState<Record<string, ItemVoteSummary>>({})
@@ -602,6 +606,15 @@ export default function TripDetail() {
                             </button>
                             <button
                               onClick={() => {
+                                setShowDailyBriefing(true)
+                                setShowMenu(false)
+                              }}
+                              className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-semibold text-text hover:bg-surface-2"
+                            >
+                              <CloudSun size={13} /> Daily briefing
+                            </button>
+                            <button
+                              onClick={() => {
                                 setShowTripBrief(true)
                                 setShowMenu(false)
                               }}
@@ -855,6 +868,8 @@ export default function TripDetail() {
             <TransitCard from={selectedItem} to={nextItem} mode={travelMode} color={activeColor} />
           )}
 
+          <WeatherChip item={selectedItem ?? displayedActiveItems[0]} date={activeDay?.date} />
+
           <ZoomControl
             zoom={zoom}
             onZoomIn={() => mapRef.current?.zoomIn()}
@@ -941,6 +956,23 @@ export default function TripDetail() {
           voteSummary={voteSummary}
           travelMode={travelMode}
           onClose={() => setShowTripBrief(false)}
+          onSelectItem={(item) => {
+            setActiveDayId(item.dayId)
+            setSelectedItemId(item.id)
+          }}
+        />
+      )}
+      {showDailyBriefing && activeDay && (
+        <DailyBriefingModal
+          trip={trip}
+          day={activeDay}
+          dayIndex={activeDayIndex}
+          items={items}
+          selectedItem={selectedItem}
+          voteSummary={voteSummary}
+          decisions={decisions}
+          travelMode={travelMode}
+          onClose={() => setShowDailyBriefing(false)}
           onSelectItem={(item) => {
             setActiveDayId(item.dayId)
             setSelectedItemId(item.id)
