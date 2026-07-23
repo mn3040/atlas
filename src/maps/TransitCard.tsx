@@ -52,7 +52,7 @@ export function TransitCard({
   const modeLabel = TRAVEL_MODES.find((m) => m.id === mode)!.label
 
   return (
-    <div className="absolute bottom-16 left-3 right-3 z-10 rounded-2xl border border-border-strong bg-surface p-3.5 shadow-2xl md:left-auto md:right-4 md:w-[230px]">
+    <div className="absolute bottom-[calc(46dvh+0.75rem)] left-3 right-3 z-10 rounded-2xl border border-border-strong bg-surface p-3.5 shadow-2xl md:bottom-16 md:left-auto md:right-4 md:w-[230px]">
       <div className="mb-2 flex items-center gap-2">
         <div
           className="flex h-[26px] w-[26px] shrink-0 items-center justify-center rounded-lg"

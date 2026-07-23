@@ -19,7 +19,7 @@ export function TravelModePicker({
   color: string
 }) {
   return (
-    <div className="absolute bottom-4 left-4 z-10 flex gap-2 md:bottom-auto md:left-auto md:right-4 md:top-4 md:flex-col">
+    <div className="absolute right-3 top-24 z-10 flex flex-col gap-2 md:right-4 md:top-4">
       {(Object.keys(MODE_ICONS) as TravelMode[]).map((id) => {
         const Icon = MODE_ICONS[id]
         const active = mode === id

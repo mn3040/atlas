@@ -1,5 +1,6 @@
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
+import { useEffect, useRef } from 'react'
 import { X, Pencil, Star } from 'lucide-react'
 import { actionForItem } from '../utils/itemActions'
 import { iconForItem } from '../utils/categoryIcons'
@@ -39,13 +40,22 @@ export function ItemStation({
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: item.id,
   })
+  const stationRef = useRef<HTMLDivElement | null>(null)
+
+  useEffect(() => {
+    if (!selected) return
+    stationRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+  }, [selected])
 
   const { label: actionLabel, action } = actionForItem(item)
   const ItemIcon = iconForItem(item.type, item.category)
 
   return (
     <div
-      ref={setNodeRef}
+      ref={(node) => {
+        stationRef.current = node
+        setNodeRef(node)
+      }}
       style={{ transform: CSS.Transform.toString(transform), transition }}
       className={`group relative flex gap-3 ${isDragging ? 'opacity-50' : ''}`}
     >

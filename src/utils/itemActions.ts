@@ -16,12 +16,20 @@ export interface ItemActionMeta {
 export function actionForItem(item: Item): ItemActionMeta {
   if (item.type === 'stay') return { label: 'View Booking', action: 'booking' }
   if (item.type === 'flight') return { label: 'Flight Details', action: 'flight' }
-  if (item.category === 'food') return { label: 'Reserve Table', action: 'maps' }
+  if (item.category === 'food') {
+    return hasBookableSignal(item) ? { label: 'Reserve Table', action: 'maps' } : { label: 'Directions', action: 'maps' }
+  }
   const isFree = (item.priceLabel ?? '').toLowerCase().includes('free')
-  if (!isFree && (item.category === 'attraction' || item.category === 'nature')) {
+  if (!isFree && (item.category === 'attraction' || item.category === 'nature') && hasBookableSignal(item)) {
     return { label: 'Book Ticket', action: 'maps' }
   }
-  return { label: 'View Details', action: 'maps' }
+  return { label: 'Directions', action: 'maps' }
+}
+
+function hasBookableSignal(item: Item): boolean {
+  return /\b(?:book|ticket|reservation|reserve|timed|permit|tour|pass|entry|required)\b/i.test(
+    `${item.name} ${item.priceLabel ?? ''} ${item.notes ?? ''}`,
+  )
 }
 
 function searchUrl(query: string): string {
@@ -42,7 +50,9 @@ export function bookingUrlForItem(item: Item): string {
     const route = [item.locationLabel, item.location2Label].filter(Boolean).join(' to ')
     return searchUrl(`${item.flightNumber || route || item.name} book flight`)
   }
-  if (item.category === 'food') return searchUrl(`${nameAndPlace} reservation`)
-  if (item.category === 'attraction' || item.category === 'nature') return searchUrl(`${nameAndPlace} official tickets`)
+  if (item.category === 'food' && hasBookableSignal(item)) return searchUrl(`${nameAndPlace} reservation`)
+  if ((item.category === 'attraction' || item.category === 'nature') && hasBookableSignal(item)) {
+    return searchUrl(`${nameAndPlace} official tickets`)
+  }
   return mapsUrlForItem(item)
 }

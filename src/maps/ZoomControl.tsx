@@ -12,7 +12,7 @@ export function ZoomControl({
   const label = `${Math.round((zoom / 22) * 100)}%`
 
   return (
-    <div className="absolute right-4 top-14 z-10 flex items-center gap-2.5 rounded-full border border-border-strong bg-surface/90 px-2.5 py-1.5 md:bottom-4 md:top-auto">
+    <div className="absolute right-3 top-14 z-10 flex items-center gap-2.5 rounded-full border border-border-strong bg-surface/90 px-2.5 py-1.5 md:bottom-4 md:right-4 md:top-auto">
       <button
         onClick={onZoomOut}
         aria-label="Zoom out"

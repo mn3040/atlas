@@ -3,6 +3,7 @@ import { FileUp, Loader2, Star, Trash2 } from 'lucide-react'
 import { createDay, createItem } from '../api/trips'
 import type { NewItemInput } from '../api/trips'
 import { googleMapsSearchUrl, searchPlaces } from '../api/geocoding'
+import { estimateTravel } from '../utils/distance'
 import type { Day, Item, Trip, ActivityCategory, ItemType } from '../types/trip'
 import { extractItineraryItems, extractTextFromFile } from '../utils/importItinerary'
 import type { ExtractedItineraryItem } from '../utils/importItinerary'
@@ -77,6 +78,7 @@ export function ImportItineraryModal({
       const knownDays = [...days]
       const createdItems: Item[] = []
       const mustSeeCreatedIds: string[] = []
+      const schedules = new Map<string, DayImportSchedule>()
 
       for (const [index, suggestion] of selected.entries()) {
         const dayId = await ensureDayFor(suggestion.startDate, trip.id, knownDays, onDayCreated)
@@ -85,6 +87,7 @@ export function ImportItineraryModal({
           suggestion.type === 'flight' && suggestion.location2Label
             ? await resolveLocation(suggestion.location2Label)
             : null
+        const scheduled = scheduleSuggestion(schedules, suggestion, primary)
 
         const input: NewItemInput = {
           tripId: trip.id,
@@ -102,8 +105,8 @@ export function ImportItineraryModal({
           location2Label: secondary?.label ?? null,
           startDate: suggestion.startDate,
           endDate: suggestion.type === 'stay' ? suggestion.endDate || trip.endDate : null,
-          startTime: suggestion.startTime || null,
-          endTime: suggestion.endTime || null,
+          startTime: scheduled.startTime || null,
+          endTime: scheduled.endTime || null,
           flightNumber: suggestion.type === 'flight' ? suggestion.flightNumber || null : null,
           priceLabel: null,
           photoUrl: null,
@@ -339,7 +342,67 @@ async function ensureDayFor(
   return day.id
 }
 
-async function resolveLocation(query: string): Promise<{ label: string; lat: number; lng: number; countryCode: string | null }> {
+interface ResolvedLocation {
+  label: string
+  lat: number
+  lng: number
+  countryCode: string | null
+}
+
+interface DayImportSchedule {
+  cursorMinutes: number
+  previousLocation: ResolvedLocation | null
+}
+
+function scheduleSuggestion(
+  schedules: Map<string, DayImportSchedule>,
+  suggestion: ExtractedItineraryItem,
+  location: ResolvedLocation,
+): { startTime: string; endTime: string } {
+  if (suggestion.type !== 'activity') {
+    return { startTime: suggestion.startTime, endTime: suggestion.endTime }
+  }
+
+  const schedule = schedules.get(suggestion.startDate) ?? { cursorMinutes: 8 * 60 + 30, previousLocation: null }
+  let startMinutes = suggestion.startTime ? minutesFromTime(suggestion.startTime) : schedule.cursorMinutes
+
+  if (!suggestion.startTime && schedule.previousLocation) {
+    const travel = estimateTravel(schedule.previousLocation, location, 'car')
+    startMinutes += Math.min(240, travel.minutes) + 15
+  }
+
+  const duration = suggestedDurationMinutes(suggestion)
+  const endMinutes = suggestion.endTime ? minutesFromTime(suggestion.endTime) : startMinutes + duration
+  schedule.cursorMinutes = endMinutes + 30
+  schedule.previousLocation = location
+  schedules.set(suggestion.startDate, schedule)
+
+  return {
+    startTime: suggestion.startTime || timeFromMinutes(startMinutes),
+    endTime: suggestion.endTime || timeFromMinutes(endMinutes),
+  }
+}
+
+function suggestedDurationMinutes(suggestion: ExtractedItineraryItem): number {
+  const text = `${suggestion.name} ${suggestion.notes}`.toLowerCase()
+  if (/\bday\b|\bhike\b|\bhorse\b|\btrek\b/.test(text)) return 240
+  if (suggestion.category === 'food') return 75
+  if (suggestion.category === 'transport') return 60
+  if (suggestion.category === 'nature') return 150
+  return 90
+}
+
+function minutesFromTime(time: string): number {
+  const [hours, minutes] = time.split(':').map(Number)
+  return hours * 60 + minutes
+}
+
+function timeFromMinutes(value: number): string {
+  const minutes = ((Math.round(value / 5) * 5) % (24 * 60) + 24 * 60) % (24 * 60)
+  return `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`
+}
+
+async function resolveLocation(query: string): Promise<ResolvedLocation> {
   const fallback = query.trim() || 'Location'
   const results = await searchPlaces(fallback)
   const match = results[0]

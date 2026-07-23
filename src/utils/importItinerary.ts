@@ -66,11 +66,22 @@ export function extractItineraryItems(text: string, trip: Trip): ExtractedItiner
   const suggestions: ExtractedItineraryItem[] = []
   let currentDate = trip.startDate
   let pendingMustSee = false
+  let sectionDates: string[] = [trip.startDate]
+  let sectionStopIndex = 0
 
   for (let index = 0; index < lines.length; index += 1) {
     const line = lines[index]
+    const parsedRange = dateRangeFromLine(line, trip)
     const parsedDate = dateFromLine(line, trip)
-    if (parsedDate) currentDate = parsedDate
+    if (parsedRange.length > 0) {
+      sectionDates = parsedRange
+      sectionStopIndex = 0
+      currentDate = parsedRange[0]
+    } else if (parsedDate) {
+      currentDate = parsedDate
+      sectionDates = [parsedDate]
+      sectionStopIndex = 0
+    }
     if (parsedDate && isDateOnlyLine(line)) continue
 
     const flightNumber = line.match(/\b([A-Z]{2}|[A-Z][0-9]|[0-9][A-Z])\s?\d{2,4}\b/)?.[0] ?? ''
@@ -87,7 +98,8 @@ export function extractItineraryItems(text: string, trip: Trip): ExtractedItiner
     if (isBulletLine(line) && !flightNumber) {
       const bulletText = stripBullet(line)
       if (isBulletPlaceTitle(bulletText)) {
-        addActivitySuggestions(suggestions, trip, currentDate, bulletText, mustSee, index, lines)
+        addActivitySuggestions(suggestions, trip, sectionDate(sectionDates, sectionStopIndex), bulletText, mustSee, index, lines)
+        sectionStopIndex += 1
         pendingMustSee = false
       }
       continue
@@ -132,13 +144,15 @@ export function extractItineraryItems(text: string, trip: Trip): ExtractedItiner
         lower,
       )
     ) {
-      addActivitySuggestions(suggestions, trip, parsedDate ?? currentDate, line, mustSee, index, lines)
+      addActivitySuggestions(suggestions, trip, parsedDate ?? sectionDate(sectionDates, sectionStopIndex), line, mustSee, index, lines)
+      sectionStopIndex += 1
       pendingMustSee = false
       continue
     }
 
     if (isPlaceTitleLine(line, lines[index + 1], pendingMustSee)) {
-      addActivitySuggestions(suggestions, trip, currentDate, line, mustSee, index, lines)
+      addActivitySuggestions(suggestions, trip, sectionDate(sectionDates, sectionStopIndex), line, mustSee, index, lines)
+      sectionStopIndex += 1
       pendingMustSee = false
     }
   }
@@ -242,6 +256,10 @@ function isDateOnlyLine(line: string): boolean {
       line,
     )
   )
+}
+
+function sectionDate(dates: string[], index: number): string {
+  return dates[Math.min(index, dates.length - 1)] ?? dates[0]
 }
 
 function isTravelNoteLine(line: string): boolean {
@@ -398,6 +416,27 @@ function dateFromLine(line: string, trip: Trip): string | null {
   const month = MONTHS[words[1].replace('.', '').toLowerCase()]
   const year = words[3] ? Number(words[3]) : new Date(`${trip.startDate}T00:00:00`).getFullYear()
   return isoDate(year, month, Number(words[2]))
+}
+
+function dateRangeFromLine(line: string, trip: Trip): string[] {
+  const numeric = line.match(/\b(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?\s*-\s*(?:(\d{1,2})\/)?(\d{1,2})(?:\/(\d{2,4}))?\b/)
+  if (!numeric) return []
+  const startMonth = Number(numeric[1])
+  const startDay = Number(numeric[2])
+  const endMonth = Number(numeric[4] ?? numeric[1])
+  const endDay = Number(numeric[5])
+  const baseYear = new Date(`${trip.startDate}T00:00:00`).getFullYear()
+  const startYear = numeric[3] ? normalizeYear(numeric[3]) : baseYear
+  const endYear = numeric[6] ? normalizeYear(numeric[6]) : startYear
+  const start = new Date(startYear, startMonth - 1, startDay)
+  const end = new Date(endYear, endMonth - 1, endDay)
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end < start) return []
+
+  const dates: string[] = []
+  for (const cursor = new Date(start); cursor <= end; cursor.setDate(cursor.getDate() + 1)) {
+    dates.push(isoDate(cursor.getFullYear(), cursor.getMonth() + 1, cursor.getDate()))
+  }
+  return dates.map((date) => clampDate(date, trip))
 }
 
 function checkoutDate(line: string, trip: Trip): string | null {
