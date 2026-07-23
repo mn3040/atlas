@@ -21,12 +21,12 @@ export function TopNav() {
   }
 
   return (
-    <div className="flex shrink-0 items-center justify-between border-b border-border bg-ink px-7 py-3.5">
+    <div className="flex shrink-0 items-center justify-between border-b border-border bg-ink px-4 py-3 sm:px-7 sm:py-3.5">
       <Link to="/" className="flex items-center gap-2.5">
         <img src="/atlas-mark.svg" alt="Atlas" className="h-8 w-8 rounded-lg" />
         <div>
           <span className="block text-[15px] font-extrabold tracking-[0.32em] text-text">ATLAS</span>
-          <span className="block text-[9px] font-bold uppercase tracking-[0.24em] text-green">Plan your adventure</span>
+          <span className="hidden text-[9px] font-bold uppercase tracking-[0.24em] text-green sm:block">Plan your adventure</span>
         </div>
       </Link>
 
@@ -44,9 +44,9 @@ export function TopNav() {
       </div>
 
       {open && (
-        <div className="fixed inset-0 z-50 flex items-start justify-end bg-black/45 p-4">
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/45 p-3 sm:items-start sm:justify-end sm:p-4">
           <button className="absolute inset-0 cursor-default" aria-label="Close settings" onClick={() => setOpen(false)} />
-          <section className="relative w-full max-w-sm border border-border bg-surface p-5 shadow-2xl">
+          <section className="relative max-h-[calc(100dvh-1.5rem)] w-full max-w-sm overflow-y-auto border border-border bg-surface p-5 shadow-2xl">
             <div className="mb-5 flex items-start justify-between gap-4">
               <div>
                 <p className="mb-1 text-[10px] font-bold uppercase tracking-[0.24em] text-paper">Itinerary settings</p>

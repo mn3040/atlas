@@ -14,6 +14,7 @@ interface LineFeature {
 }
 
 export interface TripMapHandle {
+  resize: () => void
   zoomIn: () => void
   zoomOut: () => void
 }
@@ -50,6 +51,7 @@ export const TripMap = forwardRef<
   latestRef.current = { days, items, activeDayId, selectedItemId, onSelectItem }
 
   useImperativeHandle(ref, () => ({
+    resize: () => mapRef.current?.resize(),
     zoomIn: () => mapRef.current?.easeTo({ zoom: (mapRef.current.getZoom() ?? 12) + 1 }),
     zoomOut: () => mapRef.current?.easeTo({ zoom: (mapRef.current.getZoom() ?? 12) - 1 }),
   }))

@@ -128,8 +128,8 @@ export function ImportItineraryModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/55 px-4 py-8">
-      <div className="w-full max-w-5xl rounded-lg border border-border bg-surface p-5">
+    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/55 px-3 py-4 sm:px-4 sm:py-8">
+      <div className="max-h-[calc(100dvh-2rem)] w-full max-w-5xl overflow-y-auto rounded-lg border border-border bg-surface p-4 sm:p-5">
         <div className="mb-5 flex items-start justify-between gap-4">
           <div>
             <p className="mb-1 text-[11px] font-bold uppercase tracking-[0.22em] text-paper">Document import</p>
@@ -306,7 +306,7 @@ export function ImportItineraryModal({
           </div>
         )}
 
-        <div className="mt-5 flex justify-end gap-2">
+        <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
           <button type="button" onClick={onClose} className="rounded-md px-4 py-2 text-sm font-semibold text-text-dim hover:text-text">
             Cancel
           </button>

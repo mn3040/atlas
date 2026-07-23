@@ -12,13 +12,13 @@ const GOOGLE_TRAVELMODE: Partial<Record<TravelMode, string>> = {
 }
 
 function directionsUrl(from: Item, to: Item, mode: TravelMode): string {
-  const origin = onwardPoint(from)
-  const destination = onwardPoint(to)
+  const origin = directionsLabel(from, from.type === 'flight')
+  const destination = directionsLabel(to, false)
   if (mode === 'flight') {
     return `https://www.google.com/travel/flights?q=Flights%20from%20${encodeURIComponent(from.name)}%20to%20${encodeURIComponent(to.name)}`
   }
   const travelmode = GOOGLE_TRAVELMODE[mode] ?? 'driving'
-  return `https://www.google.com/maps/dir/?api=1&origin=${origin.lat},${origin.lng}&destination=${destination.lat},${destination.lng}&travelmode=${travelmode}`
+  return `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}&travelmode=${travelmode}`
 }
 
 function onwardPoint(item: Item) {
@@ -26,6 +26,12 @@ function onwardPoint(item: Item) {
     return { lat: item.lat2, lng: item.lng2 }
   }
   return { lat: item.lat, lng: item.lng }
+}
+
+function directionsLabel(item: Item, useArrival: boolean): string {
+  const label = useArrival ? item.location2Label : item.locationLabel
+  const coords = useArrival && item.lat2 != null && item.lng2 != null ? `${item.lat2},${item.lng2}` : `${item.lat},${item.lng}`
+  return [item.name, label].filter(Boolean).join(', ') || coords
 }
 
 export function TransitCard({
@@ -46,7 +52,7 @@ export function TransitCard({
   const modeLabel = TRAVEL_MODES.find((m) => m.id === mode)!.label
 
   return (
-    <div className="absolute bottom-16 right-4 z-10 w-[230px] rounded-2xl border border-border-strong bg-surface p-3.5 shadow-2xl">
+    <div className="absolute bottom-16 left-3 right-3 z-10 rounded-2xl border border-border-strong bg-surface p-3.5 shadow-2xl md:left-auto md:right-4 md:w-[230px]">
       <div className="mb-2 flex items-center gap-2">
         <div
           className="flex h-[26px] w-[26px] shrink-0 items-center justify-center rounded-lg"

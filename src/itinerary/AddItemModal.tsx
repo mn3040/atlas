@@ -210,8 +210,8 @@ export function AddItemModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/60 px-4 py-10">
-      <div className="w-full max-w-lg rounded-lg border border-border bg-surface p-6">
+    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/60 px-3 py-4 sm:px-4 sm:py-10">
+      <div className="max-h-[calc(100dvh-2rem)] w-full max-w-lg overflow-y-auto rounded-lg border border-border bg-surface p-4 sm:p-6">
         {isEdit ? (
           <div className="flex items-center gap-2 text-sm font-semibold text-text">
             {(() => {
@@ -221,7 +221,7 @@ export function AddItemModal({
             Edit {type}
           </div>
         ) : (
-          <div className="flex gap-1 rounded-md bg-ink p-1">
+          <div className="grid grid-cols-3 gap-1 rounded-md bg-ink p-1">
             {TYPE_TABS.map(({ type: t, label, icon: Icon }) => (
               <button
                 key={t}
@@ -253,7 +253,7 @@ export function AddItemModal({
                 placeholder="Name"
                 className={inputClass}
               />
-              <div className="flex gap-2">
+              <div className="grid gap-2 sm:grid-cols-3">
                 <select
                   value={category}
                   onChange={(e) => setCategory(e.target.value as ActivityCategory)}
@@ -302,7 +302,7 @@ export function AddItemModal({
                 defaultValue={editItem?.location2Label ?? ''}
                 onSelect={setPlace2}
               />
-              <div className="flex gap-2">
+              <div className="grid gap-2 sm:grid-cols-3">
                 <input
                   type="date"
                   required
@@ -344,7 +344,7 @@ export function AddItemModal({
                 placeholder="Name"
                 className={inputClass}
               />
-              <div className="flex gap-2">
+              <div className="grid gap-2 sm:grid-cols-2">
                 <div className="flex-1">
                   <label className="block font-mono text-xs uppercase tracking-wide text-text-dim">Check in</label>
                   <input
@@ -376,7 +376,7 @@ export function AddItemModal({
                 placeholder="Room type (e.g. Deluxe City View Room)"
                 className={inputClass}
               />
-              <div className="flex gap-2">
+              <div className="grid gap-2 sm:grid-cols-3">
                 <input
                   type="number"
                   min={1}
@@ -404,7 +404,7 @@ export function AddItemModal({
                   className={inputClass}
                 />
               </div>
-              <div className="flex gap-2">
+              <div className="grid gap-2 sm:grid-cols-[1fr_8rem]">
                 <input
                   value={confirmationNumber}
                   onChange={(e) => setConfirmationNumber(e.target.value)}
@@ -453,7 +453,7 @@ export function AddItemModal({
 
           {error && <p className="text-sm text-line-4">{error}</p>}
 
-          <div className="flex justify-end gap-2 pt-2">
+          <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end">
             <button
               type="button"
               onClick={onClose}

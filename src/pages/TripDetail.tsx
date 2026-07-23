@@ -12,6 +12,8 @@ import {
   BedDouble,
   Play,
   Pause,
+  List,
+  Map,
 } from 'lucide-react'
 import {
   fetchTrip,
@@ -79,6 +81,7 @@ export default function TripDetail() {
   const [editingDayLabel, setEditingDayLabel] = useState(false)
   const [dayLabelDraft, setDayLabelDraft] = useState('')
   const [isTouring, setIsTouring] = useState(false)
+  const [mobileView, setMobileView] = useState<'itinerary' | 'map'>('itinerary')
   const mapRef = useRef<TripMapHandle>(null)
 
   useEffect(() => {
@@ -160,6 +163,12 @@ export default function TripDetail() {
   useEffect(() => {
     setIsTouring(false)
   }, [activeDayId])
+
+  useEffect(() => {
+    if (mobileView !== 'map') return
+    const timer = window.setTimeout(() => mapRef.current?.resize(), 50)
+    return () => window.clearTimeout(timer)
+  }, [mobileView])
 
   const selectedIndex = displayedActiveItems.findIndex((item) => item.id === selectedItemId)
   const nextItem = selectedIndex >= 0 ? displayedActiveItems[selectedIndex + 1] : undefined
@@ -281,14 +290,39 @@ export default function TripDetail() {
   }
 
   return (
-    <div className="flex h-screen flex-col overflow-hidden bg-ink text-text">
+    <div className="flex h-screen flex-col overflow-hidden bg-ink text-text [height:100dvh]">
       <TopNav />
 
-      <div className="flex min-h-0 flex-1">
-        <aside className="relative flex w-[400px] shrink-0 flex-col border-r border-border overflow-hidden">
+      <div className="grid grid-cols-2 gap-1 border-b border-border bg-ink px-3 py-2 md:hidden">
+        <button
+          type="button"
+          onClick={() => setMobileView('itinerary')}
+          className={`flex h-10 items-center justify-center gap-2 rounded-md text-xs font-extrabold uppercase tracking-[0.16em] transition-colors ${
+            mobileView === 'itinerary' ? 'bg-paper text-ink' : 'bg-surface text-text-dim'
+          }`}
+        >
+          <List size={15} /> Itinerary
+        </button>
+        <button
+          type="button"
+          onClick={() => setMobileView('map')}
+          className={`flex h-10 items-center justify-center gap-2 rounded-md text-xs font-extrabold uppercase tracking-[0.16em] transition-colors ${
+            mobileView === 'map' ? 'bg-paper text-ink' : 'bg-surface text-text-dim'
+          }`}
+        >
+          <Map size={15} /> Map
+        </button>
+      </div>
+
+      <div className="flex min-h-0 flex-1 flex-col md:flex-row">
+        <aside
+          className={`relative min-h-0 w-full flex-1 shrink-0 flex-col overflow-hidden border-border md:flex md:w-[400px] md:flex-none md:border-r ${
+            mobileView === 'itinerary' ? 'flex' : 'hidden'
+          }`}
+        >
           {screen === 'itinerary' ? (
             <>
-              <div className="px-[22px] pt-[18px]">
+              <div className="px-4 pt-4 sm:px-[22px] sm:pt-[18px]">
                 <div className="mb-4 flex items-center justify-between">
                   <Link to="/" className="flex items-center gap-2 text-xs font-semibold text-text-dim hover:text-text">
                     <ChevronLeft size={14} /> Itinerary Detail
@@ -363,7 +397,7 @@ export default function TripDetail() {
                   </div>
                 </div>
 
-                <h1 className="mb-1.5 text-[23px] font-extrabold leading-tight tracking-tight text-text">
+                <h1 className="mb-1.5 text-[20px] font-extrabold leading-tight tracking-tight text-text sm:text-[23px]">
                   {trip.name} &mdash; {days.length} Day Trip
                 </h1>
                 {trip.description && (
@@ -444,7 +478,7 @@ export default function TripDetail() {
                 </div>
 
                 {showCalendar && (
-                  <div className="absolute left-[22px] top-16 z-20 w-80 rounded-lg border border-border bg-surface p-3 shadow-2xl">
+                  <div className="absolute left-4 right-4 top-16 z-20 rounded-lg border border-border bg-surface p-3 shadow-2xl sm:left-[22px] sm:right-auto sm:w-80">
                     <TripCalendar
                       days={days}
                       onSelectDay={(dayId) => {
@@ -456,7 +490,7 @@ export default function TripDetail() {
                 )}
               </div>
 
-              <div className="min-h-0 flex-1 overflow-y-auto px-[22px] pb-6 pt-0.5">
+              <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-6 pt-0.5 sm:px-[22px]">
                 {activeItems.length > 0 && (
                   <DayOptionsPanel
                     items={activeItems}
@@ -504,7 +538,11 @@ export default function TripDetail() {
           ) : null}
         </aside>
 
-        <main className="relative flex-1 bg-map-bg">
+        <main
+          className={`relative min-h-0 flex-1 bg-map-bg md:block ${
+            mobileView === 'map' ? 'block' : 'hidden'
+          }`}
+        >
           <TripMap
             ref={mapRef}
             days={days}
