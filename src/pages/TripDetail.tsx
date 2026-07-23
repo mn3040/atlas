@@ -26,7 +26,7 @@ import {
   deleteItem,
 } from '../api/trips'
 import { TopNav } from '../components/TopNav'
-import { CountryFlag } from '../components/CountryFlag'
+import { CountryFlags } from '../components/CountryFlag'
 import { DaySelect } from '../itinerary/DaySelect'
 import { DayLine } from '../itinerary/DayLine'
 import { DayOptionsPanel } from '../itinerary/DayOptionsPanel'
@@ -47,6 +47,7 @@ import { actionForItem, bookingUrlForItem, mapsUrlForItem } from '../utils/itemA
 import { downloadItinerary } from '../utils/exportItinerary'
 import { APP_SETTINGS_EVENT, getAppSettings, shouldConfirmBeforeDelete } from '../utils/settings'
 import { filterItemsForView, loadMustSeeIds, saveMustSeeIds } from '../utils/mustSee'
+import { countryCodesForTrip } from '../utils/flags'
 import type { TravelMode } from '../utils/distance'
 import type { AppSettings } from '../utils/settings'
 import type { DayOptionView } from '../utils/mustSee'
@@ -175,6 +176,7 @@ export default function TripDetail() {
   const selectedItem = selectedIndex >= 0 ? displayedActiveItems[selectedIndex] : undefined
   const bookingItem = items.find((item) => item.id === bookingItemId) ?? null
   const flightItem = items.find((item) => item.id === flightItemId) ?? null
+  const tripCountryCodes = trip ? countryCodesForTrip(trip, items) : []
 
   function handleDayCreated(day: Day) {
     setDays((current) => [...current, day].sort((a, b) => a.date.localeCompare(b.date)))
@@ -406,7 +408,7 @@ export default function TripDetail() {
 
                 <div className="mb-4 flex flex-wrap items-center gap-2.5">
                   <div className="flex items-center gap-1.5 rounded-lg bg-surface-3 px-2.5 py-1 text-[11px] font-bold text-text">
-                    <CountryFlag countryCode={trip.countryCode} className="h-3 w-auto rounded-[1px]" />
+                    <CountryFlags countryCodes={tripCountryCodes} className="h-3 w-auto rounded-[1px]" />
                     {formatShortDate(trip.startDate)} &ndash; {formatShortDate(trip.endDate)}
                   </div>
                   <div className="text-[11.5px] text-text-dim">

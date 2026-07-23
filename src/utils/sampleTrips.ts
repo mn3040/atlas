@@ -11,6 +11,7 @@ interface SampleItem {
   lat: number
   lng: number
   locationLabel: string
+  countryCode?: string
   lat2?: number
   lng2?: number
   location2Label?: string
@@ -54,6 +55,7 @@ const SAMPLE_TRIPS: SampleTrip[] = [
         lat: 37.6213,
         lng: -122.379,
         locationLabel: 'San Francisco International Airport, San Francisco, CA',
+        countryCode: 'US',
         lat2: 35.772,
         lng2: 140.3929,
         location2Label: 'Narita International Airport, Chiba, Japan',
@@ -359,6 +361,7 @@ export async function createSampleTrips(ownerId: string, existingTripNames: stri
           lat: item.lat,
           lng: item.lng,
           locationLabel: item.locationLabel,
+          countryCode: item.countryCode ?? sample.countryCode,
           lat2: item.lat2 ?? null,
           lng2: item.lng2 ?? null,
           location2Label: item.location2Label ?? null,

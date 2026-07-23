@@ -2,13 +2,14 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Plus, MapPin, Trash2, Wand2 } from 'lucide-react'
 import { useSession } from '../hooks/useSession'
-import { fetchTrips, createTrip, deleteTrip } from '../api/trips'
+import { fetchTrips, createTrip, deleteTrip, fetchItems } from '../api/trips'
 import { TopNav } from '../components/TopNav'
-import { CountryFlag } from '../components/CountryFlag'
+import { CountryFlag, CountryFlags } from '../components/CountryFlag'
 import { lineColorForIndex } from '../utils/lineColors'
 import { createSampleTrips } from '../utils/sampleTrips'
 import { shouldConfirmBeforeDelete } from '../utils/settings'
-import type { Trip } from '../types/trip'
+import { countryCodesForTrip } from '../utils/flags'
+import type { Item, Trip } from '../types/trip'
 
 const inputClass =
   'mt-1 w-full rounded-md border border-border bg-ink px-3 py-2 text-sm text-text placeholder:text-text-dim focus:border-paper focus:outline-none'
@@ -16,6 +17,7 @@ const inputClass =
 export default function Dashboard() {
   const { session } = useSession()
   const [trips, setTrips] = useState<Trip[]>([])
+  const [tripItems, setTripItems] = useState<Record<string, Item[]>>({})
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [createError, setCreateError] = useState<string | null>(null)
@@ -25,7 +27,11 @@ export default function Dashboard() {
 
   useEffect(() => {
     fetchTrips()
-      .then(setTrips)
+      .then(async (tripData) => {
+        setTrips(tripData)
+        const entries = await Promise.all(tripData.map(async (trip) => [trip.id, await fetchItems(trip.id)] as const))
+        setTripItems(Object.fromEntries(entries))
+      })
       .finally(() => setLoading(false))
   }, [])
 
@@ -41,6 +47,7 @@ export default function Dashboard() {
     try {
       const trip = await createTrip({ ...input, ownerId: session.user.id })
       setTrips((current) => [...current, trip].sort((a, b) => a.startDate.localeCompare(b.startDate)))
+      setTripItems((current) => ({ ...current, [trip.id]: [] }))
       setShowForm(false)
     } catch (err) {
       setCreateError(err instanceof Error ? err.message : 'Failed to create trip.')
@@ -52,11 +59,18 @@ export default function Dashboard() {
     setDeleteError(null)
     setDeletingTripId(trip.id)
     const previousTrips = trips
+    const previousTripItems = tripItems
     setTrips((current) => current.filter((item) => item.id !== trip.id))
+    setTripItems((current) => {
+      const next = { ...current }
+      delete next[trip.id]
+      return next
+    })
     try {
       await deleteTrip(trip.id)
     } catch (err) {
       setTrips(previousTrips)
+      setTripItems(previousTripItems)
       setDeleteError(err instanceof Error ? err.message : 'Failed to delete trip.')
     } finally {
       setDeletingTripId(null)
@@ -73,6 +87,8 @@ export default function Dashboard() {
         trips.map((trip) => trip.name),
       )
       setTrips((current) => [...current, ...createdTrips].sort((a, b) => a.startDate.localeCompare(b.startDate)))
+      const entries = await Promise.all(createdTrips.map(async (trip) => [trip.id, await fetchItems(trip.id)] as const))
+      setTripItems((current) => ({ ...current, ...Object.fromEntries(entries) }))
     } catch (err) {
       setCreateError(err instanceof Error ? err.message : 'Failed to create sample trips.')
     } finally {
@@ -142,7 +158,10 @@ export default function Dashboard() {
                       <div className="mt-auto flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-text-dim">
                         <MapPin size={11} />
                         {trip.startDate} &ndash; {trip.endDate}
-                        <CountryFlag countryCode={trip.countryCode} className="h-3 w-auto rounded-[1px]" />
+                        <CountryFlags
+                          countryCodes={countryCodesForTrip(trip, tripItems[trip.id] ?? [])}
+                          className="h-3 w-auto rounded-[1px]"
+                        />
                       </div>
                     </Link>
                     <button
@@ -205,7 +224,7 @@ function NewTripForm({
         </div>
         <div className="w-28">
           <label className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-text-dim">
-            Country <CountryFlag countryCode={countryCode} className="h-3 w-auto rounded-[1px]" />
+            Primary country <CountryFlag countryCode={countryCode} className="h-3 w-auto rounded-[1px]" />
           </label>
           <input
             value={countryCode}

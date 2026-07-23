@@ -30,6 +30,7 @@ interface ItemRow {
   lat: number
   lng: number
   location_label: string | null
+  country_code: string | null
   lat2: number | null
   lng2: number | null
   location2_label: string | null
@@ -82,6 +83,7 @@ function mapItem(row: ItemRow): Item {
     lat: row.lat,
     lng: row.lng,
     locationLabel: row.location_label,
+    countryCode: row.country_code,
     lat2: row.lat2,
     lng2: row.lng2,
     location2Label: row.location2_label,
@@ -222,6 +224,7 @@ export interface NewItemInput {
   lat: number
   lng: number
   locationLabel: string | null
+  countryCode?: string | null
   lat2: number | null
   lng2: number | null
   location2Label: string | null
@@ -258,6 +261,7 @@ export async function createItem(input: NewItemInput): Promise<Item> {
       lat: input.lat,
       lng: input.lng,
       location_label: input.locationLabel,
+      country_code: input.countryCode ?? null,
       lat2: input.lat2,
       lng2: input.lng2,
       location2_label: input.location2Label,
@@ -295,6 +299,7 @@ export interface ItemUpdateInput {
   lat?: number
   lng?: number
   locationLabel?: string | null
+  countryCode?: string | null
   lat2?: number | null
   lng2?: number | null
   location2Label?: string | null
@@ -326,6 +331,7 @@ export async function updateItem(itemId: string, input: ItemUpdateInput): Promis
   if (input.lat !== undefined) patch.lat = input.lat
   if (input.lng !== undefined) patch.lng = input.lng
   if (input.locationLabel !== undefined) patch.location_label = input.locationLabel
+  if (input.countryCode !== undefined) patch.country_code = input.countryCode
   if (input.lat2 !== undefined) patch.lat2 = input.lat2
   if (input.lng2 !== undefined) patch.lng2 = input.lng2
   if (input.location2Label !== undefined) patch.location2_label = input.location2Label

@@ -57,7 +57,7 @@ export function EditTripModal({
             </div>
             <div className="w-28">
               <label className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-text-dim">
-                Country <CountryFlag countryCode={countryCode} className="h-3 w-auto rounded-[1px]" />
+                Primary country <CountryFlag countryCode={countryCode} className="h-3 w-auto rounded-[1px]" />
               </label>
               <input
                 value={countryCode}

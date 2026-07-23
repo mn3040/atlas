@@ -34,7 +34,7 @@ const inputClass =
 const placeInputClass =
   'h-11 border-border bg-ink/85 font-semibold transition-colors focus:border-green focus:bg-ink'
 
-function placeFromItem(label: string | null, lat: number, lng: number): PlaceResult {
+function placeFromItem(label: string | null, lat: number, lng: number, countryCode: string | null): PlaceResult {
   const fallback = `${lat},${lng}`
   const query = label?.trim() || fallback
   return {
@@ -42,7 +42,7 @@ function placeFromItem(label: string | null, lat: number, lng: number): PlaceRes
     lat,
     lng,
     mapsUrl: googleMapsSearchUrl(query),
-    countryCode: null,
+    countryCode,
   }
 }
 
@@ -71,11 +71,11 @@ export function AddItemModal({
   const [name, setName] = useState(editItem?.name ?? '')
   const [category, setCategory] = useState<ActivityCategory>(editItem?.category ?? 'attraction')
   const [place, setPlace] = useState<PlaceResult | null>(
-    editItem ? placeFromItem(editItem.locationLabel, editItem.lat, editItem.lng) : null,
+    editItem ? placeFromItem(editItem.locationLabel, editItem.lat, editItem.lng, editItem.countryCode) : null,
   )
   const [place2, setPlace2] = useState<PlaceResult | null>(
     editItem?.lat2 != null && editItem?.lng2 != null
-      ? placeFromItem(editItem.location2Label, editItem.lat2, editItem.lng2)
+      ? placeFromItem(editItem.location2Label, editItem.lat2, editItem.lng2, null)
       : null,
   )
   const [startDate, setStartDate] = useState(editItem?.startDate ?? defaultDate ?? trip.startDate)
@@ -143,6 +143,7 @@ export function AddItemModal({
           lat: place!.lat,
           lng: place!.lng,
           locationLabel: place!.label,
+          countryCode: place!.countryCode,
           lat2: type === 'flight' ? (place2?.lat ?? null) : null,
           lng2: type === 'flight' ? (place2?.lng ?? null) : null,
           location2Label: type === 'flight' ? (place2?.label ?? null) : null,
@@ -182,6 +183,7 @@ export function AddItemModal({
         lat: place!.lat,
         lng: place!.lng,
         locationLabel: place!.label,
+        countryCode: place!.countryCode,
         lat2: type === 'flight' ? place2!.lat : null,
         lng2: type === 'flight' ? place2!.lng : null,
         location2Label: type === 'flight' ? place2!.label : null,

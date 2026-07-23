@@ -1,5 +1,6 @@
 import type { Trip, Day, Item } from '../types/trip'
 import { formatTime } from './time'
+import { countryCodesForTrip } from './flags'
 
 const PAGE_WIDTH = 595.28
 const PAGE_HEIGHT = 841.89
@@ -95,6 +96,7 @@ class ItineraryPdf {
   }
 
   addCover(days: Day[], items: Item[]) {
+    const countryCodes = countryCodesForTrip(this.trip, items)
     this.rect(0, PAGE_HEIGHT - 122, PAGE_WIDTH, 122, TEAL, true)
     this.rect(MARGIN, PAGE_HEIGHT - 122, 5, 122, GREEN, true)
     this.text('ATLAS', MARGIN + 18, PAGE_HEIGHT - 42, 9, YELLOW, 'Helvetica-Bold')
@@ -112,7 +114,7 @@ class ItineraryPdf {
       ['Trip days', String(days.length)],
       ['Planned stops', String(items.filter((item) => item.type !== 'stay').length)],
       ['Stays', String(items.filter((item) => item.type === 'stay').length)],
-      ['Flights', String(items.filter((item) => item.type === 'flight').length)],
+      ['Countries', countryCodes.join(' / ') || '--'],
     ])
   }
 

@@ -54,6 +54,7 @@ create table items (
   lat double precision not null,
   lng double precision not null,
   location_label text,
+  country_code text,
 
   -- Secondary location: only used by flights, for the arrival airport.
   lat2 double precision,

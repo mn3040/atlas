@@ -45,6 +45,7 @@ export interface Item {
   lat: number
   lng: number
   locationLabel: string | null
+  countryCode: string | null
 
   lat2: number | null
   lng2: number | null

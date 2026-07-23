@@ -96,6 +96,7 @@ export function ImportItineraryModal({
           lat: primary.lat,
           lng: primary.lng,
           locationLabel: primary.label,
+          countryCode: primary.countryCode,
           lat2: secondary?.lat ?? null,
           lng2: secondary?.lng ?? null,
           location2Label: secondary?.label ?? null,
@@ -338,10 +339,10 @@ async function ensureDayFor(
   return day.id
 }
 
-async function resolveLocation(query: string): Promise<{ label: string; lat: number; lng: number }> {
+async function resolveLocation(query: string): Promise<{ label: string; lat: number; lng: number; countryCode: string | null }> {
   const fallback = query.trim() || 'Location'
   const results = await searchPlaces(fallback)
   const match = results[0]
-  if (match) return { label: match.label, lat: match.lat, lng: match.lng }
-  return { label: fallback, lat: 0, lng: 0 }
+  if (match) return { label: match.label, lat: match.lat, lng: match.lng, countryCode: match.countryCode }
+  return { label: fallback, lat: 0, lng: 0, countryCode: null }
 }

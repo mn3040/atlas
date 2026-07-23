@@ -22,3 +22,25 @@ export function CountryFlag({
     />
   )
 }
+
+export function CountryFlags({
+  countryCodes,
+  max = 3,
+  className = 'h-3 w-auto rounded-[1px]',
+}: {
+  countryCodes: string[]
+  max?: number
+  className?: string
+}) {
+  const visible = countryCodes.slice(0, max)
+  const extra = countryCodes.length - visible.length
+  if (visible.length === 0) return null
+  return (
+    <span className="inline-flex items-center gap-1">
+      {visible.map((code) => (
+        <CountryFlag key={code} countryCode={code} className={className} />
+      ))}
+      {extra > 0 && <span className="text-[10px] font-extrabold text-text-dim">+{extra}</span>}
+    </span>
+  )
+}
