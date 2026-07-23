@@ -30,7 +30,7 @@ const TYPE_TABS: { type: ItemType; label: string; description: string; icon: typ
 ]
 
 const inputClass =
-  'h-11 w-full rounded-md border border-border bg-ink/85 px-3 text-sm font-semibold text-text placeholder:text-text-dim transition-colors focus:border-green focus:bg-ink focus:outline-none'
+  'min-h-11 w-full rounded-md border border-border bg-ink/85 px-3 py-2 text-base font-semibold text-text placeholder:text-text-dim transition-colors focus:border-green focus:bg-ink focus:outline-none sm:text-sm'
 const placeInputClass =
   'h-11 border-border bg-ink/85 font-semibold transition-colors focus:border-green focus:bg-ink'
 
@@ -227,7 +227,7 @@ export function AddItemModal({
         className="max-h-[calc(100dvh-2rem)] w-full max-w-2xl overflow-y-auto rounded-lg border border-border-strong bg-surface shadow-2xl"
       >
         <div className="border-b border-border bg-[linear-gradient(135deg,rgba(34,221,133,0.14),rgba(247,255,136,0.08)_42%,rgba(7,6,6,0)_72%)] px-4 py-4 sm:px-5">
-          <div className="flex items-start justify-between gap-4">
+          <div className="flex items-start justify-between gap-3">
             <div className="flex min-w-0 items-center gap-3">
               <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md bg-paper text-ink">
                 <SelectedIcon size={20} />
@@ -540,7 +540,7 @@ export function AddItemModal({
 
           {error && <p className="border-l-4 border-line-4 bg-ink px-3 py-2 text-sm font-semibold text-text">{error}</p>}
 
-          <div className="sticky bottom-0 -mx-4 -mb-4 mt-2 flex flex-col-reverse gap-2 border-t border-border bg-surface/95 px-4 py-4 backdrop-blur sm:-mx-5 sm:flex-row sm:justify-end sm:px-5">
+          <div className="sticky bottom-0 -mx-4 -mb-4 mt-2 flex flex-col-reverse gap-2 border-t border-border bg-surface/95 px-4 py-4 pb-[calc(1rem+env(safe-area-inset-bottom))] backdrop-blur sm:-mx-5 sm:flex-row sm:justify-end sm:px-5 sm:pb-4">
             <button
               type="button"
               onClick={onClose}

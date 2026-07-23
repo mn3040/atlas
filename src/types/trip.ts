@@ -30,6 +30,21 @@ export interface TripMember {
   role: 'owner' | 'editor' | 'viewer'
 }
 
+export interface TripMemberWithProfile extends TripMember {
+  displayName: string
+  avatarColor: string
+}
+
+export interface TripInvite {
+  id: string
+  tripId: string
+  token: string
+  createdBy: string
+  expiresAt: string | null
+  revokedAt: string | null
+  createdAt: string
+}
+
 export interface VoteProfile {
   userId: string
   displayName: string

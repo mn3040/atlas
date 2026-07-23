@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { useSession } from './hooks/useSession'
 import Dashboard from './pages/Dashboard'
 import TripDetail from './pages/TripDetail'
+import JoinTrip from './pages/JoinTrip'
 
 function WithSession({ children }: { children: React.ReactNode }) {
   const { session, loading } = useSession()
@@ -34,6 +35,14 @@ function App() {
           element={
             <WithSession>
               <TripDetail />
+            </WithSession>
+          }
+        />
+        <Route
+          path="/join/:token"
+          element={
+            <WithSession>
+              <JoinTrip />
             </WithSession>
           }
         />

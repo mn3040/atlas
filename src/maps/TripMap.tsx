@@ -14,7 +14,7 @@ interface LineFeature {
 }
 
 export interface TripMapHandle {
-  resize: () => void
+  resize: (fit?: boolean) => void
   zoomIn: () => void
   zoomOut: () => void
 }
@@ -52,7 +52,13 @@ export const TripMap = forwardRef<
   latestRef.current = { days, items, activeDayId, selectedItemId, onSelectItem }
 
   useImperativeHandle(ref, () => ({
-    resize: () => mapRef.current?.resize(),
+    resize: (fit = false) => {
+      const map = mapRef.current
+      if (!map) return
+      map.resize()
+      const render = (map as unknown as { __render?: (fit: boolean) => void }).__render
+      render?.(fit)
+    },
     zoomIn: () => mapRef.current?.easeTo({ zoom: (mapRef.current.getZoom() ?? 12) + 1 }),
     zoomOut: () => mapRef.current?.easeTo({ zoom: (mapRef.current.getZoom() ?? 12) - 1 }),
   }))
@@ -158,7 +164,10 @@ export const TripMap = forwardRef<
       flightSource?.setData({ type: 'FeatureCollection', features: flightFeatures })
 
       if (fit && hasPoints) {
-        map.fitBounds(bounds, { padding: 150, maxZoom: 15, duration: 0 })
+        type FitBoundsOptions = Parameters<typeof map.fitBounds>[1] & {
+          padding?: number | { top: number; right: number; bottom: number; left: number }
+        }
+        map.fitBounds(bounds, { padding: fitPadding(), maxZoom: 15, duration: 0 } as FitBoundsOptions)
       }
 
       // Straight line above is the instant baseline; upgrade it to a real
@@ -293,6 +302,16 @@ function addMutedMarker(map: tt.Map, registry: tt.Marker[], lngLat: [number, num
 
   const marker = new tt.Marker({ element: el }).setLngLat(lngLat).addTo(map)
   registry.push(marker)
+}
+
+function fitPadding(): number | { top: number; right: number; bottom: number; left: number } {
+  if (typeof window === 'undefined' || window.innerWidth >= 768) return 150
+  return {
+    top: 84,
+    right: 48,
+    bottom: Math.round(window.innerHeight * 0.52),
+    left: 48,
+  }
 }
 
 function addAnimatedFlightMarker(

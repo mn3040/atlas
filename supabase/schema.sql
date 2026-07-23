@@ -4,6 +4,7 @@
 
 drop table if exists items cascade;
 drop table if exists item_votes cascade;
+drop table if exists trip_invites cascade;
 drop table if exists stops cascade;
 drop table if exists days cascade;
 drop table if exists trip_members cascade;
@@ -11,6 +12,7 @@ drop table if exists trips cascade;
 drop table if exists profiles cascade;
 drop function if exists is_trip_member(uuid);
 drop function if exists trip_role(uuid);
+drop function if exists join_trip_by_token(text);
 drop function if exists handle_new_trip();
 
 create table trips (
@@ -117,6 +119,18 @@ create table item_votes (
 
 create index item_votes_trip_id_idx on item_votes (trip_id);
 
+create table trip_invites (
+  id uuid primary key default gen_random_uuid(),
+  trip_id uuid not null references trips(id) on delete cascade,
+  token text not null unique,
+  created_by uuid not null references auth.users(id) on delete cascade,
+  expires_at timestamptz,
+  revoked_at timestamptz,
+  created_at timestamptz not null default now()
+);
+
+create index trip_invites_trip_id_idx on trip_invites (trip_id);
+
 -- Helper functions used by RLS policies below.
 --
 -- These run as SECURITY DEFINER so their internal queries against
@@ -156,6 +170,7 @@ alter table profiles enable row level security;
 alter table days enable row level security;
 alter table items enable row level security;
 alter table item_votes enable row level security;
+alter table trip_invites enable row level security;
 
 create policy "members can view their trips"
   on trips for select
@@ -251,6 +266,67 @@ create policy "members can update their own item votes"
 create policy "members can delete their own item votes"
   on item_votes for delete
   using (user_id = auth.uid() and is_trip_member(trip_id));
+
+create policy "members can view trip invites"
+  on trip_invites for select
+  using (is_trip_member(trip_id));
+
+create policy "editors can create trip invites"
+  on trip_invites for insert
+  with check (
+    created_by = auth.uid()
+    and trip_role(trip_id) in ('owner', 'editor')
+  );
+
+create policy "editors can revoke trip invites"
+  on trip_invites for update
+  using (trip_role(trip_id) in ('owner', 'editor'))
+  with check (trip_role(trip_id) in ('owner', 'editor'));
+
+create function join_trip_by_token(invite_token text)
+returns uuid
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  invite_trip_id uuid;
+  trip_limit integer;
+  member_count integer;
+begin
+  if auth.uid() is null then
+    raise exception 'Authentication required';
+  end if;
+
+  select trip_invites.trip_id, trips.member_limit
+    into invite_trip_id, trip_limit
+  from trip_invites
+  join trips on trips.id = trip_invites.trip_id
+  where trip_invites.token = invite_token
+    and trip_invites.revoked_at is null
+    and (trip_invites.expires_at is null or trip_invites.expires_at > now())
+    and trips.visibility = 'group'
+  limit 1;
+
+  if invite_trip_id is null then
+    raise exception 'Invite is invalid or expired';
+  end if;
+
+  select count(*) into member_count
+  from trip_members
+  where trip_id = invite_trip_id;
+
+  if trip_limit is not null and member_count >= trip_limit and not is_trip_member(invite_trip_id) then
+    raise exception 'This trip is already full';
+  end if;
+
+  insert into trip_members (trip_id, user_id, role)
+  values (invite_trip_id, auth.uid(), 'viewer')
+  on conflict (trip_id, user_id) do nothing;
+
+  return invite_trip_id;
+end;
+$$;
 
 -- Automatically add the creator as an 'owner' member when a trip is created.
 

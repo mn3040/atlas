@@ -12,7 +12,14 @@ import { countryCodesForTrip } from '../utils/flags'
 import type { Item, Trip, TripVisibility } from '../types/trip'
 
 const inputClass =
-  'mt-1 w-full rounded-md border border-border bg-ink px-3 py-2 text-sm text-text placeholder:text-text-dim focus:border-paper focus:outline-none'
+  'mt-1 min-h-11 w-full rounded-md border border-border bg-ink px-3 py-2 text-base text-text placeholder:text-text-dim focus:border-paper focus:outline-none sm:text-sm'
+
+function normalizeMemberLimit(value: string): number | null {
+  if (!value.trim()) return null
+  const parsed = Number(value)
+  if (!Number.isFinite(parsed)) return null
+  return Math.min(99, Math.max(1, Math.round(parsed)))
+}
 
 export default function Dashboard() {
   const { session } = useSession()
@@ -198,7 +205,7 @@ function NewTripForm({
   const [description, setDescription] = useState('')
   const [countryCode, setCountryCode] = useState('')
   const [visibility, setVisibility] = useState<TripVisibility>('personal')
-  const [memberLimit, setMemberLimit] = useState(4)
+  const [memberLimit, setMemberLimit] = useState('4')
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
 
@@ -209,7 +216,7 @@ function NewTripForm({
       description,
       countryCode,
       visibility,
-      memberLimit: visibility === 'group' ? memberLimit : null,
+      memberLimit: visibility === 'group' ? normalizeMemberLimit(memberLimit) : null,
       startDate,
       endDate,
     })
@@ -217,8 +224,8 @@ function NewTripForm({
 
   return (
     <form onSubmit={handleSubmit} className="mt-6 space-y-3 rounded-xl border border-border bg-surface p-5">
-      <div className="flex gap-3">
-        <div className="flex-1">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_7rem]">
+        <div className="min-w-0">
           <label className="block text-xs font-semibold uppercase tracking-wide text-text-dim">Trip name</label>
           <input
             required
@@ -228,7 +235,7 @@ function NewTripForm({
             className={inputClass}
           />
         </div>
-        <div className="w-28">
+        <div className="min-w-0">
           <label className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-text-dim">
             Primary country <CountryFlag countryCode={countryCode} className="h-3 w-auto rounded-[1px]" />
           </label>
@@ -266,15 +273,17 @@ function NewTripForm({
             type="number"
             min={1}
             max={99}
+            inputMode="numeric"
             disabled={visibility !== 'group'}
             value={memberLimit}
-            onChange={(e) => setMemberLimit(Number(e.target.value) || 1)}
+            onChange={(e) => setMemberLimit(e.target.value)}
+            onBlur={() => setMemberLimit((value) => normalizeMemberLimit(value)?.toString() ?? '1')}
             className={`${inputClass} disabled:opacity-45`}
           />
         </div>
       </div>
-      <div className="flex gap-3">
-        <div className="flex-1">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div className="min-w-0">
           <label className="block text-xs font-semibold uppercase tracking-wide text-text-dim">Start date</label>
           <input
             required
@@ -284,7 +293,7 @@ function NewTripForm({
             className={inputClass}
           />
         </div>
-        <div className="flex-1">
+        <div className="min-w-0">
           <label className="block text-xs font-semibold uppercase tracking-wide text-text-dim">End date</label>
           <input
             required

@@ -15,6 +15,7 @@ import {
   ChevronsDown,
   ChevronsUp,
   Route,
+  Users,
 } from 'lucide-react'
 import {
   fetchTrip,
@@ -39,6 +40,7 @@ import { FlightDetail } from '../itinerary/FlightDetail'
 import { AddItemModal } from '../itinerary/AddItemModal'
 import { ImportItineraryModal } from '../itinerary/ImportItineraryModal'
 import { EditTripModal } from '../itinerary/EditTripModal'
+import { GroupTripModal } from '../itinerary/GroupTripModal'
 import { TripMap } from '../maps/TripMap'
 import type { TripMapHandle } from '../maps/TripMap'
 import { TravelModePicker } from '../maps/TravelModePicker'
@@ -105,6 +107,7 @@ export default function TripDetail() {
   const [showImportModal, setShowImportModal] = useState(false)
   const [showMenu, setShowMenu] = useState(false)
   const [showEditTrip, setShowEditTrip] = useState(false)
+  const [showGroupTrip, setShowGroupTrip] = useState(false)
   const [dayOptionView, setDayOptionView] = useState<DayOptionView>('all')
   const [mustSeeIds, setMustSeeIds] = useState<Set<string>>(() => new Set())
   const [voteSummary, setVoteSummary] = useState<Record<string, ItemVoteSummary>>({})
@@ -228,7 +231,7 @@ export default function TripDetail() {
   }, [activeDayId])
 
   useEffect(() => {
-    const timer = window.setTimeout(() => mapRef.current?.resize(), 50)
+    const timer = window.setTimeout(() => mapRef.current?.resize(true), 90)
     return () => window.clearTimeout(timer)
   }, [mobileSheetExpanded])
 
@@ -484,6 +487,17 @@ export default function TripDetail() {
                             >
                               <Pencil size={13} /> Edit trip details
                             </button>
+                            {trip.visibility === 'group' && (
+                              <button
+                                onClick={() => {
+                                  setShowGroupTrip(true)
+                                  setShowMenu(false)
+                                }}
+                                className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-semibold text-text hover:bg-surface-2"
+                              >
+                                <Users size={13} /> Group invite
+                              </button>
+                            )}
                             <button
                               onClick={() => {
                                 setShowMenu(false)
@@ -764,6 +778,9 @@ export default function TripDetail() {
       )}
 
       {showEditTrip && <EditTripModal trip={trip} onClose={() => setShowEditTrip(false)} onSave={handleUpdateTrip} />}
+      {showGroupTrip && session?.user.id && (
+        <GroupTripModal trip={trip} userId={session.user.id} onClose={() => setShowGroupTrip(false)} />
+      )}
     </div>
   )
 }
