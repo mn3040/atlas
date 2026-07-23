@@ -174,7 +174,7 @@ export function ImportItineraryModal({
                       </select>
                     </td>
                     <td className="p-2">
-                      <input value={item.name} onChange={(event) => updateSuggestion(item.id, { name: event.target.value })} className={inputClass} />
+                      <input value={item.name ?? ''} onChange={(event) => updateSuggestion(item.id, { name: event.target.value })} className={inputClass} />
                       {item.type === 'activity' && (
                         <select
                           value={item.category}
@@ -194,7 +194,7 @@ export function ImportItineraryModal({
                         type="date"
                         min={trip.startDate}
                         max={trip.endDate}
-                        value={item.startDate}
+                        value={item.startDate ?? ''}
                         onChange={(event) => updateSuggestion(item.id, { startDate: event.target.value })}
                         className={inputClass}
                       />
@@ -203,26 +203,26 @@ export function ImportItineraryModal({
                           type="date"
                           min={item.startDate}
                           max={trip.endDate}
-                          value={item.endDate}
+                          value={item.endDate ?? ''}
                           onChange={(event) => updateSuggestion(item.id, { endDate: event.target.value })}
                           className={`${inputClass} mt-1`}
                         />
                       )}
                     </td>
                     <td className="p-2">
-                      <input type="time" value={item.startTime} onChange={(event) => updateSuggestion(item.id, { startTime: event.target.value })} className={inputClass} />
-                      <input type="time" value={item.endTime} onChange={(event) => updateSuggestion(item.id, { endTime: event.target.value })} className={`${inputClass} mt-1`} />
+                      <input type="time" value={item.startTime ?? ''} onChange={(event) => updateSuggestion(item.id, { startTime: event.target.value })} className={inputClass} />
+                      <input type="time" value={item.endTime ?? ''} onChange={(event) => updateSuggestion(item.id, { endTime: event.target.value })} className={`${inputClass} mt-1`} />
                     </td>
                     <td className="p-2">
                       <input
-                        value={item.locationLabel}
+                        value={item.locationLabel ?? ''}
                         onChange={(event) => updateSuggestion(item.id, { locationLabel: event.target.value })}
                         placeholder="Place or address"
                         className={inputClass}
                       />
                       {item.type === 'flight' && (
                         <input
-                          value={item.location2Label}
+                          value={item.location2Label ?? ''}
                           onChange={(event) => updateSuggestion(item.id, { location2Label: event.target.value })}
                           placeholder="Arrival"
                           className={`${inputClass} mt-1`}
@@ -232,7 +232,7 @@ export function ImportItineraryModal({
                     <td className="p-2">
                       {item.type === 'flight' && (
                         <input
-                          value={item.flightNumber}
+                          value={item.flightNumber ?? ''}
                           onChange={(event) => updateSuggestion(item.id, { flightNumber: event.target.value })}
                           placeholder="Flight number"
                           className={inputClass}
@@ -240,14 +240,14 @@ export function ImportItineraryModal({
                       )}
                       {item.type === 'stay' && (
                         <input
-                          value={item.confirmationNumber}
+                          value={item.confirmationNumber ?? ''}
                           onChange={(event) => updateSuggestion(item.id, { confirmationNumber: event.target.value })}
                           placeholder="Confirmation"
                           className={inputClass}
                         />
                       )}
                       <textarea
-                        value={item.notes}
+                        value={item.notes ?? ''}
                         onChange={(event) => updateSuggestion(item.id, { notes: event.target.value })}
                         className={`${inputClass} mt-1 min-h-14 resize-y`}
                       />

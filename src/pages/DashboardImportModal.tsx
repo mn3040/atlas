@@ -33,6 +33,7 @@ export function DashboardImportModal({
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const selectedCount = suggestions.filter((item) => item.selected).length
+  const importHealth = useMemo(() => summarizeImportHealth(suggestions), [suggestions])
   const dayCount = useMemo(() => (startDate && endDate ? daysBetween(startDate, endDate).length : 0), [endDate, startDate])
 
   async function handleFile(file: File) {
@@ -216,6 +217,12 @@ export function DashboardImportModal({
               <span>{dayCount} day itinerary</span>
             </div>
 
+            <div className="mb-3 grid grid-cols-3 gap-2">
+              <ImportMetric label="Ready" value={importHealth.ready} tone="green" />
+              <ImportMetric label="Needs location" value={importHealth.missingLocation} tone="paper" />
+              <ImportMetric label="Needs date" value={importHealth.missingDate} tone="line-4" />
+            </div>
+
             <div className="max-h-[42vh] overflow-y-auto rounded-lg border border-border">
               {suggestions.map((item) => (
                 <article key={item.id} className="grid grid-cols-[auto_1fr_auto] gap-3 border-b border-border p-3 last:border-b-0">
@@ -228,16 +235,16 @@ export function DashboardImportModal({
                   />
                   <div className="min-w-0">
                     <input
-                      value={item.name}
+                      value={item.name ?? ''}
                       onChange={(event) => updateSuggestion(item.id, { name: event.target.value })}
                       className="w-full bg-transparent text-sm font-extrabold text-text outline-none"
                     />
                     <p className="mt-1 text-xs text-text-dim">
-                      {item.type} / {item.startDate}
+                      {item.type ?? 'activity'} / {item.startDate || 'Needs date'}
                       {item.startTime ? ` / ${item.startTime}` : ''}
                     </p>
                     <input
-                      value={item.locationLabel}
+                      value={item.locationLabel ?? ''}
                       onChange={(event) => updateSuggestion(item.id, { locationLabel: event.target.value })}
                       className="mt-2 w-full rounded-md border border-border bg-ink px-2 py-1.5 text-xs text-text"
                       placeholder="Location"
@@ -376,4 +383,31 @@ function importErrorMessage(error: unknown): string {
   const message = error instanceof Error ? error.message : 'Import failed.'
   if (/failed to fetch/i.test(message)) return 'Import could not reach Supabase or TomTom. Check Vercel environment variables, then retry.'
   return message
+}
+
+function summarizeImportHealth(suggestions: ExtractedItineraryItem[]) {
+  return suggestions.reduce(
+    (summary, item) => {
+      const missingName = !item.name?.trim()
+      const missingDate = !item.startDate?.trim()
+      const missingLocation = item.type !== 'flight' && !item.locationLabel?.trim()
+      if (missingDate) summary.missingDate += 1
+      if (missingLocation) summary.missingLocation += 1
+      if (!missingName && !missingDate && !missingLocation) summary.ready += 1
+      return summary
+    },
+    { ready: 0, missingLocation: 0, missingDate: 0 },
+  )
+}
+
+function ImportMetric({ label, value, tone }: { label: string; value: number; tone: 'green' | 'paper' | 'line-4' }) {
+  const color = tone === 'green' ? 'var(--color-green)' : tone === 'paper' ? 'var(--color-paper)' : 'var(--color-line-4)'
+  return (
+    <div className="rounded-md border border-border bg-ink px-3 py-2">
+      <p className="text-lg font-extrabold" style={{ color }}>
+        {value}
+      </p>
+      <p className="text-[9px] font-bold uppercase tracking-wide text-text-dim">{label}</p>
+    </div>
+  )
 }

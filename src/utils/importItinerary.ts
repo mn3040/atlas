@@ -274,23 +274,36 @@ function baseSuggestion(
   date: string,
   patch: Partial<ExtractedItineraryItem>,
 ): ExtractedItineraryItem {
+  const fallbackName = type === 'stay' ? 'Stay' : type === 'flight' ? 'Flight' : 'Activity'
   return {
     id: crypto.randomUUID(),
     selected: true,
     type,
     category: patch.category ?? 'attraction',
-    name: patch.name?.trim() || (type === 'stay' ? 'Stay' : type === 'flight' ? 'Flight' : 'Activity'),
-    startDate: clampDate(date, trip),
-    endDate: patch.endDate ? clampDate(patch.endDate, trip) : '',
-    startTime: patch.startTime ?? '',
-    endTime: patch.endTime ?? '',
-    locationLabel: patch.locationLabel?.trim() ?? '',
-    location2Label: patch.location2Label?.trim() ?? '',
-    flightNumber: patch.flightNumber?.trim() ?? '',
-    confirmationNumber: patch.confirmationNumber?.trim() ?? '',
-    notes: patch.notes?.trim() ?? '',
+    name: cleanImportValue(patch.name) || fallbackName,
+    startDate: clampDate(safeDate(date, trip.startDate), trip),
+    endDate: patch.endDate ? clampDate(safeDate(patch.endDate, trip.endDate), trip) : '',
+    startTime: cleanImportValue(patch.startTime),
+    endTime: cleanImportValue(patch.endTime),
+    locationLabel: cleanImportValue(patch.locationLabel),
+    location2Label: cleanImportValue(patch.location2Label),
+    flightNumber: cleanImportValue(patch.flightNumber),
+    confirmationNumber: cleanImportValue(patch.confirmationNumber),
+    notes: cleanImportValue(patch.notes),
     mustSee: patch.mustSee ?? false,
   }
+}
+
+function cleanImportValue(value: unknown): string {
+  if (typeof value !== 'string') return ''
+  const clean = value.replace(/\b(?:undefined|null)\b/gi, '').replace(/\s+/g, ' ').trim()
+  return clean === '-' ? '' : clean
+}
+
+function safeDate(value: unknown, fallback: string): string {
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return fallback
+  const date = new Date(`${value}T00:00:00`)
+  return Number.isNaN(date.getTime()) ? fallback : value
 }
 
 function addActivitySuggestions(
@@ -482,6 +495,7 @@ function isoDate(year: number, month: number, day: number): string {
 }
 
 function clampDate(date: string, trip: Trip): string {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return trip.startDate
   if (date < trip.startDate) return trip.startDate
   if (date > trip.endDate) return trip.endDate
   return date
