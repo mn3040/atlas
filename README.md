@@ -40,6 +40,8 @@ public/assets/atlas-route-badge.svg
 - Schedule warnings for overlaps, tight transfers, long transfers, and route modes that are not practical.
 - Beautiful themed PDF export for the full trip.
 - Sample trips for validating multi-day, multi-activity itineraries.
+- Trip budget hub for tracking and splitting expenses across travelers.
+- Document wallet for passports, visas, and booking confirmations.
 
 ## Stack
 
@@ -81,6 +83,8 @@ Place search uses Nominatim/OpenStreetMap. Google Maps links are generated as lo
    - `item_votes`
    - `item_decisions`
 
+Budget tracking and the document wallet each add their own migration (expenses, trip documents) and are covered by "every migration in `supabase/migrations/`" above.
+
 Atlas intentionally keeps the collaboration profile minimal: display name, avatar color, anonymous auth id, votes, and locked decisions. It does not collect phone numbers, contacts, demographic data, or background location history.
 
 ## Deploying to Vercel
@@ -120,4 +124,8 @@ supabase/     Schema and migrations
 ```bash
 npm run build
 npm run lint
+npm test
+npm run test:coverage
 ```
+
+A GitHub Actions workflow (`.github/workflows/test.yml`) runs lint, a type check, and the test suite on every push and pull request to `main`.
