@@ -2,52 +2,55 @@
 
 Atlas is a cinematic itinerary planner for building trips around places, days, routes, and group decisions.
 
-It is designed around one core loop: import or create a trip, shape the day-by-day itinerary, see every stop on the map, vote on what matters, then export a polished trip plan.
-
-## Brand Identity
-
-Atlas uses a dark expedition-control aesthetic:
-
-- Ink: `#070606`
-- Deep map teal: `#083740`
-- Paper highlight: `#F7FF88`
-- Atlas green: `#22DD85`
-- Clean white: `#FEFEFE`
-
-The UI favors cinematic motion over static dashboards: staggered page reveals, glowing route rails, animated map pins, floating brand artwork, mobile bottom-sheet motion, and slow flight movement from departure to arrival.
-
-Brand assets live in:
-
-```text
-public/atlas-mark.svg
-public/assets/atlas-orbit.svg
-public/assets/atlas-route-badge.svg
-```
+The core loop: import or create a trip, shape the day-by-day itinerary, see every stop on the map, vote on what matters, then export a polished trip plan.
 
 ## Features
 
+**Itinerary**
 - Visual day-by-day itinerary with activities, flights, and stays.
 - Mobile-first trip detail screen with map on top and a draggable itinerary sheet below.
 - TomTom map pins that update when locations are added, edited, removed, or filtered.
 - Animated flight markers from departure to arrival.
 - Real booking/search links for activities, flights, and stays.
+- Schedule warnings for overlaps, tight transfers, long transfers, and impractical route modes.
+- Multi-country trip support derived from itinerary stop countries.
+
+**Import & export**
 - PDF/DOCX/TXT/Markdown itinerary import with editable review before saving.
 - Mobile Safari PDF import fallback through a Vercel serverless extractor.
-- Multi-country trip support derived from itinerary stop countries.
-- Group trips with invite links, lightweight traveler profiles, and must-see voting.
+- Beautiful themed PDF export for the full trip.
+
+**Group trips**
+- Invite links, lightweight traveler profiles, and must-see voting.
 - Realtime group vote updates through Supabase Realtime.
 - Decision mode for ranking day options and locking final group picks.
-- Schedule warnings for overlaps, tight transfers, long transfers, and route modes that are not practical.
-- Beautiful themed PDF export for the full trip.
-- Sample trips for validating multi-day, multi-activity itineraries.
-- Trip budget hub for tracking and splitting expenses across travelers.
+
+**Budget & documents**
+- Budget hub for tracking and splitting trip expenses across travelers.
 - Document wallet for passports, visas, and booking confirmations.
+
+**Other**
+- Sample trips for validating multi-day, multi-activity itineraries.
 
 ## Stack
 
-React + TypeScript + Vite + Tailwind CSS, TomTom Maps SDK for Web, Nominatim/OpenStreetMap place search, Supabase Postgres/Auth/Realtime, and Vercel.
+React + TypeScript + Vite + Tailwind CSS, TomTom Maps SDK for Web, Nominatim/OpenStreetMap place search, Supabase (Postgres/Auth/Realtime), and Vercel.
 
-## Local Setup
+## Brand Identity
+
+Atlas uses a dark expedition-control aesthetic, favoring cinematic motion over static dashboards: staggered page reveals, glowing route rails, animated map pins, floating brand artwork, mobile bottom-sheet motion, and slow flight movement from departure to arrival.
+
+| Name | Hex |
+| --- | --- |
+| Ink | `#070606` |
+| Deep map teal | `#083740` |
+| Paper highlight | `#F7FF88` |
+| Atlas green | `#22DD85` |
+| Clean white | `#FEFEFE` |
+
+Brand assets live in `public/atlas-mark.svg` and `public/assets/`.
+
+## Getting Started
 
 ```bash
 npm install
@@ -55,7 +58,7 @@ cp .env.example .env
 npm run dev
 ```
 
-Fill `.env` with:
+Fill in `.env`:
 
 ```text
 VITE_SUPABASE_URL=
@@ -63,52 +66,43 @@ VITE_SUPABASE_ANON_KEY=
 VITE_TOMTOM_API_KEY=
 ```
 
-TomTom powers the live map and route fetching. Without `VITE_TOMTOM_API_KEY`, the app shows a friendly map empty state instead of crashing.
-
-Place search uses Nominatim/OpenStreetMap. Google Maps links are generated as location search links, not raw coordinate dumps.
+TomTom powers the live map and route fetching. Without `VITE_TOMTOM_API_KEY`, the app shows a friendly map empty state instead of crashing. Place search uses Nominatim/OpenStreetMap; Google Maps links are generated as location search links, not raw coordinate dumps.
 
 ## Supabase Setup
 
 1. Create a Supabase project.
-2. Enable Authentication -> Sign In / Providers -> Anonymous sign-ins.
+2. Enable Authentication → Sign In / Providers → Anonymous sign-ins.
 3. Run `supabase/schema.sql` in the SQL editor for a fresh setup.
-4. Run every migration in `supabase/migrations/` for current app features:
-   - item country codes
-   - traveler profiles
-   - personal/group trip modes
-   - must-see votes
-   - invite links
-   - locked group decisions
-5. In Supabase Realtime, enable realtime publication for:
-   - `item_votes`
-   - `item_decisions`
-
-Budget tracking and the document wallet each add their own migration (expenses, trip documents) and are covered by "every migration in `supabase/migrations/`" above.
+4. Run every migration in `supabase/migrations/`, in order — they add item country codes, traveler profiles, personal/group trip modes, must-see votes, invite links, locked group decisions, expenses, and trip documents.
+5. In Supabase Realtime, enable realtime publication for `item_votes` and `item_decisions`.
 
 Atlas intentionally keeps the collaboration profile minimal: display name, avatar color, anonymous auth id, votes, and locked decisions. It does not collect phone numbers, contacts, demographic data, or background location history.
 
-## Deploying to Vercel
+## Testing
 
-1. Push this repo to GitHub.
-2. Import it in Vercel.
-3. Use `npm run build`; output directory is `dist/`.
-4. Add the same environment variables from `.env` to Vercel.
-5. Keep `vercel.json`; it preserves API routes and routes direct trip links back to the React app.
-
-The mobile PDF import fallback uses:
-
-```text
-api/extract-document.ts
+```bash
+npm test              # run once
+npm run test:watch    # watch mode
+npm run test:coverage # with coverage report
 ```
 
-That serverless function extracts PDF text on Vercel when mobile Safari cannot run browser-side PDF parsing reliably.
+A GitHub Actions workflow (`.github/workflows/test.yml`) runs lint, a type check, and the test suite on every push and pull request to `main`.
+
+## Deploying to Vercel
+
+1. Push this repo to GitHub and import it in Vercel.
+2. Build command `npm run build`; output directory `dist/`.
+3. Add the same environment variables from `.env` to Vercel.
+4. Keep `vercel.json` — it preserves API routes and routes direct trip links back to the React app.
+
+The mobile PDF import fallback runs as a Vercel serverless function at `api/extract-document.ts`, extracting PDF text server-side when mobile Safari can't run browser-side PDF parsing reliably.
 
 ## Project Structure
 
 ```text
 api/          Vercel serverless functions
 public/       Logo and brand assets
-src/api/      Supabase, place search, routing, votes, decisions
+src/api/      Supabase, place search, routing, votes, decisions, budget, documents
 src/components/
 src/hooks/
 src/itinerary/
@@ -125,7 +119,4 @@ supabase/     Schema and migrations
 npm run build
 npm run lint
 npm test
-npm run test:coverage
 ```
-
-A GitHub Actions workflow (`.github/workflows/test.yml`) runs lint, a type check, and the test suite on every push and pull request to `main`.
