@@ -10,9 +10,10 @@ export interface ItemActionMeta {
 /** What the timeline card's action pill says, and where it goes — derived
  * from the item's type/category/price rather than stored, so it stays
  * correct as data changes. Stays open Booking Detail, flights open Flight
- * Detail (both in-app screens); everything else links out to Google Maps
- * when a place was matched (falls back to the edit form otherwise — see
- * TripDetail's handleAction). */
+ * Detail (both in-app screens); everything else links out via
+ * bookingUrlForItem (OpenTable/GetYourGuide/Google Maps depending on the
+ * item, falling back to the edit form otherwise — see TripDetail's
+ * handleAction). */
 export function actionForItem(item: Item): ItemActionMeta {
   if (item.type === 'stay') return { label: 'View Booking', action: 'booking' }
   if (item.type === 'flight') return { label: 'Flight Details', action: 'flight' }
@@ -36,6 +37,14 @@ function searchUrl(query: string): string {
   return `https://www.google.com/search?q=${encodeURIComponent(query)}`
 }
 
+function openTableUrl(query: string): string {
+  return `https://www.opentable.com/s?term=${encodeURIComponent(query)}`
+}
+
+function getYourGuideUrl(query: string): string {
+  return `https://www.getyourguide.com/s/?q=${encodeURIComponent(query)}`
+}
+
 export function mapsUrlForItem(item: Item): string {
   const label = [item.name, item.locationLabel].filter(Boolean).join(', ')
   return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(label || `${item.lat},${item.lng}`)}`
@@ -50,9 +59,9 @@ export function bookingUrlForItem(item: Item): string {
     const route = [item.locationLabel, item.location2Label].filter(Boolean).join(' to ')
     return searchUrl(`${item.flightNumber || route || item.name} book flight`)
   }
-  if (item.category === 'food' && hasBookableSignal(item)) return searchUrl(`${nameAndPlace} reservation`)
+  if (item.category === 'food' && hasBookableSignal(item)) return openTableUrl(nameAndPlace)
   if ((item.category === 'attraction' || item.category === 'nature') && hasBookableSignal(item)) {
-    return searchUrl(`${nameAndPlace} official tickets`)
+    return getYourGuideUrl(nameAndPlace)
   }
   return mapsUrlForItem(item)
 }

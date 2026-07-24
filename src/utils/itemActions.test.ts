@@ -125,14 +125,18 @@ describe('bookingUrlForItem', () => {
     expect(url).toContain(encodeURIComponent('JFK to CDG book flight'))
   })
 
-  it('builds a reservation search for bookable food items', () => {
+  it('builds an OpenTable search for bookable food items', () => {
     const item = makeItem({ category: 'food', name: 'Le Bernardin', notes: 'reservation required' })
-    expect(bookingUrlForItem(item)).toContain(encodeURIComponent('reservation'))
+    const url = bookingUrlForItem(item)
+    expect(url).toContain('opentable.com/s?term=')
+    expect(url).toContain(encodeURIComponent('Le Bernardin'))
   })
 
-  it('builds an official-tickets search for bookable attractions', () => {
+  it('builds a GetYourGuide search for bookable attractions', () => {
     const item = makeItem({ category: 'attraction', name: 'Louvre', notes: 'ticket required' })
-    expect(bookingUrlForItem(item)).toContain(encodeURIComponent('official tickets'))
+    const url = bookingUrlForItem(item)
+    expect(url).toContain('getyourguide.com/s/?q=')
+    expect(url).toContain(encodeURIComponent('Louvre'))
   })
 
   it('falls back to a maps URL for non-bookable items', () => {
