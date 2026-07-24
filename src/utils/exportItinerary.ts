@@ -34,7 +34,7 @@ function formatShortDate(date: string): string {
   return new Date(`${date}T00:00:00`).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
 }
 
-function cleanText(value: string | null | undefined): string {
+export function cleanText(value: string | null | undefined): string {
   return (value ?? '')
     .replace(/<a\b[^>]*>(.*?)<\/a>/gi, '$1')
     .replace(/<\/?[^>]+>/g, '')
