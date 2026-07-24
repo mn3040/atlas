@@ -691,7 +691,7 @@ export default function TripDetail() {
                 )}
 
                 <div className="mb-3.5">
-                  <TripSubNav tripId={tripId!} />
+                  <TripSubNav tripId={tripId!} dense />
                 </div>
 
                 {/* Tier 2: secondary metadata and controls -- set apart from the

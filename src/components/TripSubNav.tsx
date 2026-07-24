@@ -9,10 +9,19 @@ const TABS = [
   { to: 'packing', label: 'Packing', icon: Backpack, end: false },
 ]
 
-export function TripSubNav({ tripId }: { tripId: string }) {
+/**
+ * `dense` drops the text label down to an icon + tooltip. Used wherever this
+ * nav sits inside a width-capped column (the itinerary's map sidebar, fixed
+ * at 400px on desktop) that never has room for 5 labeled pills, so it never
+ * needs to overflow-scroll to stay usable. The wider single-column pages
+ * (Budget, Documents, Packing, Command) have room to keep labels.
+ */
+export function TripSubNav({ tripId, dense = false }: { tripId: string; dense?: boolean }) {
   return (
     <nav
-      className="flex w-full items-center gap-1 overflow-x-auto rounded-md border border-border bg-surface p-1 sm:w-fit"
+      className={`flex items-center gap-1 rounded-md border border-border bg-surface p-1 ${
+        dense ? 'w-fit' : 'w-full overflow-x-auto sm:w-fit'
+      }`}
       aria-label="Trip sections"
     >
       {TABS.map(({ to, label, icon: Icon, end }) => (
@@ -20,14 +29,15 @@ export function TripSubNav({ tripId }: { tripId: string }) {
           key={label}
           to={`/trips/${tripId}${to ? `/${to}` : ''}`}
           end={end}
+          title={dense ? label : undefined}
           className={({ isActive }) =>
-            `flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded px-3 py-1.5 text-xs font-bold transition-colors ${
-              isActive ? 'bg-paper text-ink' : 'text-text-dim hover:text-text'
-            }`
+            `flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded text-xs font-bold transition-colors ${
+              dense ? 'px-2 py-1.5' : 'px-3 py-1.5'
+            } ${isActive ? 'bg-paper text-ink' : 'text-text-dim hover:text-text'}`
           }
         >
           <Icon size={13} />
-          {label}
+          <span className={dense ? 'sr-only' : ''}>{label}</span>
         </NavLink>
       ))}
     </nav>
