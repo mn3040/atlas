@@ -18,6 +18,7 @@ import {
   Users,
   Trophy,
   Radar,
+  WifiOff,
 } from 'lucide-react'
 import {
   fetchTrip,
@@ -57,6 +58,7 @@ import { APP_SETTINGS_EVENT, getAppSettings, shouldConfirmBeforeDelete } from '.
 import { filterItemsForView, loadMustSeeIds, saveMustSeeIds } from '../utils/mustSee'
 import { branchesForItems, filterItemsForBranch } from '../utils/branches'
 import { countryCodesForTrip } from '../utils/flags'
+import { loadOfflineTrip, saveOfflineTrip } from '../utils/offlineItinerary'
 import type { TravelMode } from '../utils/distance'
 import type { AppSettings } from '../utils/settings'
 import type { DayOptionView } from '../utils/mustSee'
@@ -83,6 +85,10 @@ const TripMap = lazy(() =>
 
 function formatShortDate(date: string): string {
   return new Date(`${date}T00:00:00`).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+}
+
+function formatCacheTime(iso: string): string {
+  return new Date(iso).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
 }
 
 function updateOptimisticVote(
@@ -148,6 +154,8 @@ export default function TripDetail() {
   const [isTouring, setIsTouring] = useState(false)
   const [mobileSheetExpanded, setMobileSheetExpanded] = useState(false)
   const [showRouteTools, setShowRouteTools] = useState(false)
+  const [offlineSnapshotAt, setOfflineSnapshotAt] = useState<string | null>(null)
+  const [isOffline, setIsOffline] = useState(() => typeof navigator !== 'undefined' && !navigator.onLine)
   const mapRef = useRef<TripMapHandle>(null)
   const sheetRef = useRef<HTMLElement | null>(null)
   const touchStartRef = useRef<{ y: number; scrollTop: number } | null>(null)
@@ -167,14 +175,40 @@ export default function TripDetail() {
         setDays(dayData)
         setItems(itemData)
         setActiveDayId(dayData[0]?.id ?? null)
+        setOfflineSnapshotAt(null)
+        saveOfflineTrip(tripId!, { trip: tripData, days: dayData, items: itemData })
       } catch (err) {
-        setLoadError(err instanceof Error ? err.message : 'Failed to load this trip.')
+        const cached = loadOfflineTrip(tripId!)
+        if (cached) {
+          setTrip(cached.trip)
+          setDays(cached.days)
+          setItems(cached.items)
+          setActiveDayId(cached.days[0]?.id ?? null)
+          setOfflineSnapshotAt(cached.savedAt)
+        } else {
+          setLoadError(err instanceof Error ? err.message : 'Failed to load this trip.')
+        }
       } finally {
         setLoading(false)
       }
     }
     load()
   }, [tripId])
+
+  useEffect(() => {
+    function handleOnline() {
+      setIsOffline(false)
+    }
+    function handleOffline() {
+      setIsOffline(true)
+    }
+    window.addEventListener('online', handleOnline)
+    window.addEventListener('offline', handleOffline)
+    return () => {
+      window.removeEventListener('online', handleOnline)
+      window.removeEventListener('offline', handleOffline)
+    }
+  }, [])
 
   useEffect(() => {
     if (!tripId) return
@@ -678,6 +712,17 @@ export default function TripDetail() {
                     </div>
                   </div>
                 </div>
+
+                {(isOffline || offlineSnapshotAt) && (
+                  <div className="mb-3 flex items-center gap-2 rounded-md border border-border-strong bg-surface-2 px-3 py-2 text-2xs font-semibold text-text-dim">
+                    <WifiOff size={13} className="shrink-0 text-paper" />
+                    <span>
+                      {offlineSnapshotAt
+                        ? `Offline -- showing itinerary cached ${formatCacheTime(offlineSnapshotAt)}`
+                        : "You're offline -- changes won't sync until you're back online"}
+                    </span>
+                  </div>
+                )}
 
                 {/* Tier 1: primary trip identity -- name and flags only. */}
                 <div className="mb-1.5 flex items-start gap-2">
