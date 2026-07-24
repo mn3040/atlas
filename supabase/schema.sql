@@ -2,9 +2,13 @@
 -- Replaces any earlier version of this schema — safe to run fresh since no
 -- production data depends on the old tables yet.
 
-drop table if exists items cascade;
+drop table if exists item_decisions cascade;
 drop table if exists item_votes cascade;
 drop table if exists trip_invites cascade;
+drop table if exists expense_shares cascade;
+drop table if exists expenses cascade;
+drop table if exists trip_documents cascade;
+drop table if exists items cascade;
 drop table if exists stops cascade;
 drop table if exists days cascade;
 drop table if exists trip_members cascade;
@@ -119,6 +123,18 @@ create table item_votes (
 
 create index item_votes_trip_id_idx on item_votes (trip_id);
 
+create table item_decisions (
+  trip_id uuid not null references trips(id) on delete cascade,
+  day_id uuid not null references days(id) on delete cascade,
+  item_id uuid not null references items(id) on delete cascade,
+  decided_by uuid not null references auth.users(id) on delete cascade,
+  decided_at timestamptz not null default now(),
+  primary key (day_id)
+);
+
+create index item_decisions_trip_id_idx on item_decisions (trip_id);
+create index item_decisions_item_id_idx on item_decisions (item_id);
+
 create table trip_invites (
   id uuid primary key default gen_random_uuid(),
   trip_id uuid not null references trips(id) on delete cascade,
@@ -130,6 +146,54 @@ create table trip_invites (
 );
 
 create index trip_invites_trip_id_idx on trip_invites (trip_id);
+
+-- Trip expense tracking with per-member splits (Budget Hub).
+create table expenses (
+  id uuid primary key default gen_random_uuid(),
+  trip_id uuid not null references trips(id) on delete cascade,
+  description text not null,
+  amount numeric(10, 2) not null check (amount > 0),
+  category text not null default 'other' check (category in ('transport', 'lodging', 'food', 'activities', 'shopping', 'other')),
+  paid_by uuid not null references auth.users(id) on delete cascade,
+  spent_on date not null default current_date,
+  notes text,
+  created_by uuid not null references auth.users(id) on delete cascade,
+  created_at timestamptz not null default now()
+);
+
+-- Per-member share of an expense. Rows are recreated on every edit rather
+-- than diffed, since a single expense only ever has a handful of shares.
+create table expense_shares (
+  expense_id uuid not null references expenses(id) on delete cascade,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  share_amount numeric(10, 2) not null check (share_amount >= 0),
+  primary key (expense_id, user_id)
+);
+
+create index expenses_trip_id_idx on expenses (trip_id);
+create index expense_shares_expense_id_idx on expense_shares (expense_id);
+
+-- Document Wallet: passports, visas, confirmations, etc. stored per trip,
+-- with files in a private Storage bucket.
+create table trip_documents (
+  id uuid primary key default gen_random_uuid(),
+  trip_id uuid not null references trips(id) on delete cascade,
+  uploaded_by uuid not null references auth.users(id) on delete cascade,
+  type text not null default 'other' check (type in ('passport', 'visa', 'boarding_pass', 'confirmation', 'insurance', 'other')),
+  title text not null,
+  document_number text,
+  issuing_country text,
+  expiry_date date,
+  notes text,
+  -- Path within the 'trip-documents' storage bucket, formatted
+  -- '<trip_id>/<uuid>-<filename>'. Null when the entry has no attached file.
+  file_path text,
+  file_name text,
+  mime_type text,
+  created_at timestamptz not null default now()
+);
+
+create index trip_documents_trip_id_idx on trip_documents (trip_id);
 
 -- Helper functions used by RLS policies below.
 --
@@ -170,7 +234,11 @@ alter table profiles enable row level security;
 alter table days enable row level security;
 alter table items enable row level security;
 alter table item_votes enable row level security;
+alter table item_decisions enable row level security;
 alter table trip_invites enable row level security;
+alter table expenses enable row level security;
+alter table expense_shares enable row level security;
+alter table trip_documents enable row level security;
 
 create policy "members can view their trips"
   on trips for select
@@ -267,6 +335,43 @@ create policy "members can delete their own item votes"
   on item_votes for delete
   using (user_id = auth.uid() and is_trip_member(trip_id));
 
+create policy "members can view item decisions"
+  on item_decisions for select
+  using (is_trip_member(trip_id));
+
+create policy "editors can create item decisions"
+  on item_decisions for insert
+  with check (
+    decided_by = auth.uid()
+    and trip_role(trip_id) in ('owner', 'editor')
+    and exists (
+      select 1
+      from items
+      where items.id = item_decisions.item_id
+        and items.trip_id = item_decisions.trip_id
+        and items.day_id = item_decisions.day_id
+    )
+  );
+
+create policy "editors can update item decisions"
+  on item_decisions for update
+  using (trip_role(trip_id) in ('owner', 'editor'))
+  with check (
+    decided_by = auth.uid()
+    and trip_role(trip_id) in ('owner', 'editor')
+    and exists (
+      select 1
+      from items
+      where items.id = item_decisions.item_id
+        and items.trip_id = item_decisions.trip_id
+        and items.day_id = item_decisions.day_id
+    )
+  );
+
+create policy "editors can delete item decisions"
+  on item_decisions for delete
+  using (trip_role(trip_id) in ('owner', 'editor'));
+
 create policy "members can view trip invites"
   on trip_invites for select
   using (is_trip_member(trip_id));
@@ -282,6 +387,95 @@ create policy "editors can revoke trip invites"
   on trip_invites for update
   using (trip_role(trip_id) in ('owner', 'editor'))
   with check (trip_role(trip_id) in ('owner', 'editor'));
+
+create policy "members can view expenses"
+  on expenses for select
+  using (is_trip_member(trip_id));
+
+create policy "editors can create expenses"
+  on expenses for insert
+  with check (
+    created_by = auth.uid()
+    and trip_role(trip_id) in ('owner', 'editor')
+    and is_trip_member(trip_id)
+  );
+
+create policy "editors can update expenses"
+  on expenses for update
+  using (trip_role(trip_id) in ('owner', 'editor'))
+  with check (trip_role(trip_id) in ('owner', 'editor'));
+
+create policy "editors can delete expenses"
+  on expenses for delete
+  using (trip_role(trip_id) in ('owner', 'editor'));
+
+create policy "members can view expense shares"
+  on expense_shares for select
+  using (
+    exists (
+      select 1 from expenses
+      where expenses.id = expense_shares.expense_id
+        and is_trip_member(expenses.trip_id)
+    )
+  );
+
+create policy "editors can create expense shares"
+  on expense_shares for insert
+  with check (
+    exists (
+      select 1 from expenses
+      where expenses.id = expense_shares.expense_id
+        and trip_role(expenses.trip_id) in ('owner', 'editor')
+    )
+  );
+
+create policy "editors can update expense shares"
+  on expense_shares for update
+  using (
+    exists (
+      select 1 from expenses
+      where expenses.id = expense_shares.expense_id
+        and trip_role(expenses.trip_id) in ('owner', 'editor')
+    )
+  )
+  with check (
+    exists (
+      select 1 from expenses
+      where expenses.id = expense_shares.expense_id
+        and trip_role(expenses.trip_id) in ('owner', 'editor')
+    )
+  );
+
+create policy "editors can delete expense shares"
+  on expense_shares for delete
+  using (
+    exists (
+      select 1 from expenses
+      where expenses.id = expense_shares.expense_id
+        and trip_role(expenses.trip_id) in ('owner', 'editor')
+    )
+  );
+
+create policy "members can view trip documents"
+  on trip_documents for select
+  using (is_trip_member(trip_id));
+
+create policy "editors can create trip documents"
+  on trip_documents for insert
+  with check (
+    uploaded_by = auth.uid()
+    and trip_role(trip_id) in ('owner', 'editor')
+    and is_trip_member(trip_id)
+  );
+
+create policy "editors can update trip documents"
+  on trip_documents for update
+  using (trip_role(trip_id) in ('owner', 'editor'))
+  with check (trip_role(trip_id) in ('owner', 'editor'));
+
+create policy "editors can delete trip documents"
+  on trip_documents for delete
+  using (trip_role(trip_id) in ('owner', 'editor'));
 
 create function join_trip_by_token(invite_token text)
 returns uuid
@@ -342,3 +536,37 @@ $$ language plpgsql security definer;
 create trigger on_trip_created
   after insert on trips
   for each row execute function handle_new_trip();
+
+-- Private bucket for the Document Wallet -- files are only ever reached
+-- through short-lived signed URLs generated on demand, never a public link
+-- (documents may hold passport/visa numbers).
+insert into storage.buckets (id, name, public)
+values ('trip-documents', 'trip-documents', false)
+on conflict (id) do nothing;
+
+-- Objects are uploaded by the app as '<trip_id>/<uuid>-<filename>', so the
+-- first path segment is always the owning trip's id. This relies on the app
+-- being the only writer to this bucket with that path format.
+drop policy if exists "trip documents: members can view files" on storage.objects;
+create policy "trip documents: members can view files"
+  on storage.objects for select
+  using (
+    bucket_id = 'trip-documents'
+    and is_trip_member((split_part(name, '/', 1))::uuid)
+  );
+
+drop policy if exists "trip documents: editors can upload files" on storage.objects;
+create policy "trip documents: editors can upload files"
+  on storage.objects for insert
+  with check (
+    bucket_id = 'trip-documents'
+    and trip_role((split_part(name, '/', 1))::uuid) in ('owner', 'editor')
+  );
+
+drop policy if exists "trip documents: editors can delete files" on storage.objects;
+create policy "trip documents: editors can delete files"
+  on storage.objects for delete
+  using (
+    bucket_id = 'trip-documents'
+    and trip_role((split_part(name, '/', 1))::uuid) in ('owner', 'editor')
+  );

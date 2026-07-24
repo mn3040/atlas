@@ -72,9 +72,10 @@ TomTom powers the live map and route fetching. Without `VITE_TOMTOM_API_KEY`, th
 
 1. Create a Supabase project.
 2. Enable Authentication → Sign In / Providers → Anonymous sign-ins.
-3. Run `supabase/schema.sql` in the SQL editor for a fresh setup.
-4. Run every migration in `supabase/migrations/`, in order — they add item country codes, traveler profiles, personal/group trip modes, must-see votes, invite links, locked group decisions, expenses, and trip documents.
-5. In Supabase Realtime, enable realtime publication for `item_votes` and `item_decisions`.
+3. Run `supabase/schema.sql` in the SQL editor — it's a complete, idempotent snapshot covering everything: trips, items, votes, invites, locked group decisions, expenses, and trip documents. Re-run it any time to bring a project up to date.
+4. In Supabase Realtime, enable realtime publication for `item_votes` and `item_decisions`.
+
+`supabase/migrations/` holds the same changes split into individual files, in case you'd rather apply them incrementally instead of via the full schema snapshot.
 
 Atlas intentionally keeps the collaboration profile minimal: display name, avatar color, anonymous auth id, votes, and locked decisions. It does not collect phone numbers, contacts, demographic data, or background location history.
 
