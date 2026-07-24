@@ -1,0 +1,27 @@
+name: Test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      # No real secrets needed: src/api/supabaseClient.ts is always mocked in tests,
+      # and VITE_TOMTOM_API_KEY only needs to be truthy for geocoding/tomtomRouting
+      # tests to exercise the "has an API key" branch (fetch is mocked in both).
+      VITE_SUPABASE_URL: https://example.supabase.co
+      VITE_SUPABASE_ANON_KEY: test-anon-key
+      VITE_TOMTOM_API_KEY: test-tomtom-key
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npx tsc -b --noEmit
+      - run: npm test
