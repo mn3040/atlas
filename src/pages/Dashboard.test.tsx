@@ -46,6 +46,10 @@ vi.mock('../api/trips', () => ({
   fetchItemsForTrips: fetchItemsForTripsMock,
 }))
 
+vi.mock('../api/alerts', () => ({
+  fetchTripAlertSummary: vi.fn().mockResolvedValue({ expiringDocuments: 0, openVotes: 0 }),
+}))
+
 import Dashboard from './Dashboard'
 import type { Trip } from '../types/trip'
 

@@ -34,6 +34,7 @@ vi.mock('../api/profiles', () => ({
 }))
 
 const tripsMocks = vi.hoisted(() => ({
+  fetchTrips: vi.fn(),
   fetchTrip: vi.fn(),
   fetchDays: vi.fn(),
   fetchItems: vi.fn(),
@@ -48,6 +49,10 @@ const tripsMocks = vi.hoisted(() => ({
 }))
 
 vi.mock('../api/trips', () => tripsMocks)
+
+vi.mock('../api/alerts', () => ({
+  fetchTripAlertSummary: vi.fn().mockResolvedValue({ expiringDocuments: 0, openVotes: 0 }),
+}))
 
 vi.mock('../api/decisions', () => ({
   isMissingDecisionsTable: vi.fn().mockReturnValue(false),
@@ -168,6 +173,7 @@ beforeEach(() => {
   fromMock.mockReset()
 
   Object.values(tripsMocks).forEach((mockFn) => mockFn.mockReset())
+  tripsMocks.fetchTrips.mockResolvedValue([])
 
   window.localStorage.clear()
 })
