@@ -1,4 +1,5 @@
 import type { IncomingMessage, ServerResponse } from 'node:http'
+import { captureSentryException } from '../src/utils/sentryEnvelope'
 
 export const config = {
   api: {
@@ -23,9 +24,19 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
     const text = await extractPdfText(buffer)
     sendJson(res, 200, { text })
   } catch (error) {
+    await captureServerError(error)
     const message = error instanceof Error ? error.message : 'Could not extract that PDF.'
     sendJson(res, 400, { error: message })
   }
+}
+
+async function captureServerError(error: unknown): Promise<void> {
+  if (process.env.VERCEL_ENV !== 'production' || !process.env.VITE_SENTRY_DSN) return
+  await captureSentryException(error, {
+    dsn: process.env.VITE_SENTRY_DSN,
+    environment: 'production',
+    release: process.env.VERCEL_GIT_COMMIT_SHA,
+  })
 }
 
 async function extractPdfText(buffer: Buffer): Promise<string> {

@@ -94,7 +94,8 @@ A GitHub Actions workflow (`.github/workflows/test.yml`) runs lint, a type check
 1. Push this repo to GitHub and import it in Vercel.
 2. Build command `npm run build`; output directory `dist/`.
 3. Add the same environment variables from `.env` to Vercel.
-4. Keep `vercel.json` — it preserves API routes and routes direct trip links back to the React app.
+4. Install the Sentry integration from Vercel Marketplace, connect it to this project, and add `VITE_SENTRY_DSN=https://PUBLIC_KEY@SENTRY_HOST/PROJECT_ID` for Production.
+5. Keep `vercel.json` — it preserves API routes and routes direct trip links back to the React app.
 
 The mobile PDF import fallback runs as a Vercel serverless function at `api/extract-document.ts`, extracting PDF text server-side when mobile Safari can't run browser-side PDF parsing reliably.
 
