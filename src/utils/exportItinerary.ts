@@ -6,6 +6,7 @@ import { stripImportTags } from './branches'
 const PAGE_WIDTH = 595.28
 const PAGE_HEIGHT = 841.89
 const MARGIN = 44
+const CARD_RADIUS = 9
 const TEAL = [8, 55, 64] as const
 const YELLOW = [247, 255, 136] as const
 const GREEN = [34, 221, 133] as const
@@ -105,7 +106,14 @@ class ItineraryPdf {
     this.rect(MARGIN, PAGE_HEIGHT - 122, 5, 122, GREEN, true)
     this.text('ATLAS', MARGIN + 18, PAGE_HEIGHT - 42, 9, YELLOW, 'Helvetica-Bold')
     this.text(`${days.length} DAYS`, PAGE_WIDTH - MARGIN - 92, PAGE_HEIGHT - 42, 9, WHITE, 'Helvetica-Bold')
-    this.text(cleanText(this.trip.name), MARGIN + 18, PAGE_HEIGHT - 80, 30, WHITE, 'Helvetica-Bold')
+    this.text(
+      this.truncate(cleanText(this.trip.name), 30, PAGE_WIDTH - MARGIN * 2 - 36),
+      MARGIN + 18,
+      PAGE_HEIGHT - 80,
+      30,
+      WHITE,
+      'Helvetica-Bold',
+    )
     this.text(`${formatDate(this.trip.startDate)} - ${formatDate(this.trip.endDate)}`, MARGIN + 18, PAGE_HEIGHT - 104, 11, WHITE)
     this.y = PAGE_HEIGHT - 156
 
@@ -125,17 +133,18 @@ class ItineraryPdf {
   addStaySection(stays: Item[]) {
     if (stays.length === 0) return
     this.sectionTitle("Where You're Staying", GREEN)
+    const nameWidth = PAGE_WIDTH - MARGIN * 2 - 32
     for (const stay of stays) {
       this.ensure(92)
       this.cardStart(82)
-      this.text(cleanText(stay.name), MARGIN + 16, this.y - 18, 13, BLACK, 'Helvetica-Bold')
-      this.text(`${formatShortDate(stay.startDate)} - ${stay.endDate ? formatShortDate(stay.endDate) : 'Open'}`, MARGIN + 16, this.y - 36, 10, GREY)
-      if (stay.roomType) this.text(cleanText(stay.roomType), MARGIN + 16, this.y - 52, 10, BLACK)
+      this.text(this.truncate(cleanText(stay.name), 13, nameWidth), MARGIN + 16, this.y - 21, 13, BLACK, 'Helvetica-Bold')
+      this.text(`${formatShortDate(stay.startDate)} - ${stay.endDate ? formatShortDate(stay.endDate) : 'Open'}`, MARGIN + 16, this.y - 38, 10, GREY)
+      if (stay.roomType) this.text(cleanText(stay.roomType), MARGIN + 16, this.y - 54, 10, BLACK)
       const details = [
         stay.guests ? `${stay.guests} guest${stay.guests === 1 ? '' : 's'}` : '',
         stay.confirmationNumber ? `Confirmation ${cleanText(stay.confirmationNumber)}` : '',
       ].filter(Boolean)
-      if (details.length) this.text(details.join('  /  '), MARGIN + 16, this.y - 68, 9, GREY)
+      if (details.length) this.text(details.join('  /  '), MARGIN + 16, this.y - 69, 9, GREY)
       this.y -= 96
     }
   }
@@ -180,7 +189,9 @@ class ItineraryPdf {
   }
 
   addDay(day: Day, index: number, items: Item[]) {
-    this.ensure(98)
+    const headerHeight = 42 + 16 + (day.label ? 18 : 0)
+    const firstStopHeight = items.length > 0 ? this.itemLayout(items[0]).cardHeight : 24
+    this.ensure(headerHeight + firstStopHeight)
     this.sectionTitle(`Day ${index + 1}`, index % 2 === 0 ? GREEN : YELLOW)
     this.text(formatDate(day.date), MARGIN, this.y, 12, BLACK, 'Helvetica-Bold')
     this.y -= 16
@@ -196,7 +207,7 @@ class ItineraryPdf {
     }
 
     for (const [itemIndex, item] of items.entries()) {
-      this.addTimelineItem(item, itemIndex + 1)
+      this.addTimelineItem(item, itemIndex + 1, itemIndex === items.length - 1)
     }
   }
 
@@ -237,23 +248,73 @@ class ItineraryPdf {
     return new TextEncoder().encode(pdf)
   }
 
-  private addTimelineItem(item: Item, number: number) {
+  /** Content + sizing for one stop's card, shared by the actual draw call and
+   * by addDay's look-ahead so a day heading never gets orphaned at the
+   * bottom of a page with its first stop pushed to the next one. */
+  private itemLayout(item: Item) {
     const detailLines = [
       item.startTime ? `${formatTime(item.startTime)}${item.endTime ? ` - ${formatTime(item.endTime)}` : ''}` : '',
       cleanText(item.priceLabel),
       item.locationLabel ? firstLabel(item.locationLabel) : '',
     ].filter(Boolean)
     const notes = cleanText(stripImportTags(item.notes))
-    const height = notes ? 86 : 66
-    this.ensure(height + 14)
+
+    const numberColumn = 34
+    const cardX = MARGIN + numberColumn
+    const cardWidth = PAGE_WIDTH - MARGIN - cardX
+    const contentX = cardX + 14
+    const contentWidth = cardWidth - 28
+    const notesLines = notes ? this.wrap(notes, 9, contentWidth) : []
+
+    const topPad = 17
+    const bottomPad = 13
+    const lineGap = 15
+    const notesLineHeight = 13
+
+    let bodyHeight = 12
+    if (detailLines.length) bodyHeight += lineGap
+    if (notesLines.length) bodyHeight += lineGap + (notesLines.length - 1) * notesLineHeight
+    const cardHeight = Math.max(54, topPad + bodyHeight + bottomPad)
+
+    return { detailLines, notesLines, cardX, cardWidth, contentX, contentWidth, cardHeight, topPad, lineGap, notesLineHeight }
+  }
+
+  /** Each stop renders as a card (matching the app's itinerary-card look)
+   * sized to its actual content, with the numbered marker and dotted
+   * connector living in a column to the left -- same composition as
+   * ItemStation.tsx, just laid out for print instead of touch. */
+  private addTimelineItem(item: Item, number: number, isLast: boolean) {
+    const { detailLines, notesLines, cardX, cardWidth, contentX, contentWidth, cardHeight, topPad, lineGap, notesLineHeight } =
+      this.itemLayout(item)
+    const isMustSee = this.mustSeeIds.has(item.id)
+    const gapAfter = isLast ? 0 : 18
+
+    this.ensure(cardHeight + gapAfter + 8)
     const top = this.y
+
+    this.roundedRect(cardX, top - cardHeight, cardWidth, cardHeight, LIGHT_TEAL, true, CARD_RADIUS)
+    this.roundedRect(cardX, top - cardHeight, cardWidth, cardHeight, RULE, false, CARD_RADIUS)
+
     this.circle(MARGIN + 11, top - 19, 9, GREEN)
-    this.text(String(number), MARGIN + 8.2, top - 23, 8, BLACK, 'Helvetica-Bold')
-    this.text(`${this.mustSeeIds.has(item.id) ? '* ' : ''}${cleanText(item.name)}`, MARGIN + 34, top - 12, 12, BLACK, 'Helvetica-Bold')
-    if (detailLines.length) this.text(detailLines.join('  /  '), MARGIN + 34, top - 29, 9, GREY)
-    if (notes) this.paragraph(notes, 9, GREY, 13, PAGE_WIDTH - MARGIN * 2 - 34, MARGIN + 34, top - 47)
-    this.line(MARGIN + 11, top - 34, MARGIN + 11, top - height + 4, RULE)
-    this.y -= height
+    const numberX = MARGIN + (number >= 10 ? 5.6 : 8.2)
+    this.text(String(number), numberX, top - 23, 8, BLACK, 'Helvetica-Bold')
+    if (!isLast) this.line(MARGIN + 11, top - 34, MARGIN + 11, top - cardHeight - 10, RULE)
+
+    const titleWidth = contentWidth - (isMustSee ? 76 : 0)
+    this.text(this.truncate(cleanText(item.name), 12, titleWidth), contentX, top - topPad, 12, BLACK, 'Helvetica-Bold')
+    if (isMustSee) this.badge(cardX + cardWidth - 12, top - topPad - 8.5, 'MUST-SEE', YELLOW, TEAL)
+
+    let cursor = top - topPad - lineGap
+    if (detailLines.length) {
+      this.text(detailLines.join('  /  '), contentX, cursor, 9, GREY)
+      cursor -= lineGap
+    }
+    for (const line of notesLines) {
+      this.text(line, contentX, cursor, 9, GREY)
+      cursor -= notesLineHeight
+    }
+
+    this.y = top - cardHeight - gapAfter
   }
 
   private summaryGrid(entries: Array<[string, string]>) {
@@ -261,9 +322,9 @@ class ItineraryPdf {
     this.ensure(72)
     for (const [index, [label, value]] of entries.entries()) {
       const x = MARGIN + index * (width + 8)
-      this.rect(x, this.y - 56, width, 56, LIGHT_TEAL, true)
-      this.rect(x, this.y - 56, width, 56, RULE, false)
-      this.text(value, x + 10, this.y - 22, 18, BLACK, 'Helvetica-Bold')
+      this.roundedRect(x, this.y - 56, width, 56, LIGHT_TEAL, true, 8)
+      this.roundedRect(x, this.y - 56, width, 56, RULE, false, 8)
+      this.text(this.truncate(value, 18, width - 20), x + 10, this.y - 22, 18, BLACK, 'Helvetica-Bold')
       this.text(label, x + 10, this.y - 42, 8, GREY, 'Helvetica-Bold')
     }
     this.y -= 86
@@ -273,7 +334,7 @@ class ItineraryPdf {
     this.ensure(58)
     this.line(MARGIN, this.y, PAGE_WIDTH - MARGIN, this.y, RULE)
     this.text(title, MARGIN, this.y - 24, 18, BLACK, 'Helvetica-Bold')
-    this.rect(PAGE_WIDTH - MARGIN - 42, this.y - 26, 42, 4, accent, true)
+    this.roundedRect(PAGE_WIDTH - MARGIN - 42, this.y - 27, 42, 5, accent, true, 2.5)
     this.y -= 42
   }
 
@@ -303,6 +364,15 @@ class ItineraryPdf {
     return lines
   }
 
+  /** Single-line clip with an ellipsis, for user text dropped into a fixed-width
+   * slot (card headers, stat tiles) that wrap() would otherwise turn into a
+   * second line the layout hasn't budgeted room for. */
+  private truncate(text: string, size: number, width: number): string {
+    const maxChars = Math.max(6, Math.floor(width / (size * 0.52)))
+    if (text.length <= maxChars) return text
+    return `${text.slice(0, maxChars - 3).trimEnd()}...`
+  }
+
   private addPage() {
     this.pages.push({ ops: [] })
     this.pageNumber += 1
@@ -329,8 +399,8 @@ class ItineraryPdf {
   }
 
   private cardStart(height: number) {
-    this.rect(MARGIN, this.y - height, PAGE_WIDTH - MARGIN * 2, height, LIGHT_TEAL, true)
-    this.rect(MARGIN, this.y - height, PAGE_WIDTH - MARGIN * 2, height, RULE, false)
+    this.roundedRect(MARGIN, this.y - height, PAGE_WIDTH - MARGIN * 2, height, LIGHT_TEAL, true, CARD_RADIUS)
+    this.roundedRect(MARGIN, this.y - height, PAGE_WIDTH - MARGIN * 2, height, RULE, false, CARD_RADIUS)
   }
 
   private text(value: string, x: number, y: number, size: number, textColor: Rgb, font = 'Helvetica') {
@@ -344,6 +414,29 @@ class ItineraryPdf {
 
   private rect(x: number, y: number, width: number, height: number, rectColor: Rgb, fill: boolean) {
     this.current().ops.push(`${color(rectColor)} ${fill ? 'rg' : 'RG'} ${x} ${y} ${width} ${height} re ${fill ? 'f' : 'S'}`)
+  }
+
+  /** Rounded card corners so PDF cards read as the same shape language as
+   * the app's rounded-xl surfaces, rather than the sharp boxes a raw `re`
+   * operator produces. Built from four quarter-circle Bezier corners, same
+   * curve-constant technique as circle(). */
+  private roundedRect(x: number, y: number, width: number, height: number, rectColor: Rgb, fill: boolean, radius: number) {
+    const r = Math.max(0, Math.min(radius, width / 2, height / 2))
+    const c = r * 0.5522847498
+    const ops = this.current().ops
+    const path = [
+      `${x + r} ${y} m`,
+      `${x + width - r} ${y} l`,
+      `${x + width - r + c} ${y} ${x + width} ${y + r - c} ${x + width} ${y + r} c`,
+      `${x + width} ${y + height - r} l`,
+      `${x + width} ${y + height - r + c} ${x + width - r + c} ${y + height} ${x + width - r} ${y + height} c`,
+      `${x + r} ${y + height} l`,
+      `${x + r - c} ${y + height} ${x} ${y + height - r + c} ${x} ${y + height - r} c`,
+      `${x} ${y + r} l`,
+      `${x} ${y + r - c} ${x + r - c} ${y} ${x + r} ${y} c`,
+      'h',
+    ].join(' ')
+    ops.push(`${color(rectColor)} ${fill ? 'rg' : 'RG'} ${path} ${fill ? 'f' : 'S'}`)
   }
 
   private circle(x: number, y: number, radius: number, fill: Rgb) {
@@ -369,6 +462,16 @@ class ItineraryPdf {
       this.rect(cursor, y, w, barHeight, fill, true)
       cursor += w + 1.5
     }
+  }
+
+  /** Small right-aligned pill tag, e.g. the must-see marker on a stop card. */
+  private badge(rightX: number, baselineY: number, label: string, fill: Rgb, textColor: Rgb) {
+    const width = label.length * 4.2 + 16
+    const height = 14
+    const x = rightX - width
+    const y = baselineY - 3.5
+    this.roundedRect(x, y, width, height, fill, true, height / 2)
+    this.text(label, x + 8, y + 4.5, 7, textColor, 'Helvetica-Bold')
   }
 }
 
