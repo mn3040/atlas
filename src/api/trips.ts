@@ -252,6 +252,24 @@ export async function fetchItems(tripId: string): Promise<Item[]> {
   return (data as ItemRow[]).map(mapItem)
 }
 
+export async function fetchItemsForTrips(tripIds: string[]): Promise<Record<string, Item[]>> {
+  if (tripIds.length === 0) return {}
+
+  const { data, error } = await supabase
+    .from('items')
+    .select('*')
+    .in('trip_id', tripIds)
+    .order('position', { ascending: true })
+
+  if (error) throw error
+
+  const itemsByTrip = Object.fromEntries(tripIds.map((id) => [id, [] as Item[]]))
+  for (const item of (data as ItemRow[]).map(mapItem)) {
+    itemsByTrip[item.tripId] = [...(itemsByTrip[item.tripId] ?? []), item]
+  }
+  return itemsByTrip
+}
+
 export interface NewItemInput {
   tripId: string
   dayId: string | null

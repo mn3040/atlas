@@ -1,16 +1,19 @@
-import { useEffect, useState } from 'react'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { FileUp, Plus, MapPin, Trash2, Wand2, Users, UserRound, Archive } from 'lucide-react'
 import { useSession } from '../hooks/useSession'
-import { fetchTrips, createTrip, deleteTrip, fetchItems } from '../api/trips'
+import { fetchTrips, createTrip, deleteTrip, fetchItemsForTrips } from '../api/trips'
 import { TopNav } from '../components/TopNav'
 import { CountryFlag, CountryFlags } from '../components/CountryFlag'
 import { lineColorForIndex } from '../utils/lineColors'
 import { createSampleTrips } from '../utils/sampleTrips'
 import { shouldConfirmBeforeDelete } from '../utils/settings'
 import { countryCodesForTrip } from '../utils/flags'
-import { DashboardImportModal } from './DashboardImportModal'
 import type { Item, Trip, TripVisibility } from '../types/trip'
+
+const DashboardImportModal = lazy(() =>
+  import('./DashboardImportModal').then((module) => ({ default: module.DashboardImportModal })),
+)
 
 const inputClass =
   'mt-1 min-h-11 w-full rounded-md border border-border bg-ink px-3 py-2 text-base text-text placeholder:text-text-dim focus:border-paper focus:outline-none sm:text-sm'
@@ -27,6 +30,7 @@ export default function Dashboard() {
   const [trips, setTrips] = useState<Trip[]>([])
   const [tripItems, setTripItems] = useState<Record<string, Item[]>>({})
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState<string | null>(null)
   const [showForm, setShowForm] = useState(false)
   const [showImport, setShowImport] = useState(false)
   const [createError, setCreateError] = useState<string | null>(null)
@@ -42,9 +46,9 @@ export default function Dashboard() {
     fetchTrips()
       .then(async (tripData) => {
         setTrips(tripData)
-        const entries = await Promise.all(tripData.map(async (trip) => [trip.id, await fetchItems(trip.id)] as const))
-        setTripItems(Object.fromEntries(entries))
+        setTripItems(await fetchItemsForTrips(tripData.map((trip) => trip.id)))
       })
+      .catch((err) => setLoadError(err instanceof Error ? err.message : 'Failed to load trips.'))
       .finally(() => setLoading(false))
   }, [])
 
@@ -102,8 +106,8 @@ export default function Dashboard() {
         trips.map((trip) => trip.name),
       )
       setTrips((current) => [...current, ...createdTrips].sort((a, b) => a.startDate.localeCompare(b.startDate)))
-      const entries = await Promise.all(createdTrips.map(async (trip) => [trip.id, await fetchItems(trip.id)] as const))
-      setTripItems((current) => ({ ...current, ...Object.fromEntries(entries) }))
+      const itemsByTrip = await fetchItemsForTrips(createdTrips.map((trip) => trip.id))
+      setTripItems((current) => ({ ...current, ...itemsByTrip }))
     } catch (err) {
       setCreateError(err instanceof Error ? err.message : 'Failed to create sample trips.')
     } finally {
@@ -160,8 +164,17 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {showImport && session && <DashboardImportModal ownerId={session.user.id} onClose={() => setShowImport(false)} />}
+        {showImport && session && (
+          <Suspense fallback={<p className="mt-4 text-sm font-semibold text-text-dim">Loading import tools...</p>}>
+            <DashboardImportModal ownerId={session.user.id} onClose={() => setShowImport(false)} />
+          </Suspense>
+        )}
         {showForm && <NewTripForm onCreate={handleCreate} error={createError} />}
+        {loadError && (
+          <p className="mt-4 border-l-4 border-line-3 bg-surface px-3 py-2 text-sm font-semibold text-text">
+            {loadError}
+          </p>
+        )}
         {deleteError && (
           <p className="mt-4 border-l-4 border-line-3 bg-surface px-3 py-2 text-sm font-semibold text-text">
             {deleteError}
@@ -171,6 +184,10 @@ export default function Dashboard() {
         <div className="atlas-reveal atlas-reveal-delay-2 mt-8">
           {loading ? (
             <p className="py-6 text-sm text-text-dim">Loading…</p>
+          ) : loadError ? (
+            <p className="rounded-xl border border-dashed border-border py-10 text-center text-text-dim">
+              Could not load your trips. Check your connection and Supabase configuration.
+            </p>
           ) : trips.length === 0 ? (
             <p className="rounded-xl border border-dashed border-border py-10 text-center text-text-dim">
               No trips yet — build your first itinerary.
@@ -382,7 +399,7 @@ function TripSection({
                 </div>
                 <div className="mt-auto flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-text-dim">
                   <MapPin size={11} />
-                  {trip.startDate} &ndash; {trip.endDate}
+                  {trip.startDate} - {trip.endDate}
                   <CountryFlags
                     countryCodes={countryCodesForTrip(trip, tripItems[trip.id] ?? [])}
                     className="h-3 w-auto rounded-[1px]"

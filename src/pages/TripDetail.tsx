@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type TouchEvent } from 'react'
+import { lazy, Suspense, useEffect, useRef, useState, type TouchEvent } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import {
   ChevronLeft,
@@ -44,20 +44,12 @@ import { DayBranchesPanel } from '../itinerary/DayBranchesPanel'
 import { BookingDetail } from '../itinerary/BookingDetail'
 import { FlightDetail } from '../itinerary/FlightDetail'
 import { AddItemModal } from '../itinerary/AddItemModal'
-import { ImportItineraryModal } from '../itinerary/ImportItineraryModal'
-import { EditTripModal } from '../itinerary/EditTripModal'
-import { GroupTripModal } from '../itinerary/GroupTripModal'
-import { GroupPicksModal } from '../itinerary/GroupPicksModal'
-import { TripBriefModal } from '../itinerary/TripBriefModal'
-import { DailyBriefingModal } from '../itinerary/DailyBriefingModal'
-import { TripMap } from '../maps/TripMap'
 import type { TripMapHandle } from '../maps/TripMap'
 import { TravelModePicker } from '../maps/TravelModePicker'
 import { TransitCard } from '../maps/TransitCard'
 import { DayPager } from '../maps/DayPager'
 import { ZoomControl } from '../maps/ZoomControl'
 import { WeatherChip } from '../maps/WeatherChip'
-import { TripCalendar } from '../calendar/TripCalendar'
 import { lineColorForIndex } from '../utils/lineColors'
 import { actionForItem, bookingUrlForItem, mapsUrlForItem } from '../utils/itemActions'
 import { downloadItinerary } from '../utils/exportItinerary'
@@ -69,6 +61,31 @@ import type { TravelMode } from '../utils/distance'
 import type { AppSettings } from '../utils/settings'
 import type { DayOptionView } from '../utils/mustSee'
 import type { Trip, Day, Item, TripVisibility, ItemVoteSummary, Profile, ItemDecision } from '../types/trip'
+
+const ImportItineraryModal = lazy(() =>
+  import('../itinerary/ImportItineraryModal').then((module) => ({ default: module.ImportItineraryModal })),
+)
+const EditTripModal = lazy(() =>
+  import('../itinerary/EditTripModal').then((module) => ({ default: module.EditTripModal })),
+)
+const GroupTripModal = lazy(() =>
+  import('../itinerary/GroupTripModal').then((module) => ({ default: module.GroupTripModal })),
+)
+const GroupPicksModal = lazy(() =>
+  import('../itinerary/GroupPicksModal').then((module) => ({ default: module.GroupPicksModal })),
+)
+const TripBriefModal = lazy(() =>
+  import('../itinerary/TripBriefModal').then((module) => ({ default: module.TripBriefModal })),
+)
+const DailyBriefingModal = lazy(() =>
+  import('../itinerary/DailyBriefingModal').then((module) => ({ default: module.DailyBriefingModal })),
+)
+const TripCalendar = lazy(() =>
+  import('../calendar/TripCalendar').then((module) => ({ default: module.TripCalendar })),
+)
+const TripMap = lazy(() =>
+  import('../maps/TripMap').then((module) => ({ default: module.TripMap })),
+)
 
 function formatShortDate(date: string): string {
   return new Date(`${date}T00:00:00`).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
@@ -109,6 +126,7 @@ export default function TripDetail() {
   const [days, setDays] = useState<Day[]>([])
   const [items, setItems] = useState<Item[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState<string | null>(null)
   const [activeDayId, setActiveDayId] = useState<string | null>(null)
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null)
   const [travelMode, setTravelMode] = useState<TravelMode>(() => getAppSettings().defaultTravelMode)
@@ -145,16 +163,23 @@ export default function TripDetail() {
   useEffect(() => {
     if (!tripId) return
     async function load() {
-      const [tripData, dayData, itemData] = await Promise.all([
-        fetchTrip(tripId!),
-        fetchDays(tripId!),
-        fetchItems(tripId!),
-      ])
-      setTrip(tripData)
-      setDays(dayData)
-      setItems(itemData)
-      setActiveDayId(dayData[0]?.id ?? null)
-      setLoading(false)
+      setLoading(true)
+      setLoadError(null)
+      try {
+        const [tripData, dayData, itemData] = await Promise.all([
+          fetchTrip(tripId!),
+          fetchDays(tripId!),
+          fetchItems(tripId!),
+        ])
+        setTrip(tripData)
+        setDays(dayData)
+        setItems(itemData)
+        setActiveDayId(dayData[0]?.id ?? null)
+      } catch (err) {
+        setLoadError(err instanceof Error ? err.message : 'Failed to load this trip.')
+      } finally {
+        setLoading(false)
+      }
     }
     load()
   }, [tripId])
@@ -519,11 +544,15 @@ export default function TripDetail() {
   }
 
   if (loading) {
-    return <div className="flex min-h-screen items-center justify-center text-sm text-text-dim">Loading…</div>
+    return <div className="flex min-h-screen items-center justify-center text-sm text-text-dim">Loading...</div>
   }
 
   if (!trip) {
-    return <div className="flex min-h-screen items-center justify-center text-text-dim">Trip not found.</div>
+    return (
+      <div className="flex min-h-screen items-center justify-center px-4 text-center text-text-dim">
+        {loadError ? `Could not load this trip: ${loadError}` : 'Trip not found.'}
+      </div>
+    )
   }
 
   return (
@@ -670,7 +699,7 @@ export default function TripDetail() {
                 </div>
 
                 <h1 className="mb-1.5 text-[20px] font-extrabold leading-tight tracking-tight text-text sm:text-[23px]">
-                  {trip.name} &mdash; {days.length} Day Trip
+                  {trip.name} - {days.length} Day Trip
                 </h1>
                 {trip.description && (
                   <p className="mb-3.5 text-xs leading-relaxed text-text-dim">{trip.description}</p>
@@ -679,12 +708,12 @@ export default function TripDetail() {
                 <div className="mb-4 flex flex-wrap items-center gap-2.5">
                   <div className="flex items-center gap-1.5 rounded-lg bg-surface-3 px-2.5 py-1 text-[11px] font-bold text-text">
                     <CountryFlags countryCodes={tripCountryCodes} className="h-3 w-auto rounded-[1px]" />
-                    {formatShortDate(trip.startDate)} &ndash; {formatShortDate(trip.endDate)}
+                    {formatShortDate(trip.startDate)} - {formatShortDate(trip.endDate)}
                   </div>
                   <div className="text-[11.5px] text-text-dim">
                     {days.length} Day{days.length === 1 ? '' : 's'}
                   </div>
-                  <div className="text-[11.5px] text-text-dim">&middot; {items.length} Stops</div>
+                  <div className="text-[11.5px] text-text-dim">/ {items.length} Stops</div>
                   <div className="flex-1" />
                   {activeDayId && <DaySelect days={days} activeDayId={activeDayId} onSelect={setActiveDayId} />}
                 </div>
@@ -692,7 +721,7 @@ export default function TripDetail() {
                 {stays.length > 0 && (
                   <div className="mb-4 space-y-2 border-t border-border pt-3">
                     <p className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wide text-text-dimmer">
-                      <BedDouble size={12} /> Where you&rsquo;re staying
+                      <BedDouble size={12} /> Where you're staying
                     </p>
                     {stays.map((stay) => (
                       <button
@@ -713,7 +742,7 @@ export default function TripDetail() {
                         <div className="min-w-0 flex-1">
                           <p className="truncate text-[12.5px] font-bold text-text">{stay.name}</p>
                           <p className="text-[10.5px] text-text-dim">
-                            {formatShortDate(stay.startDate)} &ndash; {formatShortDate(stay.endDate ?? stay.startDate)}
+                            {formatShortDate(stay.startDate)} - {formatShortDate(stay.endDate ?? stay.startDate)}
                           </p>
                         </div>
                       </button>
@@ -723,7 +752,7 @@ export default function TripDetail() {
 
                 <div className="mb-0.5 flex items-center justify-between">
                   <p className="text-[10.5px] font-semibold text-text-dimmer">
-                    Day {activeDayIndex + 1} &middot; {activeDay ? formatShortDate(activeDay.date) : ''}
+                    Day {activeDayIndex + 1} / {activeDay ? formatShortDate(activeDay.date) : ''}
                   </p>
                 </div>
                 <div className="mb-3 flex items-center justify-between gap-2">
@@ -751,13 +780,15 @@ export default function TripDetail() {
 
                 {showCalendar && (
                   <div className="absolute left-4 right-4 top-16 z-20 rounded-lg border border-border bg-surface p-3 shadow-2xl sm:left-[22px] sm:right-auto sm:w-80">
-                    <TripCalendar
-                      days={days}
-                      onSelectDay={(dayId) => {
-                        setActiveDayId(dayId)
-                        setShowCalendar(false)
-                      }}
-                    />
+                    <Suspense fallback={<p className="py-4 text-center text-xs font-semibold text-text-dim">Loading calendar...</p>}>
+                      <TripCalendar
+                        days={days}
+                        onSelectDay={(dayId) => {
+                          setActiveDayId(dayId)
+                          setShowCalendar(false)
+                        }}
+                      />
+                    </Suspense>
                   </div>
                 )}
 
@@ -833,16 +864,18 @@ export default function TripDetail() {
         </aside>
 
         <main className="atlas-map-stage relative min-h-0 flex-1 overflow-hidden bg-map-bg">
-          <TripMap
-            ref={mapRef}
-            days={days}
-            items={mapItems}
-            activeDayId={activeDayId}
-            selectedItemId={selectedItemId}
-            travelMode={travelMode}
-            onSelectItem={setSelectedItemId}
-            onZoomChange={setZoom}
-          />
+          <Suspense fallback={<div className="absolute inset-0 flex items-center justify-center bg-map-bg text-sm font-semibold text-text-dim">Loading map...</div>}>
+            <TripMap
+              ref={mapRef}
+              days={days}
+              items={mapItems}
+              activeDayId={activeDayId}
+              selectedItemId={selectedItemId}
+              travelMode={travelMode}
+              onSelectItem={setSelectedItemId}
+              onZoomChange={setZoom}
+            />
+          </Suspense>
 
           {activeDay && (
             <DayPager
@@ -923,79 +956,101 @@ export default function TripDetail() {
       )}
 
       {showImportModal && (
-        <ImportItineraryModal
-          trip={trip}
-          days={days}
-          itemCount={items.length}
-          onClose={() => setShowImportModal(false)}
-          onDayCreated={handleDayCreated}
-          onItemsCreated={(createdItems) => setItems((current) => [...current, ...createdItems])}
-          onMustSeeCreated={(itemIds) => {
-            if (!tripId || itemIds.length === 0) return
-            setMustSeeIds((current) => {
-              const next = new Set(current)
-              itemIds.forEach((id) => next.add(id))
-              saveMustSeeIds(tripId, next)
-              return next
-            })
-          }}
-        />
+        <Suspense fallback={<p className="fixed inset-x-0 top-4 z-50 mx-auto w-fit rounded-md border border-border bg-surface px-4 py-2 text-sm font-semibold text-text-dim">Loading import tools...</p>}>
+          <ImportItineraryModal
+            trip={trip}
+            days={days}
+            itemCount={items.length}
+            onClose={() => setShowImportModal(false)}
+            onDayCreated={handleDayCreated}
+            onItemsCreated={(createdItems) => setItems((current) => [...current, ...createdItems])}
+            onMustSeeCreated={(itemIds) => {
+              if (!tripId || itemIds.length === 0) return
+              setMustSeeIds((current) => {
+                const next = new Set(current)
+                itemIds.forEach((id) => next.add(id))
+                saveMustSeeIds(tripId, next)
+                return next
+              })
+            }}
+          />
+        </Suspense>
       )}
 
-      {showEditTrip && <EditTripModal trip={trip} onClose={() => setShowEditTrip(false)} onSave={handleUpdateTrip} />}
+      {showEditTrip && (
+        <Suspense fallback={<ModalLoading />}>
+          <EditTripModal trip={trip} onClose={() => setShowEditTrip(false)} onSave={handleUpdateTrip} />
+        </Suspense>
+      )}
       {showGroupTrip && session?.user.id && (
-        <GroupTripModal trip={trip} userId={session.user.id} onClose={() => setShowGroupTrip(false)} />
+        <Suspense fallback={<ModalLoading />}>
+          <GroupTripModal trip={trip} userId={session.user.id} onClose={() => setShowGroupTrip(false)} />
+        </Suspense>
       )}
       {showGroupPicks && (
-        <GroupPicksModal
-          days={days}
-          items={items}
-          voteSummary={voteSummary}
-          decisions={decisions}
-          memberCount={trip.memberLimit ?? 0}
-          canDecide={trip.ownerId === session?.user.id}
-          decisionError={decisionError}
-          onClose={() => setShowGroupPicks(false)}
-          onSelectItem={(item) => {
-            setActiveDayId(item.dayId)
-            setSelectedItemId(item.id)
-            setShowGroupPicks(false)
-          }}
-          onDecide={handleDecide}
-          onClearDecision={handleClearDecision}
-        />
+        <Suspense fallback={<ModalLoading />}>
+          <GroupPicksModal
+            days={days}
+            items={items}
+            voteSummary={voteSummary}
+            decisions={decisions}
+            memberCount={trip.memberLimit ?? 0}
+            canDecide={trip.ownerId === session?.user.id}
+            decisionError={decisionError}
+            onClose={() => setShowGroupPicks(false)}
+            onSelectItem={(item) => {
+              setActiveDayId(item.dayId)
+              setSelectedItemId(item.id)
+              setShowGroupPicks(false)
+            }}
+            onDecide={handleDecide}
+            onClearDecision={handleClearDecision}
+          />
+        </Suspense>
       )}
       {showTripBrief && (
-        <TripBriefModal
-          trip={trip}
-          days={days}
-          items={items}
-          voteSummary={voteSummary}
-          travelMode={travelMode}
-          onClose={() => setShowTripBrief(false)}
-          onSelectItem={(item) => {
-            setActiveDayId(item.dayId)
-            setSelectedItemId(item.id)
-          }}
-        />
+        <Suspense fallback={<ModalLoading />}>
+          <TripBriefModal
+            trip={trip}
+            days={days}
+            items={items}
+            voteSummary={voteSummary}
+            travelMode={travelMode}
+            onClose={() => setShowTripBrief(false)}
+            onSelectItem={(item) => {
+              setActiveDayId(item.dayId)
+              setSelectedItemId(item.id)
+            }}
+          />
+        </Suspense>
       )}
       {showDailyBriefing && activeDay && (
-        <DailyBriefingModal
-          trip={trip}
-          day={activeDay}
-          dayIndex={activeDayIndex}
-          items={items}
-          selectedItem={selectedItem}
-          voteSummary={voteSummary}
-          decisions={decisions}
-          travelMode={travelMode}
-          onClose={() => setShowDailyBriefing(false)}
-          onSelectItem={(item) => {
-            setActiveDayId(item.dayId)
-            setSelectedItemId(item.id)
-          }}
-        />
+        <Suspense fallback={<ModalLoading />}>
+          <DailyBriefingModal
+            trip={trip}
+            day={activeDay}
+            dayIndex={activeDayIndex}
+            items={items}
+            selectedItem={selectedItem}
+            voteSummary={voteSummary}
+            decisions={decisions}
+            travelMode={travelMode}
+            onClose={() => setShowDailyBriefing(false)}
+            onSelectItem={(item) => {
+              setActiveDayId(item.dayId)
+              setSelectedItemId(item.id)
+            }}
+          />
+        </Suspense>
       )}
     </div>
+  )
+}
+
+function ModalLoading() {
+  return (
+    <p className="fixed inset-x-0 top-4 z-50 mx-auto w-fit rounded-md border border-border bg-surface px-4 py-2 text-sm font-semibold text-text-dim">
+      Loading...
+    </p>
   )
 }

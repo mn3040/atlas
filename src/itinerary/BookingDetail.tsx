@@ -105,7 +105,7 @@ export function BookingDetail({
       <div className="mb-4 rounded-xl border border-border bg-surface px-3.5 py-3">
         <p className="mb-1 text-sm font-bold text-text">{item.roomType || 'Standard Room'}</p>
         <p className="text-xs text-text-dim">
-          {item.guests ?? 1} Guest{(item.guests ?? 1) === 1 ? '' : 's'} &middot; {nights} Night
+          {item.guests ?? 1} Guest{(item.guests ?? 1) === 1 ? '' : 's'} / {nights} Night
           {nights === 1 ? '' : 's'}
         </p>
       </div>

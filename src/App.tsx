@@ -1,21 +1,25 @@
+import { lazy, Suspense } from 'react'
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { useSession } from './hooks/useSession'
-import Dashboard from './pages/Dashboard'
-import TripDetail from './pages/TripDetail'
-import JoinTrip from './pages/JoinTrip'
+
+const Dashboard = lazy(() => import('./pages/Dashboard'))
+const TripDetail = lazy(() => import('./pages/TripDetail'))
+const JoinTrip = lazy(() => import('./pages/JoinTrip'))
+
+function AppLoading({ label = 'Loading...' }: { label?: string }) {
+  return (
+    <div className="flex min-h-screen items-center justify-center font-mono text-sm text-text-dim">
+      {label}
+    </div>
+  )
+}
 
 function WithSession({ children }: { children: React.ReactNode }) {
   const { session, loading } = useSession()
 
-  if (loading || !session) {
-    return (
-      <div className="flex min-h-screen items-center justify-center font-mono text-sm text-text-dim">
-        Loading…
-      </div>
-    )
-  }
+  if (loading || !session) return <AppLoading />
 
-  return <>{children}</>
+  return <Suspense fallback={<AppLoading label="Loading page..." />}>{children}</Suspense>
 }
 
 function App() {
