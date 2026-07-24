@@ -187,6 +187,34 @@ body {
   opacity: 1;
 }
 
+/* Document wallet signature: each card reads as a ticket stub -- a
+   perforated divider between the type stub and the details, punched with
+   two half-circle notches like a real boarding pass or claim ticket. */
+.atlas-ticket-stub {
+  position: relative;
+}
+
+.atlas-ticket-stub::before,
+.atlas-ticket-stub::after {
+  content: '';
+  position: absolute;
+  left: 5rem;
+  width: 14px;
+  height: 14px;
+  transform: translateX(-50%);
+  border-radius: 50%;
+  background: var(--color-ink);
+  z-index: 1;
+}
+
+.atlas-ticket-stub::before {
+  top: -7px;
+}
+
+.atlas-ticket-stub::after {
+  bottom: -7px;
+}
+
 .atlas-map-stage::after {
   content: '';
   pointer-events: none;

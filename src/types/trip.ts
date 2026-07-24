@@ -73,6 +73,46 @@ export interface Profile {
   updatedAt: string
 }
 
+export type ExpenseCategory = 'transport' | 'lodging' | 'food' | 'activities' | 'shopping' | 'other'
+
+export interface ExpenseShare {
+  expenseId: string
+  userId: string
+  shareAmount: number
+}
+
+export interface Expense {
+  id: string
+  tripId: string
+  description: string
+  amount: number
+  category: ExpenseCategory
+  paidBy: string
+  spentOn: string
+  notes: string | null
+  createdBy: string
+  createdAt: string
+  shares: ExpenseShare[]
+}
+
+export type DocumentType = 'passport' | 'visa' | 'boarding_pass' | 'confirmation' | 'insurance' | 'other'
+
+export interface TripDocument {
+  id: string
+  tripId: string
+  uploadedBy: string
+  type: DocumentType
+  title: string
+  documentNumber: string | null
+  issuingCountry: string | null
+  expiryDate: string | null
+  notes: string | null
+  filePath: string | null
+  fileName: string | null
+  mimeType: string | null
+  createdAt: string
+}
+
 export interface Day {
   id: string
   tripId: string

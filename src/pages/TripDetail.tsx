@@ -34,6 +34,7 @@ import { supabase } from '../api/supabaseClient'
 import { clearItemDecision, fetchItemDecisions, isMissingDecisionsTable, setItemDecision } from '../api/decisions'
 import { fetchItemVoteSummary, setItemMustSeeVote } from '../api/votes'
 import { TopNav } from '../components/TopNav'
+import { TripSubNav } from '../components/TripSubNav'
 import { useSession } from '../hooks/useSession'
 import { useProfile } from '../hooks/useProfile'
 import { CountryFlags } from '../components/CountryFlag'
@@ -704,6 +705,10 @@ export default function TripDetail() {
                 {trip.description && (
                   <p className="mb-3.5 text-xs leading-relaxed text-text-dim">{trip.description}</p>
                 )}
+
+                <div className="mb-3.5">
+                  <TripSubNav tripId={tripId!} />
+                </div>
 
                 <div className="mb-4 flex flex-wrap items-center gap-2.5">
                   <div className="flex items-center gap-1.5 rounded-lg bg-surface-3 px-2.5 py-1 text-[11px] font-bold text-text">
