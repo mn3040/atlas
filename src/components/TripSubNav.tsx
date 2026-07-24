@@ -12,7 +12,7 @@ const TABS = [
 export function TripSubNav({ tripId }: { tripId: string }) {
   return (
     <nav
-      className="flex w-fit items-center gap-1 rounded-md border border-border bg-surface p-1"
+      className="flex w-full items-center gap-1 overflow-x-auto rounded-md border border-border bg-surface p-1 sm:w-fit"
       aria-label="Trip sections"
     >
       {TABS.map(({ to, label, icon: Icon, end }) => (
@@ -21,7 +21,7 @@ export function TripSubNav({ tripId }: { tripId: string }) {
           to={`/trips/${tripId}${to ? `/${to}` : ''}`}
           end={end}
           className={({ isActive }) =>
-            `flex items-center gap-1.5 rounded px-3 py-1.5 text-xs font-bold transition-colors ${
+            `flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded px-3 py-1.5 text-xs font-bold transition-colors ${
               isActive ? 'bg-paper text-ink' : 'text-text-dim hover:text-text'
             }`
           }
