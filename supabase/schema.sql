@@ -8,12 +8,22 @@ drop table if exists trip_invites cascade;
 drop table if exists expense_shares cascade;
 drop table if exists expenses cascade;
 drop table if exists trip_documents cascade;
+drop table if exists packing_items cascade;
 drop table if exists items cascade;
 drop table if exists stops cascade;
 drop table if exists days cascade;
 drop table if exists trip_members cascade;
 drop table if exists trips cascade;
 drop table if exists profiles cascade;
+
+-- Dropped explicitly (rather than relying on function cascade) because these
+-- live on storage.objects, which the table drops above never touch -- left
+-- in place, they'd block the "drop function" statements below with
+-- "cannot drop function ... because other objects depend on it".
+drop policy if exists "trip documents: members can view files" on storage.objects;
+drop policy if exists "trip documents: editors can upload files" on storage.objects;
+drop policy if exists "trip documents: editors can delete files" on storage.objects;
+
 drop function if exists is_trip_member(uuid);
 drop function if exists trip_role(uuid);
 drop function if exists join_trip_by_token(text);
@@ -195,6 +205,20 @@ create table trip_documents (
 
 create index trip_documents_trip_id_idx on trip_documents (trip_id);
 
+-- Packing List: a shared trip checklist seeded from trip length, destination
+-- weather, and the activity types already on the itinerary (Command tab).
+create table packing_items (
+  id uuid primary key default gen_random_uuid(),
+  trip_id uuid not null references trips(id) on delete cascade,
+  label text not null,
+  category text not null default 'other' check (category in ('clothing', 'documents', 'toiletries', 'electronics', 'gear', 'other')),
+  packed boolean not null default false,
+  created_by uuid not null references auth.users(id) on delete cascade,
+  created_at timestamptz not null default now()
+);
+
+create index packing_items_trip_id_idx on packing_items (trip_id);
+
 -- Helper functions used by RLS policies below.
 --
 -- These run as SECURITY DEFINER so their internal queries against
@@ -239,6 +263,7 @@ alter table trip_invites enable row level security;
 alter table expenses enable row level security;
 alter table expense_shares enable row level security;
 alter table trip_documents enable row level security;
+alter table packing_items enable row level security;
 
 create policy "members can view their trips"
   on trips for select
@@ -475,6 +500,27 @@ create policy "editors can update trip documents"
 
 create policy "editors can delete trip documents"
   on trip_documents for delete
+  using (trip_role(trip_id) in ('owner', 'editor'));
+
+create policy "members can view packing items"
+  on packing_items for select
+  using (is_trip_member(trip_id));
+
+create policy "editors can create packing items"
+  on packing_items for insert
+  with check (
+    created_by = auth.uid()
+    and trip_role(trip_id) in ('owner', 'editor')
+    and is_trip_member(trip_id)
+  );
+
+create policy "editors can update packing items"
+  on packing_items for update
+  using (trip_role(trip_id) in ('owner', 'editor'))
+  with check (trip_role(trip_id) in ('owner', 'editor'));
+
+create policy "editors can delete packing items"
+  on packing_items for delete
   using (trip_role(trip_id) in ('owner', 'editor'));
 
 create function join_trip_by_token(invite_token text)

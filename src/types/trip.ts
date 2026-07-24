@@ -113,6 +113,18 @@ export interface TripDocument {
   createdAt: string
 }
 
+export type PackingCategory = 'clothing' | 'documents' | 'toiletries' | 'electronics' | 'gear' | 'other'
+
+export interface PackingItem {
+  id: string
+  tripId: string
+  label: string
+  category: PackingCategory
+  packed: boolean
+  createdBy: string
+  createdAt: string
+}
+
 export interface Day {
   id: string
   tripId: string

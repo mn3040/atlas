@@ -29,6 +29,7 @@ import { TopNav } from '../components/TopNav'
 import { TripSubNav } from '../components/TripSubNav'
 import { useSession } from '../hooks/useSession'
 import { shouldConfirmBeforeDelete } from '../utils/settings'
+import { expiryStatus } from '../utils/documentExpiry'
 import type { DocumentType, Trip, TripDocument, TripMemberWithProfile } from '../types/trip'
 
 const DOCUMENT_TYPES: { id: DocumentType; label: string; icon: typeof FileText }[] = [
@@ -45,19 +46,6 @@ const inputClass =
 
 function typeMeta(type: DocumentType) {
   return DOCUMENT_TYPES.find((entry) => entry.id === type) ?? DOCUMENT_TYPES[DOCUMENT_TYPES.length - 1]
-}
-
-function expiryStatus(expiryDate: string | null): { label: string; tone: 'expired' | 'soon' | 'ok' | 'none' } {
-  if (!expiryDate) return { label: 'No expiry on file', tone: 'none' }
-  const days = Math.floor((new Date(`${expiryDate}T00:00:00`).getTime() - Date.now()) / 86_400_000)
-  const formatted = new Date(`${expiryDate}T00:00:00`).toLocaleDateString(undefined, {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  })
-  if (days < 0) return { label: `Expired ${formatted}`, tone: 'expired' }
-  if (days <= 90) return { label: `Expires ${formatted} · ${days}d`, tone: 'soon' }
-  return { label: `Expires ${formatted}`, tone: 'ok' }
 }
 
 export default function DocumentWallet() {

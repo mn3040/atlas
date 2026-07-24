@@ -5,8 +5,10 @@ import { useSession } from './hooks/useSession'
 const Dashboard = lazy(() => import('./pages/Dashboard'))
 const TripDetail = lazy(() => import('./pages/TripDetail'))
 const JoinTrip = lazy(() => import('./pages/JoinTrip'))
+const CommandTab = lazy(() => import('./pages/CommandTab'))
 const BudgetHub = lazy(() => import('./pages/BudgetHub'))
 const DocumentWallet = lazy(() => import('./pages/DocumentWallet'))
+const PackingList = lazy(() => import('./pages/PackingList'))
 
 function AppLoading({ label = 'Loading...' }: { label?: string }) {
   return (
@@ -45,6 +47,14 @@ function App() {
           }
         />
         <Route
+          path="/trips/:tripId/command"
+          element={
+            <WithSession>
+              <CommandTab />
+            </WithSession>
+          }
+        />
+        <Route
           path="/trips/:tripId/budget"
           element={
             <WithSession>
@@ -57,6 +67,14 @@ function App() {
           element={
             <WithSession>
               <DocumentWallet />
+            </WithSession>
+          }
+        />
+        <Route
+          path="/trips/:tripId/packing"
+          element={
+            <WithSession>
+              <PackingList />
             </WithSession>
           }
         />

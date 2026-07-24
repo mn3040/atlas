@@ -17,8 +17,7 @@ import {
   Route,
   Users,
   Trophy,
-  ClipboardCheck,
-  CloudSun,
+  Radar,
 } from 'lucide-react'
 import {
   fetchTrip,
@@ -74,12 +73,6 @@ const GroupTripModal = lazy(() =>
 )
 const GroupPicksModal = lazy(() =>
   import('../itinerary/GroupPicksModal').then((module) => ({ default: module.GroupPicksModal })),
-)
-const TripBriefModal = lazy(() =>
-  import('../itinerary/TripBriefModal').then((module) => ({ default: module.TripBriefModal })),
-)
-const DailyBriefingModal = lazy(() =>
-  import('../itinerary/DailyBriefingModal').then((module) => ({ default: module.DailyBriefingModal })),
 )
 const TripCalendar = lazy(() =>
   import('../calendar/TripCalendar').then((module) => ({ default: module.TripCalendar })),
@@ -139,8 +132,6 @@ export default function TripDetail() {
   const [showEditTrip, setShowEditTrip] = useState(false)
   const [showGroupTrip, setShowGroupTrip] = useState(false)
   const [showGroupPicks, setShowGroupPicks] = useState(false)
-  const [showTripBrief, setShowTripBrief] = useState(false)
-  const [showDailyBriefing, setShowDailyBriefing] = useState(false)
   const [dayOptionView, setDayOptionView] = useState<DayOptionView>('all')
   const [activeBranchByDay, setActiveBranchByDay] = useState<Record<string, string>>({})
   const [mustSeeIds, setMustSeeIds] = useState<Set<string>>(() => new Set())
@@ -643,24 +634,13 @@ export default function TripDetail() {
                             >
                               <Pencil size={13} /> Edit trip details
                             </button>
-                            <button
-                              onClick={() => {
-                                setShowDailyBriefing(true)
-                                setShowMenu(false)
-                              }}
+                            <Link
+                              to={`/trips/${tripId}/command`}
+                              onClick={() => setShowMenu(false)}
                               className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-semibold text-text hover:bg-surface-2"
                             >
-                              <CloudSun size={13} /> Daily briefing
-                            </button>
-                            <button
-                              onClick={() => {
-                                setShowTripBrief(true)
-                                setShowMenu(false)
-                              }}
-                              className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-semibold text-text hover:bg-surface-2"
-                            >
-                              <ClipboardCheck size={13} /> Trip brief
-                            </button>
+                              <Radar size={13} /> Command tab
+                            </Link>
                             {trip.visibility === 'group' && (
                               <>
                                 <button
@@ -1015,41 +995,6 @@ export default function TripDetail() {
             }}
             onDecide={handleDecide}
             onClearDecision={handleClearDecision}
-          />
-        </Suspense>
-      )}
-      {showTripBrief && (
-        <Suspense fallback={<ModalLoading />}>
-          <TripBriefModal
-            trip={trip}
-            days={days}
-            items={items}
-            voteSummary={voteSummary}
-            travelMode={travelMode}
-            onClose={() => setShowTripBrief(false)}
-            onSelectItem={(item) => {
-              setActiveDayId(item.dayId)
-              setSelectedItemId(item.id)
-            }}
-          />
-        </Suspense>
-      )}
-      {showDailyBriefing && activeDay && (
-        <Suspense fallback={<ModalLoading />}>
-          <DailyBriefingModal
-            trip={trip}
-            day={activeDay}
-            dayIndex={activeDayIndex}
-            items={items}
-            selectedItem={selectedItem}
-            voteSummary={voteSummary}
-            decisions={decisions}
-            travelMode={travelMode}
-            onClose={() => setShowDailyBriefing(false)}
-            onSelectItem={(item) => {
-              setActiveDayId(item.dayId)
-              setSelectedItemId(item.id)
-            }}
           />
         </Suspense>
       )}

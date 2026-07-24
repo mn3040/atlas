@@ -1,10 +1,12 @@
 import { NavLink } from 'react-router-dom'
-import { Compass, FileText, Wallet } from 'lucide-react'
+import { Backpack, Compass, FileText, Radar, Wallet } from 'lucide-react'
 
 const TABS = [
   { to: '', label: 'Itinerary', icon: Compass, end: true },
+  { to: 'command', label: 'Command', icon: Radar, end: false },
   { to: 'budget', label: 'Budget', icon: Wallet, end: false },
   { to: 'documents', label: 'Documents', icon: FileText, end: false },
+  { to: 'packing', label: 'Packing', icon: Backpack, end: false },
 ]
 
 export function TripSubNav({ tripId }: { tripId: string }) {
