@@ -540,9 +540,17 @@ create trigger on_trip_created
 -- Private bucket for the Document Wallet -- files are only ever reached
 -- through short-lived signed URLs generated on demand, never a public link
 -- (documents may hold passport/visa numbers).
-insert into storage.buckets (id, name, public)
-values ('trip-documents', 'trip-documents', false)
-on conflict (id) do nothing;
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values (
+  'trip-documents',
+  'trip-documents',
+  false,
+  12582912,
+  array['application/pdf', 'image/jpeg', 'image/png', 'image/webp', 'image/heic']
+)
+on conflict (id) do update set
+  file_size_limit = excluded.file_size_limit,
+  allowed_mime_types = excluded.allowed_mime_types;
 
 -- Objects are uploaded by the app as '<trip_id>/<uuid>-<filename>', so the
 -- first path segment is always the owning trip's id. This relies on the app

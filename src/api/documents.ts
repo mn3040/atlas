@@ -3,6 +3,15 @@ import type { DocumentType, TripDocument } from '../types/trip'
 
 const BUCKET = 'trip-documents'
 
+export const MAX_DOCUMENT_FILE_BYTES = 12 * 1024 * 1024
+export const ALLOWED_DOCUMENT_MIME_TYPES = new Set([
+  'application/pdf',
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+  'image/heic',
+])
+
 interface TripDocumentRow {
   id: string
   trip_id: string
@@ -70,7 +79,20 @@ export interface DocumentInput {
   notes: string | null
 }
 
+export function validateDocumentFile(file: File): string | null {
+  if (file.size > MAX_DOCUMENT_FILE_BYTES) {
+    return `"${file.name}" is too large. Documents must be under 12 MB.`
+  }
+  if (file.type && !ALLOWED_DOCUMENT_MIME_TYPES.has(file.type)) {
+    return `"${file.name}" isn't a supported file type. Upload a PDF, JPEG, PNG, WEBP, or HEIC.`
+  }
+  return null
+}
+
 async function uploadFile(tripId: string, file: File): Promise<{ path: string; name: string; mimeType: string }> {
+  const validationError = validateDocumentFile(file)
+  if (validationError) throw new Error(validationError)
+
   const path = `${tripId}/${crypto.randomUUID()}-${file.name}`
   const { error } = await supabase.storage.from(BUCKET).upload(path, file)
   if (error) throw error

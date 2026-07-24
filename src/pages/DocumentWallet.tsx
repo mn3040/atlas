@@ -22,6 +22,7 @@ import {
   getDocumentSignedUrl,
   isMissingDocumentsTable,
   updateDocument,
+  validateDocumentFile,
 } from '../api/documents'
 import type { DocumentInput } from '../api/documents'
 import { TopNav } from '../components/TopNav'
@@ -417,8 +418,26 @@ function DocumentForm({
           <label className={`${inputClass} flex cursor-pointer items-center gap-2 text-text-dim`}>
             <Upload size={14} />
             {file?.name ?? document?.fileName ?? 'Choose a file'}
-            <input type="file" className="hidden" onChange={(event) => setFile(event.target.files?.[0] ?? null)} />
+            <input
+              type="file"
+              accept="application/pdf,image/jpeg,image/png,image/webp,image/heic"
+              className="hidden"
+              onChange={(event) => {
+                const selected = event.target.files?.[0] ?? null
+                if (selected) {
+                  const validationError = validateDocumentFile(selected)
+                  if (validationError) {
+                    setError(validationError)
+                    event.target.value = ''
+                    return
+                  }
+                }
+                setError('')
+                setFile(selected)
+              }}
+            />
           </label>
+          <span className="mt-1 block text-3xs text-text-dimmer">PDF, JPEG, PNG, WEBP, or HEIC — up to 12 MB.</span>
         </label>
 
         <label className="block sm:col-span-2">
