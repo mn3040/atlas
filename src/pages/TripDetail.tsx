@@ -33,6 +33,7 @@ import {
 import { supabase } from '../api/supabaseClient'
 import { clearItemDecision, fetchItemDecisions, isMissingDecisionsTable, setItemDecision } from '../api/decisions'
 import { fetchItemVoteSummary, setItemMustSeeVote } from '../api/votes'
+import { addItemNote, deleteItemNote, fetchItemNotes, isMissingNotesTable } from '../api/notes'
 import { TopNav } from '../components/TopNav'
 import { TripSubNav } from '../components/TripSubNav'
 import { useSession } from '../hooks/useSession'
@@ -62,7 +63,7 @@ import { loadOfflineTrip, saveOfflineTrip } from '../utils/offlineItinerary'
 import type { TravelMode } from '../utils/distance'
 import type { AppSettings } from '../utils/settings'
 import type { DayOptionView } from '../utils/mustSee'
-import type { Trip, Day, Item, TripVisibility, ItemVoteSummary, Profile, ItemDecision } from '../types/trip'
+import type { Trip, Day, Item, TripVisibility, ItemVoteSummary, Profile, ItemDecision, ItemNote } from '../types/trip'
 
 const ImportItineraryModal = lazy(() =>
   import('../itinerary/ImportItineraryModal').then((module) => ({ default: module.ImportItineraryModal })),
@@ -75,6 +76,9 @@ const GroupTripModal = lazy(() =>
 )
 const GroupPicksModal = lazy(() =>
   import('../itinerary/GroupPicksModal').then((module) => ({ default: module.GroupPicksModal })),
+)
+const StopNotesPanel = lazy(() =>
+  import('../itinerary/StopNotesPanel').then((module) => ({ default: module.StopNotesPanel })),
 )
 const TripCalendar = lazy(() =>
   import('../calendar/TripCalendar').then((module) => ({ default: module.TripCalendar })),
@@ -145,6 +149,10 @@ export default function TripDetail() {
   const [decisions, setDecisions] = useState<Record<string, ItemDecision>>({})
   const [voteError, setVoteError] = useState<string | null>(null)
   const [decisionError, setDecisionError] = useState<string | null>(null)
+  const [notes, setNotes] = useState<Record<string, ItemNote[]>>({})
+  const [notesError, setNotesError] = useState<string | null>(null)
+  const [notesItemId, setNotesItemId] = useState<string | null>(null)
+  const [postingNote, setPostingNote] = useState(false)
   const [screen, setScreen] = useState<'itinerary' | 'booking' | 'flight'>('itinerary')
   const [bookingItemId, setBookingItemId] = useState<string | null>(null)
   const [flightItemId, setFlightItemId] = useState<string | null>(null)
@@ -315,6 +323,59 @@ export default function TripDetail() {
   }, [tripId, trip?.visibility])
 
   useEffect(() => {
+    if (!tripId) return
+    let cancelled = false
+    fetchItemNotes(tripId, session?.user.id ?? null)
+      .then((notesByItem) => {
+        if (!cancelled) setNotes(notesByItem)
+      })
+      .catch((err) => {
+        if (!cancelled && !isMissingNotesTable(err)) {
+          setNotesError(err instanceof Error ? err.message : 'Could not load stop notes.')
+        }
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [tripId, session?.user.id])
+
+  useEffect(() => {
+    if (!tripId) return
+
+    let cancelled = false
+    let refreshTimer: number | null = null
+    const refreshNotes = () => {
+      if (refreshTimer != null) window.clearTimeout(refreshTimer)
+      refreshTimer = window.setTimeout(() => {
+        fetchItemNotes(tripId, session?.user.id ?? null)
+          .then((notesByItem) => {
+            if (!cancelled) setNotes(notesByItem)
+          })
+          .catch((err) => {
+            if (!cancelled && !isMissingNotesTable(err)) {
+              setNotesError(err instanceof Error ? err.message : 'Could not refresh stop notes.')
+            }
+          })
+      }, 160)
+    }
+
+    const channel = supabase
+      .channel(`trip-notes:${tripId}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'item_notes', filter: `trip_id=eq.${tripId}` },
+        refreshNotes,
+      )
+      .subscribe()
+
+    return () => {
+      cancelled = true
+      if (refreshTimer != null) window.clearTimeout(refreshTimer)
+      void supabase.removeChannel(channel)
+    }
+  }, [tripId, session?.user.id])
+
+  useEffect(() => {
     function handleSettings(event: Event) {
       const settings = (event as CustomEvent<AppSettings>).detail
       setTravelMode(settings.defaultTravelMode)
@@ -392,6 +453,8 @@ export default function TripDetail() {
   const selectedItem = selectedIndex >= 0 ? branchedActiveItems[selectedIndex] : undefined
   const bookingItem = items.find((item) => item.id === bookingItemId) ?? null
   const flightItem = items.find((item) => item.id === flightItemId) ?? null
+  const notesItem = items.find((item) => item.id === notesItemId) ?? null
+  const noteCounts = Object.fromEntries(Object.entries(notes).map(([itemId, list]) => [itemId, list.length]))
   const tripCountryCodes = trip ? countryCodesForTrip(trip, items) : []
 
   function handleDayCreated(day: Day) {
@@ -452,6 +515,47 @@ export default function TripDetail() {
       saveMustSeeIds(tripId, next)
       return next
     })
+  }
+
+  async function handleAddNote(body: string) {
+    if (!tripId || !notesItemId || !session?.user.id) return
+    setPostingNote(true)
+    setNotesError(null)
+    try {
+      const note = await addItemNote({
+        tripId,
+        itemId: notesItemId,
+        userId: session.user.id,
+        displayName: profile?.displayName ?? 'You',
+        avatarColor: profile?.avatarColor ?? '#22dd85',
+        body,
+      })
+      setNotes((current) => ({ ...current, [notesItemId]: [...(current[notesItemId] ?? []), note] }))
+    } catch (err) {
+      setNotesError(
+        isMissingNotesTable(err)
+          ? 'Run the latest Supabase migration to enable stop notes.'
+          : err instanceof Error
+            ? err.message
+            : 'Could not post this note.',
+      )
+    } finally {
+      setPostingNote(false)
+    }
+  }
+
+  async function handleDeleteNote(id: string) {
+    if (!notesItemId) return
+    setNotesError(null)
+    try {
+      await deleteItemNote(id)
+      setNotes((current) => ({
+        ...current,
+        [notesItemId]: (current[notesItemId] ?? []).filter((note) => note.id !== id),
+      }))
+    } catch (err) {
+      setNotesError(err instanceof Error ? err.message : 'Could not delete this note.')
+    }
   }
 
   async function handleDecide(item: Item) {
@@ -866,11 +970,16 @@ export default function TripDetail() {
                       onReorder={handleReorder}
                       onDelete={handleDelete}
                       onToggleMustSee={handleToggleMustSee}
+                      onOpenNotes={(item) => {
+                        setNotesError(null)
+                        setNotesItemId(item.id)
+                      }}
                       getMapsUrl={mapsUrlForItem}
                       getBookingUrl={bookingUrlForItem}
                       mustSeeIds={currentMustSeeIds}
                       voteSummary={voteSummary}
                       groupVoting={groupVoting}
+                      noteCounts={noteCounts}
                       onAddClick={setAddModalDate}
                       travelMode={travelMode}
                       showCommutes={showRouteTools}
@@ -1022,6 +1131,22 @@ export default function TripDetail() {
           <GroupTripModal trip={trip} userId={session.user.id} onClose={() => setShowGroupTrip(false)} />
         </Suspense>
       )}
+      {notesItem && (
+        <Suspense fallback={<ModalLoading />}>
+          <StopNotesPanel
+            item={notesItem}
+            notes={notes[notesItem.id] ?? []}
+            currentUserId={session?.user.id ?? null}
+            canModerate={trip.ownerId === session?.user.id}
+            posting={postingNote}
+            error={notesError}
+            onClose={() => setNotesItemId(null)}
+            onAddNote={handleAddNote}
+            onDeleteNote={handleDeleteNote}
+          />
+        </Suspense>
+      )}
+
       {showGroupPicks && (
         <Suspense fallback={<ModalLoading />}>
           <GroupPicksModal

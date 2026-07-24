@@ -65,6 +65,17 @@ export interface ItemDecision {
   decidedAt: string
 }
 
+export interface ItemNote {
+  id: string
+  tripId: string
+  itemId: string
+  userId: string
+  displayName: string
+  avatarColor: string
+  body: string
+  createdAt: string
+}
+
 export interface Profile {
   userId: string
   displayName: string

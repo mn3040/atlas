@@ -1,7 +1,7 @@
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { useEffect, useRef } from 'react'
-import { ArrowRight, Bike, Car, Pencil, Plane, Star, TrainFront, X, PersonStanding } from 'lucide-react'
+import { ArrowRight, Bike, Car, MessageCircle, Pencil, Plane, Star, TrainFront, X, PersonStanding } from 'lucide-react'
 import { actionForItem } from '../utils/itemActions'
 import { iconForItem } from '../utils/categoryIcons'
 import { estimateTravel, routeAvailability, TRAVEL_MODES } from '../utils/distance'
@@ -32,11 +32,13 @@ export function ItemStation({
   onEdit,
   onDelete,
   onToggleMustSee,
+  onOpenNotes,
   mapsUrl,
   bookingUrl,
   mustSee,
   voteSummary,
   groupVoting,
+  noteCount,
 }: {
   item: Item
   nextItem?: Item
@@ -51,11 +53,13 @@ export function ItemStation({
   onEdit: (item: Item) => void
   onDelete: (id: string) => void
   onToggleMustSee: (id: string) => void
+  onOpenNotes: (item: Item) => void
   mapsUrl: string
   bookingUrl: string
   mustSee: boolean
   voteSummary?: ItemVoteSummary
   groupVoting?: boolean
+  noteCount: number
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: item.id,
@@ -181,6 +185,23 @@ export function ItemStation({
               title={starActive ? 'Remove must-see' : 'Mark must-see'}
             >
               <Star size={11} fill={starActive ? 'var(--color-paper)' : 'none'} />
+            </button>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation()
+                onOpenNotes(item)
+              }}
+              className="relative flex h-7 w-7 items-center justify-center rounded-full border border-border bg-ink/90 text-text-dim shadow-sm hover:border-green hover:text-green md:h-5 md:w-5 md:border-0 md:bg-ink/70"
+              aria-label={noteCount > 0 ? `View ${noteCount} note${noteCount === 1 ? '' : 's'} for ${item.name}` : `Add a note for ${item.name}`}
+              title="Stop notes"
+            >
+              <MessageCircle size={11} />
+              {noteCount > 0 && (
+                <span className="absolute -right-1 -top-1 flex h-3.5 min-w-3.5 items-center justify-center rounded-full bg-green px-0.5 text-[8px] font-extrabold text-ink">
+                  {noteCount}
+                </span>
+              )}
             </button>
             <button
               type="button"

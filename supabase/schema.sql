@@ -2,6 +2,7 @@
 -- Replaces any earlier version of this schema — safe to run fresh since no
 -- production data depends on the old tables yet.
 
+drop table if exists item_notes cascade;
 drop table if exists item_decisions cascade;
 drop table if exists item_votes cascade;
 drop table if exists trip_invites cascade;
@@ -145,6 +146,21 @@ create table item_decisions (
 create index item_decisions_trip_id_idx on item_decisions (trip_id);
 create index item_decisions_item_id_idx on item_decisions (item_id);
 
+-- Stop notes: short comments anchored to a single item ("who's driving to
+-- this one?"), not a trip-wide chat feed. Realtime-subscribed the same way
+-- item_votes/item_decisions are.
+create table item_notes (
+  id uuid primary key default gen_random_uuid(),
+  trip_id uuid not null references trips(id) on delete cascade,
+  item_id uuid not null references items(id) on delete cascade,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  body text not null check (char_length(body) between 1 and 2000),
+  created_at timestamptz not null default now()
+);
+
+create index item_notes_trip_id_idx on item_notes (trip_id);
+create index item_notes_item_id_idx on item_notes (item_id);
+
 create table trip_invites (
   id uuid primary key default gen_random_uuid(),
   trip_id uuid not null references trips(id) on delete cascade,
@@ -259,6 +275,7 @@ alter table days enable row level security;
 alter table items enable row level security;
 alter table item_votes enable row level security;
 alter table item_decisions enable row level security;
+alter table item_notes enable row level security;
 alter table trip_invites enable row level security;
 alter table expenses enable row level security;
 alter table expense_shares enable row level security;
@@ -395,6 +412,30 @@ create policy "editors can update item decisions"
 
 create policy "editors can delete item decisions"
   on item_decisions for delete
+  using (trip_role(trip_id) in ('owner', 'editor'));
+
+create policy "members can view item notes"
+  on item_notes for select
+  using (is_trip_member(trip_id));
+
+create policy "members can create their own item notes"
+  on item_notes for insert
+  with check (
+    user_id = auth.uid()
+    and is_trip_member(trip_id)
+    and exists (
+      select 1 from items
+      where items.id = item_notes.item_id
+        and items.trip_id = item_notes.trip_id
+    )
+  );
+
+create policy "authors can delete their own item notes"
+  on item_notes for delete
+  using (user_id = auth.uid());
+
+create policy "editors can delete any item note"
+  on item_notes for delete
   using (trip_role(trip_id) in ('owner', 'editor'));
 
 create policy "members can view trip invites"

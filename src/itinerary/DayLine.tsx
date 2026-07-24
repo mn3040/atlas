@@ -24,11 +24,13 @@ export function DayLine({
   onReorder,
   onDelete,
   onToggleMustSee,
+  onOpenNotes,
   getMapsUrl,
   getBookingUrl,
   mustSeeIds,
   voteSummary,
   groupVoting,
+  noteCounts,
   onAddClick,
   travelMode,
   showCommutes,
@@ -43,11 +45,13 @@ export function DayLine({
   onReorder: (dayId: string, orderedItemIds: string[]) => void
   onDelete: (id: string) => void
   onToggleMustSee: (id: string) => void
+  onOpenNotes: (item: Item) => void
   getMapsUrl: (item: Item) => string
   getBookingUrl: (item: Item) => string
   mustSeeIds: Set<string>
   voteSummary?: Record<string, ItemVoteSummary>
   groupVoting?: boolean
+  noteCounts?: Record<string, number>
   onAddClick: (date: string) => void
   travelMode: TravelMode
   showCommutes: boolean
@@ -118,11 +122,13 @@ export function DayLine({
                     onEdit={onEdit}
                     onDelete={onDelete}
                     onToggleMustSee={onToggleMustSee}
+                    onOpenNotes={onOpenNotes}
                     mapsUrl={getMapsUrl(item)}
                     bookingUrl={getBookingUrl(item)}
                     mustSee={mustSeeIds.has(item.id)}
                     voteSummary={voteSummary?.[item.id]}
                     groupVoting={groupVoting}
+                    noteCount={noteCounts?.[item.id] ?? 0}
                   />
                 )
               })}
