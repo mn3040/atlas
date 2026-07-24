@@ -181,7 +181,7 @@ export default function PackingList() {
 
   return (
     <div className="min-h-screen bg-ink">
-      <TopNav />
+      <TopNav subtitle={`${trip.name} · Packing`} />
       <div className="mx-auto max-w-3xl px-4 py-6 sm:px-7">
         <Link to={`/trips/${tripId}`} className="mb-3 inline-flex items-center gap-1 text-xs font-bold text-text-dim hover:text-text">
           <Backpack size={14} /> {trip.name}

@@ -170,7 +170,7 @@ export default function DocumentWallet() {
 
   return (
     <div className="min-h-screen bg-ink">
-      <TopNav />
+      <TopNav subtitle={`${trip.name} · Documents`} />
       <div className="mx-auto max-w-4xl px-4 py-6 sm:px-7">
         <Link to={`/trips/${tripId}`} className="mb-3 inline-flex items-center gap-1 text-xs font-bold text-text-dim hover:text-text">
           <ChevronLeft size={14} /> {trip.name}

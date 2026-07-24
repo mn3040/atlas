@@ -549,7 +549,7 @@ export default function TripDetail() {
 
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-ink text-text [height:100dvh]">
-      <TopNav />
+      <TopNav subtitle={`${trip.name} · Itinerary`} />
 
       <div className="relative flex min-h-0 flex-1 flex-col md:flex-row">
         <aside

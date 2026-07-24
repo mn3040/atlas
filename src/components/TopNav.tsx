@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom'
 import { Check, Settings, UserRound, X } from 'lucide-react'
 import { useSession } from '../hooks/useSession'
 import { useProfile } from '../hooks/useProfile'
+import { fetchTripAlertSummary } from '../api/alerts'
+import { fetchTrips } from '../api/trips'
 import { TRAVEL_MODES } from '../utils/distance'
 import type { TravelMode } from '../utils/distance'
 import { getAppSettings, saveAppSettings } from '../utils/settings'
@@ -11,16 +13,50 @@ import type { Profile } from '../types/trip'
 
 const AVATAR_COLORS = ['#22dd85', '#f7ff88', '#5bd7f3', '#ff715b', '#bca5ed', '#fefefe']
 
-export function TopNav() {
+export function TopNav({ subtitle }: { subtitle?: string } = {}) {
   const { session } = useSession()
   const { profile, loading: profileLoading, error: profileError, save: saveProfile } = useProfile(session)
   const [settings, setSettings] = useState<AppSettings>(() => getAppSettings())
   const [open, setOpen] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
+  const [alertCount, setAlertCount] = useState(0)
+  const [alertTitle, setAlertTitle] = useState('')
 
   useEffect(() => {
     document.documentElement.classList.toggle('atlas-compact', settings.compactTimeline)
   }, [settings.compactTimeline])
+
+  useEffect(() => {
+    if (!session?.user.id) return
+    let cancelled = false
+
+    fetchTrips()
+      .then((trips) => {
+        const activeTrips = trips.filter((trip) => !trip.archivedAt)
+        const activeTripIds = activeTrips.map((trip) => trip.id)
+        const groupTripIds = activeTrips.filter((trip) => trip.visibility === 'group').map((trip) => trip.id)
+        return fetchTripAlertSummary(activeTripIds, groupTripIds)
+      })
+      .then((summary) => {
+        if (cancelled) return
+        setAlertCount(summary.expiringDocuments + summary.openVotes)
+        const parts = []
+        if (summary.expiringDocuments > 0) {
+          parts.push(`${summary.expiringDocuments} document${summary.expiringDocuments === 1 ? '' : 's'} expiring`)
+        }
+        if (summary.openVotes > 0) {
+          parts.push(`${summary.openVotes} open vote${summary.openVotes === 1 ? '' : 's'}`)
+        }
+        setAlertTitle(parts.length > 0 ? `${parts.join(', ')} across your trips` : '')
+      })
+      .catch(() => {
+        if (!cancelled) setAlertCount(0)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [session?.user.id])
 
   function update(patch: Partial<AppSettings>) {
     const next = { ...settings, ...patch }
@@ -39,18 +75,28 @@ export function TopNav() {
       </Link>
 
       <div className="flex items-center gap-3">
-        <span className="hidden text-xs font-bold uppercase tracking-[0.18em] text-text-dim sm:inline">Itinerary</span>
+        <span className="hidden max-w-[16rem] truncate text-xs font-bold uppercase tracking-[0.18em] text-text-dim sm:inline">
+          {subtitle ?? 'Itinerary'}
+        </span>
         <button
           type="button"
           onClick={() => setProfileOpen(true)}
-          className="flex h-9 items-center gap-2 rounded-md border border-border bg-surface px-2.5 text-text hover:border-green"
+          className="relative flex h-9 items-center gap-2 rounded-md border border-border bg-surface px-2.5 text-text hover:border-green"
           aria-label="Open traveler profile"
-          title="Traveler profile"
+          title={alertTitle || 'Traveler profile'}
         >
           <Avatar profile={profile} loading={profileLoading} />
           <span className="hidden max-w-24 truncate text-xs font-bold sm:inline">
             {profile?.displayName ?? 'Traveler'}
           </span>
+          {alertCount > 0 && (
+            <span
+              className="absolute -right-1.5 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-line-4 px-1 text-[9px] font-extrabold text-white"
+              aria-label={alertTitle}
+            >
+              {alertCount > 9 ? '9+' : alertCount}
+            </span>
+          )}
         </button>
         <button
           type="button"
