@@ -120,21 +120,20 @@ export default function Dashboard() {
       <TopNav />
 
       <div className="mx-auto w-full max-w-5xl flex-1 overflow-y-auto px-4 py-8 sm:px-6 sm:py-12">
-        <div className="atlas-reveal relative mb-6 overflow-hidden rounded-lg border border-border-strong bg-surface/74 p-5 shadow-2xl backdrop-blur-md sm:p-7">
+        <div className="atlas-reveal relative mb-6 overflow-hidden rounded-lg border border-border-strong bg-surface/74 p-5 shadow-[var(--shadow-card)] backdrop-blur-md sm:p-7">
           <div className="pointer-events-none absolute inset-0 opacity-70">
             <div className="absolute inset-0 bg-[linear-gradient(135deg,rgba(34,221,133,0.13),transparent_35%),linear-gradient(315deg,rgba(247,255,136,0.11),transparent_32%)]" />
-            <div className="absolute right-8 top-6 hidden h-28 w-28 rounded-full border border-green/20 bg-surface-3/35 sm:block atlas-float" />
           </div>
           <div className="relative z-[1] flex flex-col gap-5">
             <div className="max-w-xl">
-              <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.24em] text-paper">Atlas planboard</p>
-              <h1 className="text-4xl font-extrabold tracking-tight text-text sm:text-5xl">Your trips</h1>
+              <p className="mb-2 text-3xs font-bold uppercase tracking-[0.24em] text-paper">Atlas planboard</p>
+              <h1 className="font-display text-4xl font-extrabold tracking-tight text-text sm:text-5xl">Your trips</h1>
               <p className="mt-3 text-sm leading-relaxed text-text-dim">
                 Build cinematic routes, import rough plans, vote with your group, and lock the day when the route finally feels right.
               </p>
             </div>
             <div className="flex flex-col gap-2 border-t border-border pt-4 sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex gap-2 text-[10px] font-bold uppercase tracking-wide text-text-dim">
+              <div className="flex gap-2 text-3xs font-bold uppercase tracking-wide text-text-dim">
                 <span className="rounded-full bg-ink/70 px-2.5 py-1">{activeTrips.length} active</span>
                 <span className="rounded-full bg-ink/70 px-2.5 py-1">{groupTrips.length} group</span>
               </div>
@@ -171,19 +170,22 @@ export default function Dashboard() {
         )}
         {showForm && <NewTripForm onCreate={handleCreate} error={createError} />}
         {loadError && (
-          <p className="mt-4 border-l-4 border-line-3 bg-surface px-3 py-2 text-sm font-semibold text-text">
+          <p className="mt-4 border-l-4 border-line-4 bg-surface px-3 py-2 text-sm font-semibold text-text">
             {loadError}
           </p>
         )}
         {deleteError && (
-          <p className="mt-4 border-l-4 border-line-3 bg-surface px-3 py-2 text-sm font-semibold text-text">
+          <p className="mt-4 border-l-4 border-line-4 bg-surface px-3 py-2 text-sm font-semibold text-text">
             {deleteError}
           </p>
         )}
 
         <div className="atlas-reveal atlas-reveal-delay-2 mt-8">
           {loading ? (
-            <p className="py-6 text-sm text-text-dim">Loading…</p>
+            <div className="space-y-8">
+              <TripSectionSkeleton />
+              <TripSectionSkeleton />
+            </div>
           ) : loadError ? (
             <p className="rounded-xl border border-dashed border-border py-10 text-center text-text-dim">
               Could not load your trips. Check your connection and Supabase configuration.
@@ -385,21 +387,23 @@ function TripSection({
             <article className="atlas-cinematic-card group relative min-h-[164px] overflow-hidden rounded-xl border border-border bg-surface transition-colors hover:border-border-strong">
               <Link to={`/trips/${trip.id}`} className="flex h-full flex-col p-4 pr-12">
                 <div className="mb-4 flex items-center gap-3">
-                  <span className="route-shimmer h-8 w-1 shrink-0" style={{ background: `linear-gradient(180deg, ${lineColorForIndex(index)}, var(--color-paper), ${lineColorForIndex(index)})` }} />
+                  <span className="h-8 w-1 shrink-0 rounded-full" style={{ background: `linear-gradient(180deg, ${lineColorForIndex(index)}, var(--color-paper), ${lineColorForIndex(index)})` }} />
                   <span className="truncate text-lg font-extrabold text-text group-hover:text-paper">{trip.name}</span>
                 </div>
                 {trip.description && (
                   <p className="mb-4 line-clamp-2 text-xs leading-relaxed text-text-dim">{trip.description}</p>
                 )}
-                <div className="mb-2 flex flex-wrap items-center gap-2 text-[10.5px] font-bold uppercase tracking-wide">
+                <div className="mb-2 flex flex-wrap items-center gap-2 text-2xs font-bold uppercase tracking-wide">
                   <span className="inline-flex items-center gap-1 rounded-md bg-ink px-2 py-1 text-text-dim">
                     {trip.visibility === 'group' ? <Users size={11} /> : <UserRound size={11} />}
                     {trip.visibility === 'group' ? `Group${trip.memberLimit ? ` / ${trip.memberLimit}` : ''}` : 'Personal'}
                   </span>
                 </div>
-                <div className="mt-auto flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-text-dim">
+                <div className="mt-auto flex items-center gap-1.5 text-2xs font-semibold uppercase tracking-wide text-text-dim">
                   <MapPin size={11} />
-                  {trip.startDate} - {trip.endDate}
+                  <span className="font-mono normal-case tracking-normal">
+                    {trip.startDate} – {trip.endDate}
+                  </span>
                   <CountryFlags
                     countryCodes={countryCodesForTrip(trip, tripItems[trip.id] ?? [])}
                     className="h-3 w-auto rounded-[1px]"
@@ -417,6 +421,27 @@ function TripSection({
                 <Trash2 size={14} />
               </button>
             </article>
+          </li>
+        ))}
+      </ul>
+    </section>
+  )
+}
+
+function TripSectionSkeleton() {
+  return (
+    <section>
+      <div className="mb-3 h-3 w-28 animate-pulse rounded-full bg-surface-3" />
+      <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        {[0, 1].map((i) => (
+          <li key={i} className="min-h-[164px] animate-pulse overflow-hidden rounded-xl border border-border bg-surface p-4">
+            <div className="mb-4 flex items-center gap-3">
+              <span className="h-8 w-1 shrink-0 rounded-full bg-surface-3" />
+              <span className="h-5 w-2/3 rounded-full bg-surface-3" />
+            </div>
+            <span className="mb-2 block h-3 w-full rounded-full bg-surface-3" />
+            <span className="mb-4 block h-3 w-4/5 rounded-full bg-surface-3" />
+            <span className="block h-4 w-24 rounded-full bg-surface-3" />
           </li>
         ))}
       </ul>

@@ -85,7 +85,7 @@ export function ItemStation({
     >
       <div className="flex flex-none flex-col items-center pt-0.5">
         <span
-          className="z-[2] flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 text-[11px] font-bold text-white"
+          className="z-[2] flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 text-2xs font-bold text-white"
           style={{
             background: selected ? color : 'var(--color-surface-3)',
             borderColor: selected ? color : 'var(--color-ink)',
@@ -107,7 +107,7 @@ export function ItemStation({
 
       <div className="itinerary-station-body min-w-0 flex-1 pb-5">
         {item.startTime && (
-          <p className="mb-1 text-[11px] font-semibold text-text-dimmer">
+          <p className="mb-1 font-mono text-2xs font-semibold text-text-dimmer">
             {formatTime(item.startTime)}
             {item.endTime ? ` - ${formatTime(item.endTime)}` : ''}
           </p>
@@ -133,26 +133,26 @@ export function ItemStation({
             )}
           </div>
           <div className="min-w-0 flex-1">
-            <p className="mb-0.5 truncate text-[13.5px] font-bold text-text">{item.name}</p>
+            <p className="mb-0.5 truncate text-sm font-bold text-text">{item.name}</p>
             {item.locationLabel && (
               <a
                 href={mapsUrl}
                 target="_blank"
                 rel="noreferrer"
                 onClick={(e) => e.stopPropagation()}
-                className="mb-0.5 block truncate text-[10.5px] text-text-dim hover:text-paper hover:underline"
+                className="mb-0.5 block truncate text-2xs text-text-dim hover:text-paper hover:underline"
               >
                 {item.locationLabel.split(',')[0]} &rsaquo;
               </a>
             )}
-            {item.priceLabel && <p className="mb-1.5 text-[10.5px] text-text-dim">{item.priceLabel}</p>}
+            {item.priceLabel && <p className="mb-1.5 font-mono text-2xs text-text-dim">{item.priceLabel}</p>}
             {action === 'maps' ? (
               <a
                 href={bookingUrl}
                 target="_blank"
                 rel="noreferrer"
                 onClick={(e) => e.stopPropagation()}
-                className="inline-block rounded-md bg-surface-3 px-2.5 py-1.5 text-[10.5px] font-bold text-paper"
+                className="inline-block rounded-md bg-surface-3 px-2.5 py-1.5 text-2xs font-bold text-paper"
               >
                 {actionLabel}
               </a>
@@ -163,7 +163,7 @@ export function ItemStation({
                   e.stopPropagation()
                   onAction(item)
                 }}
-                className="inline-block rounded-md bg-surface-3 px-2.5 py-1.5 text-[10.5px] font-bold text-paper"
+                className="inline-block rounded-md bg-surface-3 px-2.5 py-1.5 text-2xs font-bold text-paper"
               >
                 {actionLabel}
               </button>
@@ -219,7 +219,7 @@ export function ItemStation({
                   </span>
                 ))}
               </div>
-              <span className="rounded-full bg-ink/80 px-1.5 py-0.5 text-[9px] font-bold text-text-dim">
+              <span className="rounded-full bg-ink/80 px-1.5 py-0.5 text-3xs font-bold text-text-dim">
                 {voteCount}
               </span>
             </div>
@@ -229,7 +229,7 @@ export function ItemStation({
           <button
             type="button"
             onClick={() => onSelect(nextItem!.id)}
-            className="mt-2 flex w-full items-center gap-2 rounded-md border border-border bg-ink/55 px-2.5 py-2 text-left text-[10.5px] text-text-dim transition-colors hover:border-border-strong hover:text-text"
+            className="mt-2 flex w-full items-center gap-2 rounded-md border border-border bg-ink/55 px-2.5 py-2 text-left text-2xs text-text-dim transition-colors hover:border-border-strong hover:text-text"
           >
             <span
               className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md"

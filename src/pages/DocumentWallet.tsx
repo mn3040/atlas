@@ -143,7 +143,21 @@ export default function DocumentWallet() {
     return (
       <div className="min-h-screen bg-ink">
         <TopNav />
-        <div className="flex justify-center py-24 text-sm text-text-dim">Loading documents...</div>
+        <div className="mx-auto max-w-4xl px-4 py-6 sm:px-7">
+          <div className="mb-3 h-3 w-24 animate-pulse rounded-full bg-surface-3" />
+          <div className="mb-5 h-6 w-40 animate-pulse rounded-full bg-surface-3" />
+          <div className="grid gap-3 sm:grid-cols-2">
+            {[0, 1, 2, 3].map((i) => (
+              <div key={i} className="flex h-24 animate-pulse overflow-hidden rounded-md border border-border bg-surface">
+                <div className="w-20 shrink-0 border-r-2 border-dashed border-border-strong bg-surface-3/40" />
+                <div className="flex-1 space-y-2 p-3.5">
+                  <div className="h-3 w-2/3 rounded-full bg-surface-3" />
+                  <div className="h-3 w-1/2 rounded-full bg-surface-3" />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
     )
   }
@@ -175,8 +189,8 @@ export default function DocumentWallet() {
 
         <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
           <div>
-            <p className="mb-1 text-[10px] font-bold uppercase tracking-[0.24em] text-green">Document wallet</p>
-            <h1 className="text-xl font-extrabold text-text">{trip.name}</h1>
+            <p className="mb-1 text-3xs font-bold uppercase tracking-[0.24em] text-green">Document wallet</p>
+            <h1 className="font-display text-xl font-extrabold text-text">{trip.name}</h1>
           </div>
           <TripSubNav tripId={tripId} />
         </div>
@@ -197,7 +211,7 @@ export default function DocumentWallet() {
         {!needsMigration && (
           <>
             <div className="mb-3 flex items-center justify-between">
-              <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-text-dimmer">
+              <p className="text-3xs font-bold uppercase tracking-[0.24em] text-text-dimmer">
                 {documents.length} document{documents.length === 1 ? '' : 's'}
               </p>
               {canEdit && !formOpen && (
@@ -243,7 +257,7 @@ export default function DocumentWallet() {
                   >
                     <div className="flex w-20 shrink-0 flex-col items-center justify-center gap-1.5 border-r-2 border-dashed border-border-strong py-3">
                       <Icon size={20} className="text-paper" />
-                      <span className="text-center text-[9px] font-extrabold uppercase leading-tight tracking-[0.1em] text-text-dimmer">
+                      <span className="text-center text-3xs font-extrabold uppercase leading-tight tracking-[0.1em] text-text-dimmer">
                         {meta.label}
                       </span>
                     </div>
@@ -281,7 +295,7 @@ export default function DocumentWallet() {
                       {document.issuingCountry && <p className="mb-1.5 text-xs text-text-dim">{document.issuingCountry}</p>}
 
                       <p
-                        className="mb-2 text-[11px] font-bold"
+                        className="mb-2 font-mono text-2xs font-bold"
                         style={{
                           color:
                             status.tone === 'expired'

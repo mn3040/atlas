@@ -90,7 +90,7 @@ export function GroupTripModal({
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/55 p-3 sm:items-start sm:justify-end sm:p-4">
       <button className="absolute inset-0 cursor-default" aria-label="Close group panel" onClick={onClose} />
-      <section className="relative max-h-[calc(100dvh-1.5rem)] w-full max-w-md overflow-y-auto rounded-lg border border-border bg-surface p-4 shadow-2xl sm:p-5">
+      <section className="relative max-h-[calc(100dvh-1.5rem)] w-full max-w-md overflow-y-auto rounded-lg border border-border bg-surface p-4 shadow-[var(--shadow-overlay)] sm:p-5">
         <div className="mb-5 flex items-start justify-between gap-4">
           <div>
             <p className="mb-1 text-[10px] font-bold uppercase tracking-[0.24em] text-green">Group trip</p>

@@ -134,7 +134,20 @@ export default function BudgetHub() {
     return (
       <div className="min-h-screen bg-ink">
         <TopNav />
-        <div className="flex justify-center py-24 text-sm text-text-dim">Loading budget...</div>
+        <div className="mx-auto max-w-4xl px-4 py-6 sm:px-7">
+          <div className="mb-3 h-3 w-24 animate-pulse rounded-full bg-surface-3" />
+          <div className="mb-5 h-6 w-40 animate-pulse rounded-full bg-surface-3" />
+          <div className="mb-5 animate-pulse rounded-lg border border-border bg-surface p-4 sm:p-5">
+            <div className="mb-3 h-3 w-20 rounded-full bg-surface-3" />
+            <div className="mb-3 h-8 w-32 rounded-full bg-surface-3" />
+            <div className="h-3 w-full rounded-full bg-ink" />
+          </div>
+          <div className="space-y-2">
+            {[0, 1, 2].map((i) => (
+              <div key={i} className="h-14 animate-pulse rounded-md border border-border bg-surface" />
+            ))}
+          </div>
+        </div>
       </div>
     )
   }
@@ -160,8 +173,8 @@ export default function BudgetHub() {
 
         <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
           <div>
-            <p className="mb-1 text-[10px] font-bold uppercase tracking-[0.24em] text-green">Budget hub</p>
-            <h1 className="text-xl font-extrabold text-text">{trip.name}</h1>
+            <p className="mb-1 text-3xs font-bold uppercase tracking-[0.24em] text-green">Budget hub</p>
+            <h1 className="font-display text-xl font-extrabold text-text">{trip.name}</h1>
           </div>
           <TripSubNav tripId={tripId} />
         </div>
@@ -179,7 +192,7 @@ export default function BudgetHub() {
             <section className="atlas-reveal mb-5 rounded-lg border border-border bg-surface p-4 sm:p-5">
               <div className="mb-3 flex items-end justify-between">
                 <div>
-                  <p className="mb-1 text-[10px] font-bold uppercase tracking-[0.24em] text-text-dimmer">Trip spend</p>
+                  <p className="mb-1 text-3xs font-bold uppercase tracking-[0.24em] text-text-dimmer">Trip spend</p>
                   <p className="font-mono text-3xl font-extrabold text-text">{formatCurrency(total)}</p>
                 </div>
                 <Wallet size={28} className="text-text-dimmer" />
@@ -212,7 +225,7 @@ export default function BudgetHub() {
 
             {isGroup && (
               <section className="atlas-reveal atlas-reveal-delay-1 mb-5 rounded-lg border border-border bg-surface p-4 sm:p-5">
-                <p className="mb-3 text-[10px] font-bold uppercase tracking-[0.24em] text-text-dimmer">Balances</p>
+                <p className="mb-3 text-3xs font-bold uppercase tracking-[0.24em] text-text-dimmer">Balances</p>
                 <div className="mb-4 flex flex-wrap gap-2">
                   {members.map((member) => {
                     const net = balances[member.userId]?.net ?? 0
@@ -250,7 +263,7 @@ export default function BudgetHub() {
             )}
 
             <div className="mb-3 flex items-center justify-between">
-              <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-text-dimmer">Expenses</p>
+              <p className="text-3xs font-bold uppercase tracking-[0.24em] text-text-dimmer">Expenses</p>
               {canEdit && !formOpen && (
                 <button
                   type="button"
@@ -298,7 +311,9 @@ export default function BudgetHub() {
                       <p className="truncate text-sm font-bold text-text">{expense.description}</p>
                       <p className="truncate text-xs text-text-dim">
                         {categoryLabel(expense.category)} · Paid by {nameFor(members, expense.paidBy)} ·{' '}
-                        {new Date(`${expense.spentOn}T00:00:00`).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                        <span className="font-mono">
+                          {new Date(`${expense.spentOn}T00:00:00`).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                        </span>
                       </p>
                     </div>
                   </div>

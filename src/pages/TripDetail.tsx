@@ -565,7 +565,7 @@ export default function TripDetail() {
           ref={sheetRef}
           onTouchStart={handleSheetTouchStart}
           onTouchEnd={handleSheetTouchEnd}
-          className={`itinerary-scroll atlas-reveal absolute inset-x-0 bottom-0 z-20 flex min-h-0 w-full shrink-0 touch-pan-y flex-col overflow-y-auto overscroll-contain rounded-t-lg border border-border-strong bg-surface/95 shadow-2xl backdrop-blur-sm transition-[height,transform] duration-300 md:relative md:inset-auto md:z-auto md:h-auto md:w-[400px] md:flex-none md:overflow-hidden md:rounded-none md:border-y-0 md:border-l-0 md:border-r ${
+          className={`itinerary-scroll atlas-reveal absolute inset-x-0 bottom-0 z-20 flex min-h-0 w-full shrink-0 touch-pan-y flex-col overflow-y-auto overscroll-contain rounded-t-lg border border-border-strong bg-surface/95 backdrop-blur-sm transition-[height,transform] duration-300 md:relative md:inset-auto md:z-auto md:h-auto md:w-[400px] md:flex-none md:overflow-hidden md:rounded-none md:border-y-0 md:border-l-0 md:border-r ${
             mobileSheetExpanded ? 'h-[86dvh]' : 'h-[48dvh]'
           }`}
         >
@@ -624,7 +624,7 @@ export default function TripDetail() {
                       {showMenu && (
                         <>
                           <div className="fixed inset-0 z-20" onClick={() => setShowMenu(false)} />
-                          <div className="absolute right-0 top-6 z-30 w-44 overflow-hidden rounded-lg border border-border bg-surface py-1 shadow-2xl">
+                          <div className="absolute right-0 top-6 z-30 w-44 overflow-hidden rounded-lg border border-border bg-surface py-1 shadow-[var(--shadow-overlay)]">
                             <button
                               onClick={() => {
                                 setShowCalendar((v) => !v)
@@ -699,9 +699,13 @@ export default function TripDetail() {
                   </div>
                 </div>
 
-                <h1 className="mb-1.5 text-[20px] font-extrabold leading-tight tracking-tight text-text sm:text-[23px]">
-                  {trip.name} - {days.length} Day Trip
-                </h1>
+                {/* Tier 1: primary trip identity -- name and flags only. */}
+                <div className="mb-1.5 flex items-start gap-2">
+                  <CountryFlags countryCodes={tripCountryCodes} className="mt-1.5 h-4 w-auto shrink-0 rounded-[1px]" />
+                  <h1 className="min-w-0 font-display text-xl font-extrabold leading-tight tracking-tight text-text sm:text-2xl">
+                    {trip.name}
+                  </h1>
+                </div>
                 {trip.description && (
                   <p className="mb-3.5 text-xs leading-relaxed text-text-dim">{trip.description}</p>
                 )}
@@ -710,22 +714,23 @@ export default function TripDetail() {
                   <TripSubNav tripId={tripId!} />
                 </div>
 
-                <div className="mb-4 flex flex-wrap items-center gap-2.5">
-                  <div className="flex items-center gap-1.5 rounded-lg bg-surface-3 px-2.5 py-1 text-[11px] font-bold text-text">
-                    <CountryFlags countryCodes={tripCountryCodes} className="h-3 w-auto rounded-[1px]" />
-                    {formatShortDate(trip.startDate)} - {formatShortDate(trip.endDate)}
-                  </div>
-                  <div className="text-[11.5px] text-text-dim">
-                    {days.length} Day{days.length === 1 ? '' : 's'}
-                  </div>
-                  <div className="text-[11.5px] text-text-dim">/ {items.length} Stops</div>
+                {/* Tier 2: secondary metadata and controls -- set apart from the
+                    identity above with its own bar instead of bleeding into one row. */}
+                <div className="mb-4 flex flex-wrap items-center gap-3 rounded-lg border border-border bg-surface-2/60 px-3 py-2">
+                  <span className="font-mono text-2xs font-semibold text-text">
+                    {formatShortDate(trip.startDate)} – {formatShortDate(trip.endDate)}
+                  </span>
+                  <span className="h-3 w-px bg-border" />
+                  <span className="text-2xs text-text-dim">
+                    {days.length} day{days.length === 1 ? '' : 's'} · {items.length} stop{items.length === 1 ? '' : 's'}
+                  </span>
                   <div className="flex-1" />
                   {activeDayId && <DaySelect days={days} activeDayId={activeDayId} onSelect={setActiveDayId} />}
                 </div>
 
                 {stays.length > 0 && (
                   <div className="mb-4 space-y-2 border-t border-border pt-3">
-                    <p className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wide text-text-dimmer">
+                    <p className="flex items-center gap-1.5 text-3xs font-bold uppercase tracking-wide text-text-dimmer">
                       <BedDouble size={12} /> Where you're staying
                     </p>
                     {stays.map((stay) => (
@@ -745,9 +750,9 @@ export default function TripDetail() {
                           )}
                         </div>
                         <div className="min-w-0 flex-1">
-                          <p className="truncate text-[12.5px] font-bold text-text">{stay.name}</p>
-                          <p className="text-[10.5px] text-text-dim">
-                            {formatShortDate(stay.startDate)} - {formatShortDate(stay.endDate ?? stay.startDate)}
+                          <p className="truncate text-sm font-bold text-text">{stay.name}</p>
+                          <p className="font-mono text-2xs text-text-dim">
+                            {formatShortDate(stay.startDate)} – {formatShortDate(stay.endDate ?? stay.startDate)}
                           </p>
                         </div>
                       </button>
@@ -756,7 +761,7 @@ export default function TripDetail() {
                 )}
 
                 <div className="mb-0.5 flex items-center justify-between">
-                  <p className="text-[10.5px] font-semibold text-text-dimmer">
+                  <p className="font-mono text-2xs font-semibold text-text-dimmer">
                     Day {activeDayIndex + 1} / {activeDay ? formatShortDate(activeDay.date) : ''}
                   </p>
                 </div>
@@ -784,7 +789,7 @@ export default function TripDetail() {
                 </div>
 
                 {showCalendar && (
-                  <div className="absolute left-4 right-4 top-16 z-20 rounded-lg border border-border bg-surface p-3 shadow-2xl sm:left-[22px] sm:right-auto sm:w-80">
+                  <div className="absolute left-4 right-4 top-16 z-20 rounded-lg border border-border bg-surface p-3 shadow-[var(--shadow-overlay)] sm:left-[22px] sm:right-auto sm:w-80">
                     <Suspense fallback={<p className="py-4 text-center text-xs font-semibold text-text-dim">Loading calendar...</p>}>
                       <TripCalendar
                         days={days}

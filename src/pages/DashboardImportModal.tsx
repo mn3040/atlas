@@ -127,7 +127,7 @@ export function DashboardImportModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/60 px-3 py-4 sm:px-4 sm:py-8">
-      <section className="max-h-[calc(100dvh-2rem)] w-full max-w-5xl overflow-y-auto rounded-lg border border-border bg-surface p-4 shadow-2xl sm:p-5">
+      <section className="max-h-[calc(100dvh-2rem)] w-full max-w-5xl overflow-y-auto rounded-lg border border-border bg-surface p-4 shadow-[var(--shadow-overlay)] sm:p-5">
         <div className="mb-5 flex items-start justify-between gap-4">
           <div>
             <p className="mb-1 text-[11px] font-bold uppercase tracking-[0.22em] text-green">Create from document</p>

@@ -26,24 +26,37 @@
   --color-green: #22dd85;
   --color-purple: #bca5ed;
 
-  /* Line palette — one color per trip day, shared between timeline and map */
+  /* Line palette — one color per trip day, shared between timeline and map.
+     Matches src/utils/lineColors.ts; keep the two in sync. */
   --color-line-1: #22dd85;
   --color-line-2: #f7ff88;
-  --color-line-3: #083740;
-  --color-line-4: #fefefe;
-  --color-line-5: #070606;
-  --color-line-6: #22dd85;
+  --color-line-3: #5bd7f3;
+  --color-line-4: #ff715b;
+  --color-line-5: #ffb454;
+  --color-line-6: #bca5ed;
 
   --font-display: 'Poppins', sans-serif;
-  --font-body: 'Poppins', sans-serif;
-  --font-mono: 'Poppins', sans-serif;
+  --font-body: 'Inter Variable', 'Inter', sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
+
+  /* Two extra steps below Tailwind's own text-xs (12px), replacing the
+     text-[9px]/[10px]/[10.5px]/[11px]/[11.5px] one-offs scattered through the
+     app with two deliberate sizes: eyebrow labels and secondary metadata. */
+  --text-3xs: 0.625rem;
+  --text-3xs--line-height: 0.85rem;
+  --text-2xs: 0.6875rem;
+  --text-2xs--line-height: 1rem;
 }
 
 :root {
   color-scheme: dark;
   --motion-soft: cubic-bezier(0.2, 0.8, 0.2, 1);
   --motion-snap: cubic-bezier(0.16, 1, 0.3, 1);
-  --shadow-atlas: 0 22px 70px rgba(0, 0, 0, 0.36);
+
+  /* Elevation scale — pick one per surface, don't mix ad hoc shadows. */
+  --shadow-raised: 0 1px 0 rgba(255, 255, 255, 0.03) inset, 0 10px 24px rgba(0, 0, 0, 0.24);
+  --shadow-card: 0 14px 38px rgba(0, 0, 0, 0.28);
+  --shadow-overlay: 0 24px 64px rgba(0, 0, 0, 0.4);
   --shadow-glow-green: 0 0 34px rgba(34, 221, 133, 0.22);
 }
 
@@ -77,6 +90,9 @@ body {
   z-index: -2;
 }
 
+/* Static orbit-map backdrop -- no animation on this layer. The aurora wash
+   below is the dashboard's one ambient effect; two independently drifting
+   layers read as busy rather than alive. */
 .atlas-dashboard::before {
   background:
     linear-gradient(90deg, rgba(8, 55, 64, 0.88), rgba(8, 55, 64, 0.38) 35%, rgba(7, 6, 6, 0.14) 66%, rgba(7, 6, 6, 0.78)),
@@ -85,7 +101,6 @@ body {
   filter: saturate(1.24) contrast(1.06);
   opacity: 0.78;
   transform: scale(1.08);
-  animation: atlas-dashboard-drift 24s ease-in-out infinite alternate;
 }
 
 .atlas-dashboard::after {
@@ -104,14 +119,8 @@ body {
 }
 
 .font-mono {
+  font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
-}
-
-.rounded-xl,
-.rounded-2xl,
-.rounded-lg,
-.rounded-\[9px\] {
-  border-radius: 8px;
 }
 
 .atlas-compact .itinerary-card {
@@ -126,7 +135,7 @@ body {
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: contain;
   touch-action: pan-y;
-  box-shadow: var(--shadow-atlas);
+  box-shadow: var(--shadow-overlay);
 }
 
 .atlas-topnav {
@@ -155,7 +164,7 @@ body {
 .atlas-cinematic-card {
   position: relative;
   isolation: isolate;
-  box-shadow: 0 14px 38px rgba(0, 0, 0, 0.22);
+  box-shadow: var(--shadow-card);
   transition:
     border-color 220ms var(--motion-soft),
     transform 220ms var(--motion-soft),
@@ -226,25 +235,21 @@ body {
     radial-gradient(circle at 52% 46%, transparent 0 38%, rgba(7, 6, 6, 0.16) 72%);
 }
 
+/* Functional route-flow indicator on the map's active polyline -- not
+   decorative ambience, so it's exempt from the "one ambient effect" cut. */
 .route-shimmer {
   background-size: 220% 100%;
   animation: route-shimmer 2.8s linear infinite;
-}
-
-.atlas-float {
-  animation: atlas-float 5.6s ease-in-out infinite;
-}
-
-.atlas-orbit-spin {
-  animation: atlas-orbit-spin 28s linear infinite;
 }
 
 .atlas-marker-pop {
   animation: atlas-marker-pop 420ms var(--motion-snap) both;
 }
 
+/* Static highlight ring -- previously an always-on "breathing" box-shadow
+   pulse with no state to communicate; flattened to its brightest frame. */
 .atlas-flight-marker {
-  animation: atlas-flight-breathe 2.8s ease-in-out infinite;
+  box-shadow: 0 0 0 5px rgba(247, 255, 136, 0.13), 0 14px 34px rgba(0, 0, 0, 0.34);
 }
 
 @media (pointer: coarse) {
@@ -303,22 +308,6 @@ select {
   }
 }
 
-@keyframes atlas-float {
-  0%,
-  100% {
-    transform: translateY(0);
-  }
-  50% {
-    transform: translateY(-8px);
-  }
-}
-
-@keyframes atlas-orbit-spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
 @keyframes atlas-marker-pop {
   from {
     opacity: 0;
@@ -331,25 +320,6 @@ select {
   to {
     opacity: 1;
     filter: saturate(1) brightness(1);
-  }
-}
-
-@keyframes atlas-flight-breathe {
-  0%,
-  100% {
-    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.28);
-  }
-  50% {
-    box-shadow: 0 0 0 5px rgba(247, 255, 136, 0.13), 0 14px 34px rgba(0, 0, 0, 0.34);
-  }
-}
-
-@keyframes atlas-dashboard-drift {
-  from {
-    transform: translate3d(-1.5%, -1%, 0) scale(1.08);
-  }
-  to {
-    transform: translate3d(1.8%, 1.4%, 0) scale(1.12);
   }
 }
 
@@ -390,5 +360,20 @@ select {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+  }
+
+  /* The blanket rule above only freezes a layer's last frame -- for the
+     dashboard's ambient wash and route shimmer that leaves a static gradient
+     soup behind instead of removing it. Hide those decorative layers
+     outright; functional feedback (marker-pop, pulse-ring) stays governed by
+     the blanket rule since freezing it to "visible" is the correct state. */
+  .atlas-dashboard::before,
+  .atlas-dashboard::after {
+    opacity: 0 !important;
+  }
+
+  .route-shimmer,
+  .tt-route-line {
+    background-image: none !important;
   }
 }

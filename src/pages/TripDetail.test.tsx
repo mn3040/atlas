@@ -180,7 +180,8 @@ describe('TripDetail', () => {
 
     renderTripDetail()
 
-    expect(await screen.findByText(/Kyrgyzstan Trip - 1 Day Trip/)).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Kyrgyzstan Trip' })).toBeInTheDocument()
+    expect(screen.getByText(/1 day/)).toBeInTheDocument()
     expect(screen.getByText('Nothing planned yet.')).toBeInTheDocument()
   })
 

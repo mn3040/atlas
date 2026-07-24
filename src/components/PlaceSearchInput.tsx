@@ -56,7 +56,7 @@ export function PlaceSearchInput({
       />
       {loading && <span className="absolute right-3 top-2.5 text-xs text-text-dim">…</span>}
       {open && suggestions.length > 0 && (
-        <ul className="absolute z-10 mt-1 max-h-56 w-full overflow-auto rounded-md border border-border bg-surface shadow-2xl">
+        <ul className="absolute z-10 mt-1 max-h-56 w-full overflow-auto rounded-md border border-border bg-surface shadow-[var(--shadow-overlay)]">
           {suggestions.map((s, i) => (
             <li key={`${s.lat},${s.lng},${i}`}>
               <button

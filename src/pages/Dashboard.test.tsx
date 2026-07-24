@@ -113,7 +113,7 @@ describe('Dashboard', () => {
 
     expect(await screen.findByText('Kyrgyzstan Explorer')).toBeInTheDocument()
     expect(screen.getByText('Tokyo Food Week')).toBeInTheDocument()
-    expect(screen.getByText('2026-03-01 - 2026-03-10')).toBeInTheDocument()
+    expect(screen.getByText('2026-03-01 – 2026-03-10')).toBeInTheDocument()
     expect(screen.getByText('Personal trips')).toBeInTheDocument()
     expect(screen.getByText('Group trips')).toBeInTheDocument()
   })
