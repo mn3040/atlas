@@ -13,6 +13,15 @@ export function categoryLabel(category: ExpenseCategory): string {
   return EXPENSE_CATEGORIES.find((entry) => entry.id === category)?.label ?? 'Other'
 }
 
+export const CATEGORY_COLORS: Record<ExpenseCategory, string> = {
+  lodging: 'var(--color-line-1)',
+  food: 'var(--color-line-2)',
+  transport: 'var(--color-line-3)',
+  activities: 'var(--color-line-4)',
+  shopping: 'var(--color-line-5)',
+  other: 'var(--color-purple)',
+}
+
 export function formatCurrency(amount: number): string {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount)
 }

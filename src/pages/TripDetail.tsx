@@ -715,7 +715,7 @@ export default function TripDetail() {
               </div>
               <div className="px-4 pb-[calc(2.25rem+env(safe-area-inset-bottom))] pt-4 sm:px-[22px] sm:pt-[18px] md:min-h-0 md:flex-1 md:overflow-y-auto md:pb-6">
                 <div className="mb-4 flex items-center justify-between">
-                  <Link to="/" className="flex items-center gap-2 text-xs font-semibold text-text-dim hover:text-text">
+                  <Link to={`/trips/${tripId}`} className="flex items-center gap-2 text-xs font-semibold text-text-dim hover:text-text">
                     <ChevronLeft size={14} /> Itinerary Detail
                   </Link>
                   <div className="flex items-center gap-3.5 text-text-dim">

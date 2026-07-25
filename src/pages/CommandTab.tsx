@@ -25,6 +25,8 @@ import { useSession } from '../hooks/useSession'
 import { scheduleInsightsForItems } from '../utils/scheduleInsights'
 import { computeBalances, formatCurrency, simplifyDebts } from '../utils/budget'
 import { expiryStatus } from '../utils/documentExpiry'
+import { computeReadiness } from '../utils/readiness'
+import { openVoteDaysForTrip } from '../utils/openVotes'
 import { getAppSettings } from '../utils/settings'
 import type {
   Day,
@@ -37,10 +39,6 @@ import type {
   TripDocument,
   TripMemberWithProfile,
 } from '../types/trip'
-
-function average(values: number[]): number {
-  return values.reduce((sum, value) => sum + value, 0) / values.length
-}
 
 function nameFor(members: TripMemberWithProfile[], userId: string): string {
   return members.find((member) => member.userId === userId)?.displayName ?? 'Traveler'
@@ -149,19 +147,7 @@ export default function CommandTab() {
     }))
   })
 
-  const openVoteDays = groupVoting
-    ? days
-        .map((day, index) => {
-          const dayItems = items.filter((item) => item.dayId === day.id && item.type !== 'stay')
-          const ranked = dayItems
-            .map((item) => ({ item, votes: voteSummary[item.id]?.voters.length ?? 0 }))
-            .filter((entry) => entry.votes > 0)
-            .sort((a, b) => b.votes - a.votes)
-          if (ranked.length === 0 || decisions[day.id]) return null
-          return { dayLabel: day.label || `Day ${index + 1}`, topPick: ranked[0] }
-        })
-        .filter((entry): entry is { dayLabel: string; topPick: { item: Item; votes: number } } => entry !== null)
-    : []
+  const openVoteDays = groupVoting ? openVoteDaysForTrip(days, items, voteSummary, decisions) : []
 
   const isGroupBudget = groupVoting && members.length > 1
   const totalSpend = expenses.reduce((sum, expense) => sum + expense.amount, 0)
@@ -175,14 +161,16 @@ export default function CommandTab() {
 
   const packedCount = packingItems.filter((item) => item.packed).length
 
-  const readiness = Math.round(
-    average([
-      activeItems.length ? (activeItems.length - missingTimes.length) / activeItems.length : 1,
-      items.length ? (items.length - missingLocations.length) / items.length : 1,
-      groupVoting && activeItems.length ? votedItems.length / activeItems.length : 1,
-      packingItems.length ? packedCount / packingItems.length : 1,
-    ]) * 100,
-  )
+  const readiness = computeReadiness({
+    activeItemsTotal: activeItems.length,
+    missingTimesCount: missingTimes.length,
+    itemsTotal: items.length,
+    missingLocationsCount: missingLocations.length,
+    groupVoting,
+    votedItemsCount: votedItems.length,
+    packingItemsTotal: packingItems.length,
+    packedCount,
+  })
 
   return (
     <div className="min-h-screen bg-ink">
@@ -263,7 +251,7 @@ export default function CommandTab() {
                   <p className="truncate text-xs font-bold text-text">{topPick.item.name}</p>
                   <p className="text-3xs text-text-dim">{dayLabel} · {topPick.votes} vote{topPick.votes === 1 ? '' : 's'}</p>
                 </div>
-                <Link to={`/trips/${tripId}`} className="shrink-0 text-3xs font-bold text-green hover:text-paper">
+                <Link to={`/trips/${tripId}/itinerary`} className="shrink-0 text-3xs font-bold text-green hover:text-paper">
                   Decide
                 </Link>
               </div>

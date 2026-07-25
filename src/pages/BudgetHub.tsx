@@ -10,6 +10,7 @@ import { TripSubNav } from '../components/TripSubNav'
 import { useSession } from '../hooks/useSession'
 import { shouldConfirmBeforeDelete } from '../utils/settings'
 import {
+  CATEGORY_COLORS,
   EXPENSE_CATEGORIES,
   categoryLabel,
   computeBalances,
@@ -18,15 +19,6 @@ import {
   splitEqually,
 } from '../utils/budget'
 import type { Expense, ExpenseCategory, Trip, TripMemberWithProfile } from '../types/trip'
-
-const CATEGORY_COLORS: Record<ExpenseCategory, string> = {
-  lodging: 'var(--color-line-1)',
-  food: 'var(--color-line-2)',
-  transport: 'var(--color-line-3)',
-  activities: 'var(--color-line-4)',
-  shopping: 'var(--color-line-5)',
-  other: 'var(--color-purple)',
-}
 
 const inputClass =
   'min-h-11 w-full rounded-md border border-border bg-ink px-3 py-2 text-base text-text placeholder:text-text-dim focus:border-paper focus:outline-none sm:text-sm'

@@ -19,6 +19,17 @@ export const CATEGORY_LABELS: Record<ActivityCategory, string> = {
   other: 'Other',
 }
 
+/** Dot/badge colors for activity categories, drawn from the same line
+ * palette as budget categories and trip days (see utils/lineColors.ts). */
+export const CATEGORY_COLORS: Record<ActivityCategory, string> = {
+  food: 'var(--color-paper)',
+  attraction: 'var(--color-green)',
+  transport: 'var(--color-line-3)',
+  nature: 'var(--color-purple)',
+  shopping: 'var(--color-line-5)',
+  other: 'var(--color-text-dimmer)',
+}
+
 export const ITEM_TYPE_ICONS: Record<ItemType, typeof MapPin> = {
   activity: MapPin,
   flight: Plane,

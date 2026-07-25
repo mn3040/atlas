@@ -5,6 +5,7 @@ import { useSession } from './hooks/useSession'
 import { installGlobalErrorMonitoring } from './utils/errorMonitoring'
 
 const Dashboard = lazy(() => import('./pages/Dashboard'))
+const TripDashboard = lazy(() => import('./pages/TripDashboard'))
 const TripDetail = lazy(() => import('./pages/TripDetail'))
 const JoinTrip = lazy(() => import('./pages/JoinTrip'))
 const CommandTab = lazy(() => import('./pages/CommandTab'))
@@ -45,6 +46,14 @@ function App() {
           />
           <Route
             path="/trips/:tripId"
+            element={
+              <WithSession>
+                <TripDashboard />
+              </WithSession>
+            }
+          />
+          <Route
+            path="/trips/:tripId/itinerary"
             element={
               <WithSession>
                 <TripDetail />
