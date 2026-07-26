@@ -1,11 +1,14 @@
 import '@testing-library/jest-dom/vitest'
 
 // jsdom has no IntersectionObserver -- framer-motion's whileInView (used for
-// scroll-triggered reveals) needs one to mount without throwing.
-class MockIntersectionObserver implements IntersectionObserver {
-  readonly root: Element | Document | null = null
-  readonly rootMargin: string = ''
-  readonly thresholds: ReadonlyArray<number> = []
+// scroll-triggered reveals) needs one to mount without throwing. Deliberately
+// not `implements IntersectionObserver`: that interface gains new required
+// members across TS/DOM-lib versions (e.g. scrollMargin), and pinning this
+// mock to it just to satisfy one TS version breaks the build on the next.
+class MockIntersectionObserver {
+  root: Element | Document | null = null
+  rootMargin = ''
+  thresholds: ReadonlyArray<number> = []
   observe() {}
   unobserve() {}
   disconnect() {}

@@ -1,16 +1,5 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
-import { fetchRoute, isRoutable } from './tomtomRouting'
-
-// Like geocoding.test.ts, this runs with whatever VITE_TOMTOM_API_KEY is set in
-// the local .env, so fetchRoute exercises the real "has a key" branch for
-// routable modes. fetch is always mocked below.
-
-const originalFetch = globalThis.fetch
-
-afterEach(() => {
-  globalThis.fetch = originalFetch
-  vi.restoreAllMocks()
-})
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { isRoutable } from './tomtomRouting'
 
 describe('isRoutable', () => {
   it('treats walk/bike/car as routable', () => {
@@ -26,6 +15,27 @@ describe('isRoutable', () => {
 })
 
 describe('fetchRoute', () => {
+  // fetchRoute reads VITE_TOMTOM_API_KEY once at module load to decide
+  // whether it has a key to route with, so this suite stubs one and
+  // re-imports the module fresh before each test -- otherwise these tests
+  // would silently depend on whatever real .env happens to be present
+  // (present locally, absent in a clean sandbox/CI checkout).
+  let fetchRoute: typeof import('./tomtomRouting').fetchRoute
+
+  const originalFetch = globalThis.fetch
+
+  beforeEach(async () => {
+    vi.stubEnv('VITE_TOMTOM_API_KEY', 'test-tomtom-key')
+    vi.resetModules()
+    ;({ fetchRoute } = await import('./tomtomRouting'))
+  })
+
+  afterEach(() => {
+    globalThis.fetch = originalFetch
+    vi.restoreAllMocks()
+    vi.unstubAllEnvs()
+  })
+
   it('returns null for a non-routable mode without calling fetch', async () => {
     const fetchMock = vi.fn()
     globalThis.fetch = fetchMock as unknown as typeof fetch

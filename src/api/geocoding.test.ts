@@ -1,16 +1,25 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
-import { googleMapsSearchUrl, searchPlaces } from './geocoding'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { googleMapsSearchUrl } from './geocoding'
 
-// This test suite runs with whatever VITE_TOMTOM_API_KEY is set in the local
-// .env (Vitest loads .env in test mode same as Vite), so searchPlaces exercises
-// the real "TomTom first, Nominatim fallback" branch here. fetch is always
-// mocked below — no real network calls or key values are used or asserted on.
+// searchPlaces reads VITE_TOMTOM_API_KEY once at module load to decide
+// whether it has a "TomTom first, Nominatim fallback" path available, so
+// this suite stubs a key and re-imports the module fresh before each test --
+// otherwise these tests would silently depend on whatever real .env happens
+// to be present (present locally, absent in a clean sandbox/CI checkout).
+let searchPlaces: typeof import('./geocoding').searchPlaces
 
 const originalFetch = globalThis.fetch
+
+beforeEach(async () => {
+  vi.stubEnv('VITE_TOMTOM_API_KEY', 'test-tomtom-key')
+  vi.resetModules()
+  ;({ searchPlaces } = await import('./geocoding'))
+})
 
 afterEach(() => {
   globalThis.fetch = originalFetch
   vi.restoreAllMocks()
+  vi.unstubAllEnvs()
 })
 
 describe('searchPlaces', () => {
