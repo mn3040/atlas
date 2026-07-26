@@ -1,3 +1,4 @@
+import { motion } from 'framer-motion'
 import { Check, LockKeyhole, Share2, Star, Trophy, UnlockKeyhole, Users, X } from 'lucide-react'
 import { formatTime } from '../utils/time'
 import type { Day, Item, ItemDecision, ItemVoteSummary } from '../types/trip'
@@ -42,9 +43,9 @@ export function GroupPicksModal({
   const decidedCount = Object.keys(decisions).length
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/55 p-3 sm:items-start sm:justify-end sm:p-4">
+    <div className="atlas-modal-backdrop fixed inset-0 z-50 flex items-end justify-center bg-black/55 p-3 sm:items-start sm:justify-end sm:p-4">
       <button className="absolute inset-0 cursor-default" aria-label="Close decision board" onClick={onClose} />
-      <section className="relative max-h-[calc(100dvh-1.5rem)] w-full max-w-2xl overflow-y-auto rounded-lg border border-border bg-surface p-4 shadow-[var(--shadow-overlay)] sm:p-5">
+      <section className="atlas-modal-panel relative max-h-[calc(100dvh-1.5rem)] w-full max-w-2xl overflow-y-auto rounded-lg border border-border bg-surface p-4 shadow-[var(--shadow-overlay)] sm:p-5">
         <div className="mb-5 flex items-start justify-between gap-4">
           <div>
             <p className="mb-1 text-[10px] font-bold uppercase tracking-[0.24em] text-green">Decision mode</p>
@@ -166,16 +167,21 @@ export function GroupPicksModal({
                                 <Star size={12} fill={votes.length ? 'var(--color-paper)' : 'none'} /> {votes.length}
                               </span>
                               {canDecide && (
-                                <button
+                                <motion.button
+                                  key={locked ? 'locked' : 'unlocked'}
                                   type="button"
                                   onClick={() => (locked ? onClearDecision(day.id) : onDecide(item))}
+                                  whileTap={{ scale: 0.9 }}
+                                  initial={{ scale: 0.85 }}
+                                  animate={{ scale: 1 }}
+                                  transition={{ type: 'spring', stiffness: 500, damping: 16 }}
                                   className={`inline-flex min-h-9 items-center gap-1.5 rounded-md px-3 text-xs font-extrabold ${
                                     locked ? 'border border-border bg-ink text-text-dim' : 'bg-green text-ink'
                                   }`}
                                 >
                                   {locked ? <UnlockKeyhole size={13} /> : <LockKeyhole size={13} />}
                                   {locked ? 'Unlock' : 'Lock'}
-                                </button>
+                                </motion.button>
                               )}
                             </div>
                           </div>

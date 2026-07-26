@@ -323,7 +323,7 @@ export default function TripDashboard() {
                   onZoomChange={() => {}}
                 />
               </Suspense>
-              <WeatherChip item={todayItems[0]} date={todayDay?.date} />
+              <WeatherChip item={todayItems[0]} date={todayDay?.date} compact />
               <Link
                 to={`/trips/${tripId}/itinerary`}
                 className="absolute bottom-2 right-2 z-10 rounded-md border border-border-strong bg-surface/90 px-2.5 py-1 text-2xs font-bold text-text backdrop-blur-sm hover:border-paper hover:text-paper"

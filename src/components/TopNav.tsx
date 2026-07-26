@@ -1,14 +1,16 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
-import { Check, Settings, UserRound, X } from 'lucide-react'
+import { Check, ChevronRight, FileWarning, Settings, UserRound, Vote, X } from 'lucide-react'
 import { useSession } from '../hooks/useSession'
 import { useProfile } from '../hooks/useProfile'
 import { fetchTripAlertSummary } from '../api/alerts'
+import type { TripAlert } from '../api/alerts'
 import { fetchTrips } from '../api/trips'
 import { TRAVEL_MODES } from '../utils/distance'
 import type { TravelMode } from '../utils/distance'
 import { getAppSettings, saveAppSettings } from '../utils/settings'
 import type { AppSettings } from '../utils/settings'
+import { sanitizeName } from '../utils/textGuards'
 import type { Profile } from '../types/trip'
 
 const AVATAR_COLORS = ['#22dd85', '#f7ff88', '#5bd7f3', '#ff715b', '#bca5ed', '#fefefe']
@@ -19,8 +21,10 @@ export function TopNav({ subtitle }: { subtitle?: string } = {}) {
   const [settings, setSettings] = useState<AppSettings>(() => getAppSettings())
   const [open, setOpen] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
+  const [alertsOpen, setAlertsOpen] = useState(false)
   const [alertCount, setAlertCount] = useState(0)
   const [alertTitle, setAlertTitle] = useState('')
+  const [alerts, setAlerts] = useState<TripAlert[]>([])
 
   useEffect(() => {
     document.documentElement.classList.toggle('atlas-compact', settings.compactTimeline)
@@ -35,11 +39,13 @@ export function TopNav({ subtitle }: { subtitle?: string } = {}) {
         const activeTrips = trips.filter((trip) => !trip.archivedAt)
         const activeTripIds = activeTrips.map((trip) => trip.id)
         const groupTripIds = activeTrips.filter((trip) => trip.visibility === 'group').map((trip) => trip.id)
-        return fetchTripAlertSummary(activeTripIds, groupTripIds)
+        const tripNames = Object.fromEntries(activeTrips.map((trip) => [trip.id, trip.name]))
+        return fetchTripAlertSummary(activeTripIds, groupTripIds, tripNames)
       })
       .then((summary) => {
         if (cancelled) return
         setAlertCount(summary.expiringDocuments + summary.openVotes)
+        setAlerts(summary.alerts)
         const parts = []
         if (summary.expiringDocuments > 0) {
           parts.push(`${summary.expiringDocuments} document${summary.expiringDocuments === 1 ? '' : 's'} expiring`)
@@ -80,9 +86,9 @@ export function TopNav({ subtitle }: { subtitle?: string } = {}) {
         </span>
         <button
           type="button"
-          onClick={() => setProfileOpen(true)}
+          onClick={() => (alertCount > 0 ? setAlertsOpen(true) : setProfileOpen(true))}
           className="relative flex h-9 items-center gap-2 rounded-md border border-border bg-surface px-2.5 text-text hover:border-green"
-          aria-label="Open traveler profile"
+          aria-label={alertCount > 0 ? 'Open alerts' : 'Open traveler profile'}
           title={alertTitle || 'Traveler profile'}
         >
           <Avatar profile={profile} loading={profileLoading} />
@@ -91,7 +97,7 @@ export function TopNav({ subtitle }: { subtitle?: string } = {}) {
           </span>
           {alertCount > 0 && (
             <span
-              className="absolute -right-1.5 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-line-4 px-1 text-[9px] font-extrabold text-white"
+              className="pulse-ring absolute -right-1.5 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-line-4 px-1 text-[9px] font-extrabold text-white"
               aria-label={alertTitle}
             >
               {alertCount > 9 ? '9+' : alertCount}
@@ -109,6 +115,17 @@ export function TopNav({ subtitle }: { subtitle?: string } = {}) {
         </button>
       </div>
 
+      {alertsOpen && (
+        <AlertsPanel
+          alerts={alerts}
+          onClose={() => setAlertsOpen(false)}
+          onEditProfile={() => {
+            setAlertsOpen(false)
+            setProfileOpen(true)
+          }}
+        />
+      )}
+
       {profileOpen && session && (
         <ProfileModal
           profile={profile}
@@ -122,9 +139,9 @@ export function TopNav({ subtitle }: { subtitle?: string } = {}) {
       )}
 
       {open && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/45 p-3 sm:items-start sm:justify-end sm:p-4">
+        <div className="atlas-modal-backdrop fixed inset-0 z-50 flex items-end justify-center bg-black/45 p-3 sm:items-start sm:justify-end sm:p-4">
           <button className="absolute inset-0 cursor-default" aria-label="Close settings" onClick={() => setOpen(false)} />
-          <section className="relative max-h-[calc(100dvh-1.5rem)] w-full max-w-sm overflow-y-auto border border-border bg-surface p-5 shadow-[var(--shadow-overlay)]">
+          <section className="atlas-modal-panel relative max-h-[calc(100dvh-1.5rem)] w-full max-w-sm overflow-y-auto border border-border bg-surface p-5 shadow-[var(--shadow-overlay)]">
             <div className="mb-5 flex items-start justify-between gap-4">
               <div>
                 <p className="mb-1 text-3xs font-bold uppercase tracking-[0.24em] text-paper">Itinerary settings</p>
@@ -177,6 +194,73 @@ export function TopNav({ subtitle }: { subtitle?: string } = {}) {
   )
 }
 
+function AlertsPanel({
+  alerts,
+  onClose,
+  onEditProfile,
+}: {
+  alerts: TripAlert[]
+  onClose: () => void
+  onEditProfile: () => void
+}) {
+  return (
+    <div className="atlas-modal-backdrop fixed inset-0 z-50 flex items-end justify-center bg-black/45 p-3 sm:items-start sm:justify-end sm:p-4">
+      <button className="absolute inset-0 cursor-default" aria-label="Close alerts" onClick={onClose} />
+      <section className="atlas-modal-panel relative max-h-[calc(100dvh-1.5rem)] w-full max-w-sm overflow-y-auto rounded-lg border border-border bg-surface p-5 shadow-[var(--shadow-overlay)]">
+        <div className="mb-4 flex items-start justify-between gap-4">
+          <div>
+            <p className="mb-1 text-3xs font-bold uppercase tracking-[0.24em] text-line-4">Needs attention</p>
+            <h2 className="text-lg font-extrabold text-text">Your alerts</h2>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex h-8 w-8 items-center justify-center rounded-md text-text-dim hover:bg-surface-3 hover:text-text"
+            aria-label="Close alerts"
+          >
+            <X size={16} />
+          </button>
+        </div>
+
+        {alerts.length === 0 ? (
+          <p className="rounded-md border border-border bg-ink px-3 py-4 text-sm text-text-dim">
+            All caught up -- nothing needs your attention right now.
+          </p>
+        ) : (
+          <ul className="space-y-2">
+            {alerts.map((alert) => (
+              <li key={`${alert.tripId}-${alert.type}`}>
+                <Link
+                  to={alert.link}
+                  onClick={onClose}
+                  className="flex items-center gap-3 rounded-md border border-border bg-ink px-3 py-2.5 transition-colors hover:border-paper"
+                >
+                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-surface-3 text-line-4">
+                    {alert.type === 'expiring_document' ? <FileWarning size={15} /> : <Vote size={15} />}
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-xs font-bold text-text">{alert.tripName}</span>
+                    <span className="block truncate text-2xs text-text-dim">{alert.message}</span>
+                  </span>
+                  <ChevronRight size={14} className="shrink-0 text-text-dim" />
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        <button
+          type="button"
+          onClick={onEditProfile}
+          className="mt-4 flex w-full items-center justify-center gap-1.5 rounded-md border border-border bg-ink px-3 py-2 text-xs font-bold text-text-dim hover:text-text"
+        >
+          <UserRound size={13} /> Edit profile
+        </button>
+      </section>
+    </div>
+  )
+}
+
 function Avatar({ profile, loading }: { profile: Profile | null; loading: boolean }) {
   const label = profile?.displayName?.trim() || 'Traveler'
   const initials = label
@@ -216,10 +300,15 @@ function ProfileModal({
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault()
+    const cleanName = sanitizeName(displayName, 48)
+    if (!cleanName) {
+      setSaveError('Enter a display name.')
+      return
+    }
     setSaving(true)
     setSaveError(null)
     try {
-      await onSave({ displayName, avatarColor })
+      await onSave({ displayName: cleanName, avatarColor })
     } catch (err) {
       setSaveError(err instanceof Error ? err.message : 'Could not save profile.')
     } finally {
@@ -228,11 +317,11 @@ function ProfileModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/45 p-3 sm:items-start sm:justify-end sm:p-4">
+    <div className="atlas-modal-backdrop fixed inset-0 z-50 flex items-end justify-center bg-black/45 p-3 sm:items-start sm:justify-end sm:p-4">
       <button className="absolute inset-0 cursor-default" aria-label="Close profile" onClick={onClose} />
       <form
         onSubmit={handleSubmit}
-        className="relative max-h-[calc(100dvh-1.5rem)] w-full max-w-sm overflow-y-auto border border-border bg-surface p-5 shadow-[var(--shadow-overlay)]"
+        className="atlas-modal-panel relative max-h-[calc(100dvh-1.5rem)] w-full max-w-sm overflow-y-auto border border-border bg-surface p-5 shadow-[var(--shadow-overlay)]"
       >
         <div className="mb-5 flex items-start justify-between gap-4">
           <div>

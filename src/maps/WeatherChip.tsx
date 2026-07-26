@@ -4,7 +4,18 @@ import { fetchWeatherForPoint } from '../api/weather'
 import type { WeatherSummary } from '../api/weather'
 import type { Item } from '../types/trip'
 
-export function WeatherChip({ item, date }: { item: Item | undefined; date: string | undefined }) {
+export function WeatherChip({
+  item,
+  date,
+  compact = false,
+}: {
+  item: Item | undefined
+  date: string | undefined
+  /** Use inside short map previews (e.g. the dashboard's map card) that have
+   * no in-map header bar to clear -- the default top-14 offset is tuned for
+   * the full-screen itinerary map and overlaps badly in a ~190px-tall box. */
+  compact?: boolean
+}) {
   const [weather, setWeather] = useState<WeatherSummary | null>(null)
   const [error, setError] = useState('')
   const [expanded, setExpanded] = useState(false)
@@ -41,7 +52,9 @@ export function WeatherChip({ item, date }: { item: Item | undefined; date: stri
     <button
       type="button"
       onClick={() => setExpanded((value) => !value)}
-      className="absolute left-4 top-14 z-10 max-w-[calc(100vw-7rem)] rounded-[10px] border border-border-strong bg-surface/92 px-3 py-2 text-left text-text shadow-lg backdrop-blur-sm transition-all hover:border-paper md:top-16"
+      className={`absolute z-10 max-w-[calc(100vw-7rem)] rounded-[10px] border border-border-strong bg-surface/92 px-3 py-2 text-left text-text shadow-lg backdrop-blur-sm transition-all hover:border-paper ${
+        compact ? 'left-2 top-2' : 'left-4 top-14 md:top-16'
+      }`}
       aria-label="Weather forecast"
     >
       <span className="flex items-center gap-2">

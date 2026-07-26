@@ -153,6 +153,34 @@ body {
   animation: atlas-reveal 0.68s var(--motion-snap) both;
 }
 
+/* Shared entrance motion for every overlay/modal in the app -- backdrop
+   fades in, panel rises and settles. Applied by adding these two classes to
+   each modal's existing backdrop/panel elements, no structural changes. */
+.atlas-modal-backdrop {
+  animation: atlas-modal-backdrop 200ms ease both;
+}
+
+.atlas-modal-panel {
+  animation: atlas-modal-panel 260ms var(--motion-snap) both;
+}
+
+/* Small anchored context menus (e.g. the itinerary overflow menu) scale in
+   from their corner instead of rising like a full modal panel. */
+.atlas-dropdown-panel {
+  transform-origin: top right;
+  animation: atlas-dropdown-panel 160ms var(--motion-snap) both;
+}
+
+/* Universal tap feedback -- every button in the app gets a tiny press-scale,
+   tied 1:1 to the user's own press/release rather than an autonomous
+   animation, so it's kept even under prefers-reduced-motion (same as
+   marker-pop/pulse-ring below). Elements already carrying their own
+   framer-motion whileTap (the vote star, tiltable trip cards) apply an
+   inline transform that naturally wins over this rule. */
+button:not(:disabled):active {
+  transform: scale(0.97);
+}
+
 .atlas-reveal-delay-1 {
   animation-delay: 80ms;
 }
@@ -283,6 +311,37 @@ select {
   }
   100% {
     opacity: 0;
+  }
+}
+
+@keyframes atlas-modal-backdrop {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes atlas-modal-panel {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes atlas-dropdown-panel {
+  from {
+    opacity: 0;
+    transform: scale(0.94) translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
   }
 }
 

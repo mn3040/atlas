@@ -60,6 +60,7 @@ import { filterItemsForView, loadMustSeeIds, saveMustSeeIds } from '../utils/mus
 import { branchesForItems, filterItemsForBranch } from '../utils/branches'
 import { countryCodesForTrip } from '../utils/flags'
 import { loadOfflineTrip, saveOfflineTrip } from '../utils/offlineItinerary'
+import { sanitizeName } from '../utils/textGuards'
 import type { TravelMode } from '../utils/distance'
 import type { AppSettings } from '../utils/settings'
 import type { DayOptionView } from '../utils/mustSee'
@@ -648,7 +649,7 @@ export default function TripDetail() {
   async function saveDayLabel() {
     setEditingDayLabel(false)
     if (!activeDay) return
-    const label = dayLabelDraft.trim() || null
+    const label = sanitizeName(dayLabelDraft, 60) || null
     if (label === activeDay.label) return
     setDays((current) => current.map((d) => (d.id === activeDay.id ? { ...d, label } : d)))
     await updateDayLabel(activeDay.id, label)
@@ -757,7 +758,7 @@ export default function TripDetail() {
                       {showMenu && (
                         <>
                           <div className="fixed inset-0 z-20" onClick={() => setShowMenu(false)} />
-                          <div className="absolute right-0 top-6 z-30 w-44 overflow-hidden rounded-lg border border-border bg-surface py-1 shadow-[var(--shadow-overlay)]">
+                          <div className="atlas-dropdown-panel absolute right-0 top-6 z-30 w-44 overflow-hidden rounded-lg border border-border bg-surface py-1 shadow-[var(--shadow-overlay)]">
                             <button
                               onClick={() => {
                                 setShowCalendar((v) => !v)

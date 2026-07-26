@@ -33,9 +33,9 @@ export function StopNotesPanel({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/55 p-3 sm:items-center">
+    <div className="atlas-modal-backdrop fixed inset-0 z-50 flex items-end justify-center bg-black/55 p-3 sm:items-center">
       <button className="absolute inset-0 cursor-default" aria-label="Close stop notes" onClick={onClose} />
-      <section className="relative flex max-h-[calc(100dvh-1.5rem)] w-full max-w-md flex-col overflow-hidden rounded-lg border border-border bg-surface shadow-[var(--shadow-overlay)]">
+      <section className="atlas-modal-panel relative flex max-h-[calc(100dvh-1.5rem)] w-full max-w-md flex-col overflow-hidden rounded-lg border border-border bg-surface shadow-[var(--shadow-overlay)]">
         <div className="flex items-start justify-between gap-3 border-b border-border px-4 py-3">
           <div className="min-w-0">
             <p className="mb-0.5 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.2em] text-green">

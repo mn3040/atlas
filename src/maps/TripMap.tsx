@@ -187,7 +187,26 @@ export const TripMap = forwardRef<
 
     ;(map as unknown as { __render?: (fit: boolean) => void }).__render = render
 
+    // GL maps compute their internal canvas/projection from the container's
+    // size at the moment they're constructed. In a flex/grid layout (e.g.
+    // the dashboard's map preview card), that size can still be settling
+    // when tt.map() runs, so the very first fitBounds can lock onto a wrong
+    // zoom/center that never self-corrects. Resync once the container
+    // reports its real, settled size, then stop -- later resizes (window
+    // resize, sidebar toggle) still call map.resize() to fix the canvas, but
+    // shouldn't yank a camera the user may have since panned or zoomed.
+    let hasCorrectedInitialFit = false
+    const resizeObserver = new ResizeObserver(() => {
+      map.resize()
+      if (!hasCorrectedInitialFit && readyRef.current) {
+        hasCorrectedInitialFit = true
+        render(true)
+      }
+    })
+    resizeObserver.observe(containerRef.current)
+
     return () => {
+      resizeObserver.disconnect()
       clearFlightAnimations(flightAnimationFrames)
       markersRef.current.forEach((m) => m.remove())
       markersRef.current = []

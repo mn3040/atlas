@@ -219,12 +219,12 @@ export function AddItemModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/70 px-3 py-4 backdrop-blur-sm sm:px-4 sm:py-8">
+    <div className="atlas-modal-backdrop fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/70 px-3 py-4 backdrop-blur-sm sm:px-4 sm:py-8">
       <div
         role="dialog"
         aria-modal="true"
         aria-label={`${isEdit ? 'Edit' : 'Add'} ${selectedType.label}`}
-        className="max-h-[calc(100dvh-2rem)] w-full max-w-2xl overflow-y-auto rounded-lg border border-border-strong bg-surface shadow-[var(--shadow-overlay)]"
+        className="atlas-modal-panel max-h-[calc(100dvh-2rem)] w-full max-w-2xl overflow-y-auto rounded-lg border border-border-strong bg-surface shadow-[var(--shadow-overlay)]"
       >
         <div className="border-b border-border bg-[linear-gradient(135deg,rgba(34,221,133,0.14),rgba(247,255,136,0.08)_42%,rgba(7,6,6,0)_72%)] px-4 py-4 sm:px-5">
           <div className="flex items-start justify-between gap-3">

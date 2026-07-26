@@ -7,6 +7,7 @@ import { importSuggestionsToTrip } from '../itinerary/ImportItineraryModal'
 import { confidenceForImportItem, summarizeImportConfidence } from '../utils/importConfidence'
 import { extractItineraryItems, extractTextFromFile } from '../utils/importItinerary'
 import { saveMustSeeIds } from '../utils/mustSee'
+import { isBlankName, sanitizeName } from '../utils/textGuards'
 import type { ExtractedItineraryItem } from '../utils/importItinerary'
 import type { Day, Trip, TripVisibility } from '../types/trip'
 
@@ -69,7 +70,7 @@ export function DashboardImportModal({
 
   async function createImportedTrip() {
     const selected = suggestions.filter((item) => item.selected)
-    if (!name.trim() || !startDate || !endDate) {
+    if (isBlankName(name) || !startDate || !endDate) {
       setError('Add a trip name plus start and end dates.')
       return
     }
@@ -84,8 +85,8 @@ export function DashboardImportModal({
     try {
       const trip = await createTrip({
         ownerId,
-        name,
-        description,
+        name: sanitizeName(name),
+        description: sanitizeName(description, 240),
         countryCode,
         visibility,
         memberLimit: visibility === 'group' ? normalizeMemberLimit(memberLimit) : null,
@@ -126,8 +127,8 @@ export function DashboardImportModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/60 px-3 py-4 sm:px-4 sm:py-8">
-      <section className="max-h-[calc(100dvh-2rem)] w-full max-w-5xl overflow-y-auto rounded-lg border border-border bg-surface p-4 shadow-[var(--shadow-overlay)] sm:p-5">
+    <div className="atlas-modal-backdrop fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/60 px-3 py-4 sm:px-4 sm:py-8">
+      <section className="atlas-modal-panel max-h-[calc(100dvh-2rem)] w-full max-w-5xl overflow-y-auto rounded-lg border border-border bg-surface p-4 shadow-[var(--shadow-overlay)] sm:p-5">
         <div className="mb-5 flex items-start justify-between gap-4">
           <div>
             <p className="mb-1 text-[11px] font-bold uppercase tracking-[0.22em] text-green">Create from document</p>
@@ -332,9 +333,9 @@ function inferTripName(text: string, fileName: string, countryCode: string): str
     .split(/\r?\n/)
     .map((line) => line.trim())
     .find((line) => /\bitinerary\b|\btrip\b/i.test(line) && line.length < 90)
-  if (firstUsefulLine) return firstUsefulLine.replace(/\s+/g, ' ')
+  if (firstUsefulLine) return sanitizeName(firstUsefulLine)
   const countryName = { KG: 'Kyrgyzstan', JP: 'Japan', IS: 'Iceland', MX: 'Mexico', KZ: 'Kazakhstan', TR: 'Turkey', TJ: 'Tajikistan' }[countryCode]
-  return countryName ? `${countryName} Trip` : fileName.replace(/\.[^.]+$/, '').replace(/[_-]+/g, ' ')
+  return countryName ? `${countryName} Trip` : sanitizeName(fileName.replace(/\.[^.]+$/, '').replace(/[_-]+/g, ' '))
 }
 
 function inferCountryCode(text: string): string {

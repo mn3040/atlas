@@ -5,6 +5,7 @@ import { joinTripByToken } from '../api/groupTrips'
 import { TopNav } from '../components/TopNav'
 import { useSession } from '../hooks/useSession'
 import { useProfile } from '../hooks/useProfile'
+import { sanitizeName } from '../utils/textGuards'
 
 const AVATAR_COLORS = ['#22dd85', '#f7ff88', '#5bd7f3', '#ff715b', '#bca5ed', '#fefefe']
 
@@ -35,7 +36,7 @@ export default function JoinTrip() {
     setJoining(true)
     setError(null)
     try {
-      await save({ displayName: displayName.trim() || 'Traveler', avatarColor })
+      await save({ displayName: sanitizeName(displayName, 48) || 'Traveler', avatarColor })
       const tripId = await joinTripByToken(token)
       navigate(`/trips/${tripId}`, { replace: true })
     } catch (err) {

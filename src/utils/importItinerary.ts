@@ -1,3 +1,4 @@
+import { unescapeMarkdown } from './textGuards'
 import type { ActivityCategory, ItemType, Trip } from '../types/trip'
 
 export interface ExtractedItineraryItem {
@@ -310,7 +311,7 @@ function importMarkupToText(line: string): string {
 }
 
 function stripImportMarkup(value: string): string {
-  return decodeHtmlEntities(value)
+  return unescapeMarkdown(decodeHtmlEntities(value))
     .replace(/<a\b[^>]*>(.*?)<\/a>/gi, '$1')
     .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
     .replace(/<\/?[^>]+>/g, '')

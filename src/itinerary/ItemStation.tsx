@@ -1,6 +1,7 @@
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { useEffect, useRef } from 'react'
+import { motion } from 'framer-motion'
 import { ArrowRight, Bike, Car, MessageCircle, Pencil, Plane, Star, TrainFront, X, PersonStanding } from 'lucide-react'
 import { actionForItem } from '../utils/itemActions'
 import { iconForItem } from '../utils/categoryIcons'
@@ -174,18 +175,27 @@ export function ItemStation({
             )}
           </div>
           <div className="absolute right-1.5 top-1.5 flex items-center gap-1.5 opacity-100 transition-opacity md:opacity-0 md:group-hover:opacity-100 md:focus-within:opacity-100">
-            <button
+            <motion.button
               type="button"
               onClick={(e) => {
                 e.stopPropagation()
                 onToggleMustSee(item.id)
               }}
+              whileTap={{ scale: 0.82 }}
               className="flex h-7 w-7 items-center justify-center rounded-full border border-border bg-ink/90 text-text-dim shadow-sm hover:border-paper hover:text-paper md:h-5 md:w-5 md:border-0 md:bg-ink/70"
               aria-label={starActive ? `Unstar ${item.name}` : `Star ${item.name} as must-see`}
               title={starActive ? 'Remove must-see' : 'Mark must-see'}
             >
-              <Star size={11} fill={starActive ? 'var(--color-paper)' : 'none'} />
-            </button>
+              <motion.span
+                key={starActive ? 'starred' : 'unstarred'}
+                initial={{ scale: 0.4, rotate: -25 }}
+                animate={{ scale: 1, rotate: 0 }}
+                transition={{ type: 'spring', stiffness: 500, damping: 18 }}
+                className="flex"
+              >
+                <Star size={11} fill={starActive ? 'var(--color-paper)' : 'none'} />
+              </motion.span>
+            </motion.button>
             <button
               type="button"
               onClick={(e) => {

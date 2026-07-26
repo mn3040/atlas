@@ -10,6 +10,7 @@ import { lineColorForIndex } from '../utils/lineColors'
 import { createSampleTrips } from '../utils/sampleTrips'
 import { shouldConfirmBeforeDelete } from '../utils/settings'
 import { countryCodesForTrip } from '../utils/flags'
+import { isBlankName, sanitizeName } from '../utils/textGuards'
 import type { Item, Trip, TripVisibility } from '../types/trip'
 
 const DashboardImportModal = lazy(() =>
@@ -63,9 +64,18 @@ export default function Dashboard() {
     endDate: string
   }) {
     if (!session) return
+    if (isBlankName(input.name)) {
+      setCreateError('Enter a trip name.')
+      return
+    }
     setCreateError(null)
     try {
-      const trip = await createTrip({ ...input, ownerId: session.user.id })
+      const trip = await createTrip({
+        ...input,
+        name: sanitizeName(input.name),
+        description: sanitizeName(input.description, 240),
+        ownerId: session.user.id,
+      })
       setTrips((current) => [...current, trip].sort((a, b) => a.startDate.localeCompare(b.startDate)))
       setTripItems((current) => ({ ...current, [trip.id]: [] }))
       setShowForm(false)

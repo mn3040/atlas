@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { UserRound, Users } from 'lucide-react'
 import { CountryFlag } from '../components/CountryFlag'
+import { isBlankName, sanitizeName } from '../utils/textGuards'
 import type { Trip, TripVisibility } from '../types/trip'
 
 const inputClass =
@@ -42,12 +43,16 @@ export function EditTripModal({
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault()
+    if (isBlankName(name)) {
+      setError('Enter a trip name.')
+      return
+    }
     setSubmitting(true)
     setError('')
     try {
       await onSave({
-        name,
-        description,
+        name: sanitizeName(name),
+        description: sanitizeName(description, 240),
         countryCode,
         visibility,
         memberLimit: visibility === 'group' ? normalizeMemberLimit(memberLimit) : null,
@@ -61,8 +66,8 @@ export function EditTripModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/60 px-3 py-4 sm:px-4 sm:py-10">
-      <div className="max-h-[calc(100dvh-2rem)] w-full max-w-lg overflow-y-auto rounded-lg border border-border bg-surface p-4 sm:p-6">
+    <div className="atlas-modal-backdrop fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/60 px-3 py-4 sm:px-4 sm:py-10">
+      <div className="atlas-modal-panel max-h-[calc(100dvh-2rem)] w-full max-w-lg overflow-y-auto rounded-lg border border-border bg-surface p-4 sm:p-6">
         <h2 className="mb-4 text-sm font-bold text-text">Edit trip</h2>
         <form onSubmit={handleSubmit} className="space-y-3">
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_7rem]">
