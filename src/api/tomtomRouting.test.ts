@@ -1,9 +1,9 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { fetchRoute, isRoutable } from './tomtomRouting'
 
-// Like geocoding.test.ts, this runs with whatever VITE_TOMTOM_API_KEY is set in
-// the local .env, so fetchRoute exercises the real "has a key" branch for
-// routable modes. fetch is always mocked below.
+// Like geocoding.test.ts, vitest.config.ts sets a fixed VITE_TOMTOM_API_KEY
+// for the test run, so fetchRoute exercises the real "has a key" branch for
+// routable modes regardless of any local .env. fetch is always mocked below.
 
 const originalFetch = globalThis.fetch
 

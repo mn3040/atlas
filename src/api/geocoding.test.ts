@@ -1,10 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { googleMapsSearchUrl, searchPlaces } from './geocoding'
 
-// This test suite runs with whatever VITE_TOMTOM_API_KEY is set in the local
-// .env (Vitest loads .env in test mode same as Vite), so searchPlaces exercises
-// the real "TomTom first, Nominatim fallback" branch here. fetch is always
-// mocked below — no real network calls or key values are used or asserted on.
+// vitest.config.ts sets a fixed VITE_TOMTOM_API_KEY for the test run, so
+// searchPlaces exercises the real "TomTom first, Nominatim fallback" branch
+// here regardless of any local .env. fetch is always mocked below — no real
+// network calls or key values are used or asserted on.
 
 const originalFetch = globalThis.fetch
 
