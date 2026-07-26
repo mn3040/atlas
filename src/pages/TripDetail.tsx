@@ -80,6 +80,9 @@ const GroupPicksModal = lazy(() =>
 const StopNotesPanel = lazy(() =>
   import('../itinerary/StopNotesPanel').then((module) => ({ default: module.StopNotesPanel })),
 )
+const RecapCardModal = lazy(() =>
+  import('../itinerary/RecapCardModal').then((module) => ({ default: module.RecapCardModal })),
+)
 const TripCalendar = lazy(() =>
   import('../calendar/TripCalendar').then((module) => ({ default: module.TripCalendar })),
 )
@@ -142,6 +145,7 @@ export default function TripDetail() {
   const [showEditTrip, setShowEditTrip] = useState(false)
   const [showGroupTrip, setShowGroupTrip] = useState(false)
   const [showGroupPicks, setShowGroupPicks] = useState(false)
+  const [recapDayId, setRecapDayId] = useState<string | null>(null)
   const [dayOptionView, setDayOptionView] = useState<DayOptionView>('all')
   const [activeBranchByDay, setActiveBranchByDay] = useState<Record<string, string>>({})
   const [mustSeeIds, setMustSeeIds] = useState<Set<string>>(() => new Set())
@@ -1165,9 +1169,34 @@ export default function TripDetail() {
             }}
             onDecide={handleDecide}
             onClearDecision={handleClearDecision}
+            onShareDay={(dayId) => setRecapDayId(dayId)}
           />
         </Suspense>
       )}
+
+      {recapDayId && trip && session?.user.id && (() => {
+        const dayIndex = days.findIndex((candidate) => candidate.id === recapDayId)
+        const day = days[dayIndex]
+        if (!day) return null
+        const dayItems = items
+          .filter((item) => item.dayId === recapDayId && item.type === 'activity')
+          .sort((a, b) => a.position - b.position)
+        return (
+          <Suspense fallback={<ModalLoading />}>
+            <RecapCardModal
+              mode="day"
+              trip={trip}
+              userId={session.user.id}
+              day={day}
+              dayIndex={dayIndex}
+              dayItems={dayItems}
+              decision={decisions[recapDayId] ?? null}
+              voteSummary={voteSummary}
+              onClose={() => setRecapDayId(null)}
+            />
+          </Suspense>
+        )
+      })()}
     </div>
   )
 }

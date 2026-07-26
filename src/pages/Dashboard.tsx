@@ -1,5 +1,6 @@
-import { lazy, Suspense, useEffect, useState } from 'react'
+import { lazy, Suspense, useEffect, useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
+import { motion, useMotionValue, useReducedMotion, useSpring } from 'framer-motion'
 import { FileUp, Plus, MapPin, Trash2, Wand2, Users, UserRound, Archive } from 'lucide-react'
 import { useSession } from '../hooks/useSession'
 import { fetchTrips, createTrip, deleteTrip, fetchItemsForTrips } from '../api/trips'
@@ -383,45 +384,53 @@ function TripSection({
       </h2>
       <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         {trips.map((trip, index) => (
-          <li key={trip.id}>
-            <article className="atlas-cinematic-card group relative min-h-[164px] overflow-hidden rounded-xl border border-border bg-surface transition-colors hover:border-border-strong">
-              <Link to={`/trips/${trip.id}`} className="flex h-full flex-col p-4 pr-12">
-                <div className="mb-4 flex items-center gap-3">
-                  <span className="h-8 w-1 shrink-0 rounded-full" style={{ background: `linear-gradient(180deg, ${lineColorForIndex(index)}, var(--color-paper), ${lineColorForIndex(index)})` }} />
-                  <span className="truncate text-lg font-extrabold text-text group-hover:text-paper">{trip.name}</span>
-                </div>
-                {trip.description && (
-                  <p className="mb-4 line-clamp-2 text-xs leading-relaxed text-text-dim">{trip.description}</p>
-                )}
-                <div className="mb-2 flex flex-wrap items-center gap-2 text-2xs font-bold uppercase tracking-wide">
-                  <span className="inline-flex items-center gap-1 rounded-md bg-ink px-2 py-1 text-text-dim">
-                    {trip.visibility === 'group' ? <Users size={11} /> : <UserRound size={11} />}
-                    {trip.visibility === 'group' ? `Group${trip.memberLimit ? ` / ${trip.memberLimit}` : ''}` : 'Personal'}
-                  </span>
-                </div>
-                <div className="mt-auto flex items-center gap-1.5 text-2xs font-semibold uppercase tracking-wide text-text-dim">
-                  <MapPin size={11} />
-                  <span className="font-mono normal-case tracking-normal">
-                    {trip.startDate} – {trip.endDate}
-                  </span>
-                  <CountryFlags
-                    countryCodes={countryCodesForTrip(trip, tripItems[trip.id] ?? [])}
-                    className="h-3 w-auto rounded-[1px]"
-                  />
-                </div>
-              </Link>
-              <button
-                type="button"
-                onClick={() => onDelete(trip)}
-                disabled={deletingTripId === trip.id}
-                className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-md border border-border bg-ink text-text-dim transition-colors hover:border-line-3 hover:text-line-3 disabled:cursor-wait disabled:opacity-50"
-                aria-label={`Delete ${trip.name}`}
-                title="Delete trip"
-              >
-                <Trash2 size={14} />
-              </button>
-            </article>
-          </li>
+          <motion.li
+            key={trip.id}
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, margin: '-40px' }}
+            transition={{ duration: 0.45, delay: Math.min(index, 6) * 0.05, ease: [0.16, 1, 0.3, 1] }}
+          >
+            <TiltCard>
+              <article className="atlas-cinematic-card group relative min-h-[164px] overflow-hidden rounded-xl border border-border bg-surface transition-colors hover:border-border-strong">
+                <Link to={`/trips/${trip.id}`} className="flex h-full flex-col p-4 pr-12">
+                  <div className="mb-4 flex items-center gap-3">
+                    <span className="h-8 w-1 shrink-0 rounded-full" style={{ background: `linear-gradient(180deg, ${lineColorForIndex(index)}, var(--color-paper), ${lineColorForIndex(index)})` }} />
+                    <span className="truncate text-lg font-extrabold text-text group-hover:text-paper">{trip.name}</span>
+                  </div>
+                  {trip.description && (
+                    <p className="mb-4 line-clamp-2 text-xs leading-relaxed text-text-dim">{trip.description}</p>
+                  )}
+                  <div className="mb-2 flex flex-wrap items-center gap-2 text-2xs font-bold uppercase tracking-wide">
+                    <span className="inline-flex items-center gap-1 rounded-md bg-ink px-2 py-1 text-text-dim">
+                      {trip.visibility === 'group' ? <Users size={11} /> : <UserRound size={11} />}
+                      {trip.visibility === 'group' ? `Group${trip.memberLimit ? ` / ${trip.memberLimit}` : ''}` : 'Personal'}
+                    </span>
+                  </div>
+                  <div className="mt-auto flex items-center gap-1.5 text-2xs font-semibold uppercase tracking-wide text-text-dim">
+                    <MapPin size={11} />
+                    <span className="font-mono normal-case tracking-normal">
+                      {trip.startDate} – {trip.endDate}
+                    </span>
+                    <CountryFlags
+                      countryCodes={countryCodesForTrip(trip, tripItems[trip.id] ?? [])}
+                      className="h-3 w-auto rounded-[1px]"
+                    />
+                  </div>
+                </Link>
+                <button
+                  type="button"
+                  onClick={() => onDelete(trip)}
+                  disabled={deletingTripId === trip.id}
+                  className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-md border border-border bg-ink text-text-dim transition-colors hover:border-line-3 hover:text-line-3 disabled:cursor-wait disabled:opacity-50"
+                  aria-label={`Delete ${trip.name}`}
+                  title="Delete trip"
+                >
+                  <Trash2 size={14} />
+                </button>
+              </article>
+            </TiltCard>
+          </motion.li>
         ))}
       </ul>
     </section>
@@ -446,6 +455,43 @@ function TripSectionSkeleton() {
         ))}
       </ul>
     </section>
+  )
+}
+
+/** Cursor-driven tilt on top of the card's existing CSS hover glow
+ * (.atlas-cinematic-card) -- skipped under prefers-reduced-motion, same as
+ * every other motion effect in the app. */
+function TiltCard({ children }: { children: ReactNode }) {
+  const shouldReduceMotion = useReducedMotion()
+  const rotateX = useMotionValue(0)
+  const rotateY = useMotionValue(0)
+  const springX = useSpring(rotateX, { stiffness: 220, damping: 22 })
+  const springY = useSpring(rotateY, { stiffness: 220, damping: 22 })
+
+  function handleMouseMove(event: React.MouseEvent<HTMLDivElement>) {
+    if (shouldReduceMotion) return
+    const bounds = event.currentTarget.getBoundingClientRect()
+    const px = (event.clientX - bounds.left) / bounds.width - 0.5
+    const py = (event.clientY - bounds.top) / bounds.height - 0.5
+    rotateY.set(px * 10)
+    rotateX.set(py * -10)
+  }
+
+  function handleMouseLeave() {
+    rotateX.set(0)
+    rotateY.set(0)
+  }
+
+  return (
+    <motion.div
+      onMouseMove={handleMouseMove}
+      onMouseLeave={handleMouseLeave}
+      whileHover={shouldReduceMotion ? undefined : { scale: 1.015 }}
+      style={{ rotateX: springX, rotateY: springY, transformPerspective: 800 }}
+      className="h-full"
+    >
+      {children}
+    </motion.div>
   )
 }
 

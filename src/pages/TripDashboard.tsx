@@ -1,6 +1,7 @@
 import { lazy, Suspense, useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { AlertTriangle, CalendarCheck, ChevronLeft, Clock3, FileText, MapPin, Plus, Radar, Users, UserRound } from 'lucide-react'
+import { motion } from 'framer-motion'
+import { AlertTriangle, CalendarCheck, ChevronLeft, Clock3, FileText, MapPin, Plus, Radar, Share2, Users, UserRound } from 'lucide-react'
 import { fetchTrip, fetchDays, fetchItems } from '../api/trips'
 import { fetchTripMembers } from '../api/groupTrips'
 import { fetchExpenses, isMissingExpensesTable } from '../api/budget'
@@ -36,9 +37,22 @@ import type {
 
 const TripMap = lazy(() => import('../maps/TripMap').then((module) => ({ default: module.TripMap })))
 const GroupTripModal = lazy(() => import('../itinerary/GroupTripModal').then((module) => ({ default: module.GroupTripModal })))
+const RecapCardModal = lazy(() => import('../itinerary/RecapCardModal').then((module) => ({ default: module.RecapCardModal })))
 
 function formatShortDate(date: string): string {
   return new Date(`${date}T00:00:00`).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+}
+
+/** Scroll-triggered reveal for sections that sit below the fold on a
+ * populated trip dashboard -- mirrors the timing of the mount-time
+ * atlas-reveal keyframe above the fold, just driven by viewport entry
+ * instead of mount. framer-motion resolves whileInView instantly, and skips
+ * the transform, for prefers-reduced-motion on its own. */
+const fadeInView = {
+  initial: { opacity: 0, y: 24 },
+  whileInView: { opacity: 1, y: 0 },
+  viewport: { once: true, margin: '-80px' },
+  transition: { duration: 0.5, ease: [0.16, 1, 0.3, 1] as const },
 }
 
 function todayIso(): string {
@@ -84,6 +98,7 @@ export default function TripDashboard() {
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [showGroupTrip, setShowGroupTrip] = useState(false)
+  const [showRecap, setShowRecap] = useState(false)
 
   useEffect(() => {
     if (!tripId) return
@@ -207,6 +222,7 @@ export default function TripDashboard() {
     .slice(0, 2)
 
   const openVoteDays = groupVoting ? openVoteDaysForTrip(days, items, voteSummary, decisions) : []
+  const decidedCount = Object.keys(decisions).length
 
   return (
     <div className="min-h-screen bg-ink">
@@ -354,7 +370,7 @@ export default function TripDashboard() {
           </div>
         </div>
 
-        <div className="atlas-reveal mb-4 grid grid-cols-1 gap-4 lg:grid-cols-[1.6fr_1fr]">
+        <motion.div className="mb-4 grid grid-cols-1 gap-4 lg:grid-cols-[1.6fr_1fr]" {...fadeInView}>
           <div className="rounded-lg border border-border bg-surface p-4 sm:p-5">
             <div className="mb-3 flex items-center justify-between gap-2">
               <span className="text-sm font-extrabold text-text">Document wallet</span>
@@ -433,22 +449,33 @@ export default function TripDashboard() {
               </div>
             )}
           </div>
-        </div>
+        </motion.div>
 
         {trip.visibility === 'group' && (
-          <div className="atlas-reveal rounded-lg border border-border bg-surface p-4 sm:p-5">
+          <motion.div className="rounded-lg border border-border bg-surface p-4 sm:p-5" {...fadeInView}>
             <div className="flex items-center justify-between gap-3">
               <span className="flex items-center gap-1.5 text-sm font-extrabold text-text">
                 <Users size={15} className="text-green" /> Travelers
               </span>
               {session?.user.id && (
-                <button
-                  type="button"
-                  onClick={() => setShowGroupTrip(true)}
-                  className="flex items-center gap-1.5 rounded-md bg-paper px-3 py-1.5 text-xs font-bold text-ink hover:bg-paper-dim"
-                >
-                  <Plus size={14} /> Invite
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowRecap(true)}
+                    disabled={decidedCount === 0}
+                    title={decidedCount === 0 ? "Lock a day's pick first" : 'Share the plan'}
+                    className="flex items-center gap-1.5 rounded-md border border-border bg-ink px-3 py-1.5 text-xs font-bold text-text hover:border-green hover:text-green disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    <Share2 size={14} /> Share plan
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowGroupTrip(true)}
+                    className="flex items-center gap-1.5 rounded-md bg-paper px-3 py-1.5 text-xs font-bold text-ink hover:bg-paper-dim"
+                  >
+                    <Plus size={14} /> Invite
+                  </button>
+                </div>
               )}
             </div>
             <div className="mt-3 flex flex-wrap gap-2">
@@ -476,7 +503,21 @@ export default function TripDashboard() {
                 <GroupTripModal trip={trip} userId={session.user.id} onClose={() => setShowGroupTrip(false)} />
               </Suspense>
             )}
-          </div>
+            {showRecap && session?.user.id && (
+              <Suspense fallback={null}>
+                <RecapCardModal
+                  mode="trip"
+                  trip={trip}
+                  userId={session.user.id}
+                  days={days}
+                  items={items}
+                  decisions={decisions}
+                  members={members}
+                  onClose={() => setShowRecap(false)}
+                />
+              </Suspense>
+            )}
+          </motion.div>
         )}
       </div>
     </div>

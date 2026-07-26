@@ -1,4 +1,4 @@
-import { Check, LockKeyhole, Star, Trophy, UnlockKeyhole, Users, X } from 'lucide-react'
+import { Check, LockKeyhole, Share2, Star, Trophy, UnlockKeyhole, Users, X } from 'lucide-react'
 import { formatTime } from '../utils/time'
 import type { Day, Item, ItemDecision, ItemVoteSummary } from '../types/trip'
 
@@ -14,6 +14,7 @@ export function GroupPicksModal({
   onSelectItem,
   onDecide,
   onClearDecision,
+  onShareDay,
 }: {
   days: Day[]
   items: Item[]
@@ -26,6 +27,7 @@ export function GroupPicksModal({
   onSelectItem: (item: Item) => void
   onDecide: (item: Item) => void
   onClearDecision: (dayId: string) => void
+  onShareDay?: (dayId: string) => void
 }) {
   const dayBoards = days.map((day) => {
     const dayItems = items
@@ -82,17 +84,30 @@ export function GroupPicksModal({
                     </p>
                     <h3 className="text-sm font-extrabold text-text">{day.label ?? `Day ${dayIndex + 1}`}</h3>
                   </div>
-                  {lockedItem ? (
-                    <span className="inline-flex items-center gap-1.5 rounded-md bg-green px-2.5 py-1 text-[10px] font-extrabold uppercase text-ink">
-                      <Check size={12} /> Locked
-                    </span>
-                  ) : tied ? (
-                    <span className="rounded-md bg-paper px-2.5 py-1 text-[10px] font-extrabold uppercase text-ink">Tie</span>
-                  ) : topVotes > 0 ? (
-                    <span className="inline-flex items-center gap-1.5 rounded-md bg-surface px-2.5 py-1 text-[10px] font-extrabold uppercase text-paper">
-                      <Trophy size={12} /> Leader
-                    </span>
-                  ) : null}
+                  <div className="flex items-center gap-2">
+                    {lockedItem ? (
+                      <span className="inline-flex items-center gap-1.5 rounded-md bg-green px-2.5 py-1 text-[10px] font-extrabold uppercase text-ink">
+                        <Check size={12} /> Locked
+                      </span>
+                    ) : tied ? (
+                      <span className="rounded-md bg-paper px-2.5 py-1 text-[10px] font-extrabold uppercase text-ink">Tie</span>
+                    ) : topVotes > 0 ? (
+                      <span className="inline-flex items-center gap-1.5 rounded-md bg-surface px-2.5 py-1 text-[10px] font-extrabold uppercase text-paper">
+                        <Trophy size={12} /> Leader
+                      </span>
+                    ) : null}
+                    {lockedItem && onShareDay && (
+                      <button
+                        type="button"
+                        onClick={() => onShareDay(day.id)}
+                        className="flex h-7 w-7 items-center justify-center rounded-md border border-border bg-ink text-text-dim hover:border-paper hover:text-paper"
+                        aria-label="Share this day's pick"
+                        title="Share this day's pick"
+                      >
+                        <Share2 size={13} />
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 {dayItems.length === 0 ? (

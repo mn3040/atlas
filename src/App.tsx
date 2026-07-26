@@ -1,5 +1,6 @@
 import { lazy, Suspense, useEffect } from 'react'
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { MotionConfig } from 'framer-motion'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { useSession } from './hooks/useSession'
 import { installGlobalErrorMonitoring } from './utils/errorMonitoring'
@@ -34,74 +35,76 @@ function App() {
 
   return (
     <ErrorBoundary>
-      <BrowserRouter>
-        <Routes>
-          <Route
-            path="/"
-            element={
-              <WithSession>
-                <Dashboard />
-              </WithSession>
-            }
-          />
-          <Route
-            path="/trips/:tripId"
-            element={
-              <WithSession>
-                <TripDashboard />
-              </WithSession>
-            }
-          />
-          <Route
-            path="/trips/:tripId/itinerary"
-            element={
-              <WithSession>
-                <TripDetail />
-              </WithSession>
-            }
-          />
-          <Route
-            path="/trips/:tripId/command"
-            element={
-              <WithSession>
-                <CommandTab />
-              </WithSession>
-            }
-          />
-          <Route
-            path="/trips/:tripId/budget"
-            element={
-              <WithSession>
-                <BudgetHub />
-              </WithSession>
-            }
-          />
-          <Route
-            path="/trips/:tripId/documents"
-            element={
-              <WithSession>
-                <DocumentWallet />
-              </WithSession>
-            }
-          />
-          <Route
-            path="/trips/:tripId/packing"
-            element={
-              <WithSession>
-                <PackingList />
-              </WithSession>
-            }
-          />
-          <Route
-            path="/join/:token"
-            element={
-              <WithSession>
-                <JoinTrip />
-              </WithSession>
-            }
-          />
-        </Routes>
-      </BrowserRouter>
+      <MotionConfig reducedMotion="user">
+        <BrowserRouter>
+          <Routes>
+            <Route
+              path="/"
+              element={
+                <WithSession>
+                  <Dashboard />
+                </WithSession>
+              }
+            />
+            <Route
+              path="/trips/:tripId"
+              element={
+                <WithSession>
+                  <TripDashboard />
+                </WithSession>
+              }
+            />
+            <Route
+              path="/trips/:tripId/itinerary"
+              element={
+                <WithSession>
+                  <TripDetail />
+                </WithSession>
+              }
+            />
+            <Route
+              path="/trips/:tripId/command"
+              element={
+                <WithSession>
+                  <CommandTab />
+                </WithSession>
+              }
+            />
+            <Route
+              path="/trips/:tripId/budget"
+              element={
+                <WithSession>
+                  <BudgetHub />
+                </WithSession>
+              }
+            />
+            <Route
+              path="/trips/:tripId/documents"
+              element={
+                <WithSession>
+                  <DocumentWallet />
+                </WithSession>
+              }
+            />
+            <Route
+              path="/trips/:tripId/packing"
+              element={
+                <WithSession>
+                  <PackingList />
+                </WithSession>
+              }
+            />
+            <Route
+              path="/join/:token"
+              element={
+                <WithSession>
+                  <JoinTrip />
+                </WithSession>
+              }
+            />
+          </Routes>
+        </BrowserRouter>
+      </MotionConfig>
     </ErrorBoundary>
   )
 }
